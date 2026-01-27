@@ -21,9 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Agent.Application\Agent.Application.csproj" />
-    <ProjectReference Include="..\Agent.Domain\Agent.Domain.csproj" />
-    <ProjectReference Include="..\Agent.Infrastructure\Agent.Infrastructure.csproj" />
+    <ProjectReference Include="..\Agent.Application\AIChatbot.Application.csproj" />
+    <ProjectReference Include="..\Agent.Domain\AIChatbot.Domain.csproj" />
+    <ProjectReference Include="..\Agent.Infrastructure\AIChatbot.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

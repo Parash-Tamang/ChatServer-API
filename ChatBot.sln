@@ -5,13 +5,13 @@ VisualStudioVersion = 17.14.36414.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatBot", "ChatBot\ChatBot.csproj", "{F63A7F80-FEC3-487D-869D-818C3A610C34}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agent.Application", "Agent.Application\Agent.Application.csproj", "{A37235F9-25E4-E24C-C6F1-54D03AB2BC4E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIChatbot.Application", "Agent.Application\AIChatbot.Application.csproj", "{A37235F9-25E4-E24C-C6F1-54D03AB2BC4E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agent.Domain", "Agent.Domain\Agent.Domain.csproj", "{D33F3281-C3F8-39B6-C7E5-47AF11A95BCA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIChatbot.Domain", "Agent.Domain\AIChatbot.Domain.csproj", "{D33F3281-C3F8-39B6-C7E5-47AF11A95BCA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agent.API", "Agent.API\Agent.API.csproj", "{835F283B-9AE7-48D6-AA37-10DB5BD22B46}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIChatbot.API", "Agent.API\AIChatbot.API.csproj", "{835F283B-9AE7-48D6-AA37-10DB5BD22B46}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agent.Infrastructure", "Agent.Infrastructure\Agent.Infrastructure.csproj", "{87FF2DA4-C8B1-95C7-3B2E-3BA8888B867B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIChatbot.Infrastructure", "Agent.Infrastructure\AIChatbot.Infrastructure.csproj", "{87FF2DA4-C8B1-95C7-3B2E-3BA8888B867B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Frontend", "Frontend\Frontend.csproj", "{4F3B4D99-0C18-4DCD-BA50-A62D8754E659}"
 EndProject
