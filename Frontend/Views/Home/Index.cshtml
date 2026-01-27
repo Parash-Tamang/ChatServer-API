@@ -1,0 +1,17 @@
+﻿@{
+    ViewData["Title"] = "TalkToDB Engine";
+    Layout = "_Layout";
+}
+
+<div id="chat-viewport"></div>
+
+<div class="input-area">
+    <div class="input-pill">
+        <textarea id="user-input" placeholder="Ask anything..."></textarea>
+        <button id="btn-send" disabled>➤</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/talktodb.js"></script>
+}

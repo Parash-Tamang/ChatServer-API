@@ -1,0 +1,33 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/toastr/toastr.min.css" />
+</head>
+<body class="overflow-hidden bg-light">
+    <div class="container d-flex justify-content-center align-items-center vh-100">
+        <main role="main" class="pb-3 d-flex flex-column justify-content-center align-items-center w-100 w-md-75 w-lg-50">
+                @RenderBody()
+            </main>
+        </div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/toastr/toastr.min.js"></script>
+
+    <script src="/js/config/env.js" asp-append-version="true"></script>
+    <!-- Auth core -->
+    <script src="/js/auth/auth.state.js" asp-append-version="true"></script>
+    <script src="/js/auth/auth.service.js" asp-append-version="true"></script>
+     <script src="/js/silent-auth.js" asp-append-version="true"></script> 
+
+    <!-- Silent auth must run BEFORE interceptor -->
+
+<script src="~/js/toastr-config.js" asp-append-version="true"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

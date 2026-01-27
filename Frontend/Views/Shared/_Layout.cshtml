@@ -1,0 +1,58 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/css/talktodb.css" />
+</head>
+<body>
+
+    <div class="modal-overlay" id="user-modal">
+        <div class="modal-box">
+            <h2 style="margin-bottom:1rem">Personalization</h2>
+            <input type="text" id="input-name" class="text-input" placeholder="Name">
+            <textarea id="input-details" class="text-input" style="height:100px" placeholder="Details..."></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:10px">
+                <button class="icon-btn" id="cancel-settings">Cancel</button>
+                <button class="profile-avatar" id="save-settings" style="width:auto; padding:0 20px; border-radius:8px">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">TalkToDB</div>
+        </div>
+        <div class="nav-item active" id="btn-new-chat">New Chat</div>
+        <div class="history-section">
+            <div class="history-label">Recent</div>
+            <div id="history-container"></div>
+        </div>
+    </aside>
+
+    <main>   
+        @RenderBody()
+    </main>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+
+    <!-- Config -->
+    <script src="~/js/config/env.js"></script>
+
+    <!-- Auth core -->
+    <script src="/js/auth/auth.state.js"></script>
+
+    <!-- Silent auth must run BEFORE interceptor -->
+    <script src="/js/auth/auth.service.js"></script>
+
+    <script src="/js/auth/auth.interceptor.js"></script>
+
+    <script src="~/js/auth/guard.Dashboard.js" asp-append-version="true"></script>
+
+    <script src="~/js/talktodb.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

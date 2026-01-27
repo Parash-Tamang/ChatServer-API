@@ -1,0 +1,53 @@
+﻿@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Register";
+}
+
+<h3 class="mx-auto text-center mb-3 fs-3" style="font-family: serif;">Create Account</h3>
+<div class="login bg-secondary p-5 rounded-4 mx-auto " style=" width:100%;max-width:450px;box-shadow: rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px;">
+    <form id="registerForm" autocomplete="off">
+        <div class="row">
+            <div class="mb-3 col-12 col-md-6">
+                <label style="font-size:14px;">First Name</label>
+                <input id="firstName" type="text"
+                       class="form-control shadow-none border border-1" required />
+            </div>
+
+            <div class="mb-3 col-12 col-md-6">
+                <label style="font-size:14px;" >Last Name</label>
+                <input id="lastName" type="text"
+                       class="form-control shadow-none border border-1" required />
+            </div>
+        </div>
+
+    <div class="mb-3">
+            <label for="email" style="font-size:14px; " class=" mb-2">Email address</label>
+        <input id="email" type="email" class="form-control shadow-none border border-1 " required />
+    </div>
+        <div class="mb-3">
+            <label for="phone" style="font-size:14px;" class="mb-2">Phone</label>
+            <input id="phone" placeholder="Optional" type="text" class="form-control shadow-none  border border-1"/>
+        </div>
+    <div class="mb-3">
+            <label for="password" style="font-size:14px;" class=" mb-2">Password</label>
+        <input id="password" type="password" class="form-control shadow-none  border border-1" required />
+    </div>
+        <div class="mb-3">
+            <label for="confirmPassword" style="font-size:14px;"class=" mb-2">Confirm Password</label>
+            <input id="confirmPassword" type="password" class="form-control shadow-none  border border-1" required />
+        </div>
+    <div class="text-danger mb-3" id="errorBox" style="display:none"></div>
+    <button id="registerBtn" class="bg-dark btn btn-primary w-100 p-10 shadow-none border border-0 rounded-pill mt-4">Register Now</button>
+</form>
+</div>
+
+<a href="/Account/Login"
+   class="text-dark text-decoration-none text-center mt-5 d-block">
+    Already have an account?
+    <span class="text-da fw-bold">Sign in</span>
+</a>
+
+@section Scripts {
+    <script src="~/js/register.js" asp-append-version="true"></script>
+}
+
