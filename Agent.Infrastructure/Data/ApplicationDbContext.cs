@@ -2,8 +2,6 @@
 using Agent.Domain.Entities.UserManagement;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Agent.Infrastructure.DependencyInjection;
-//this is a comment
-var a = 1;
 namespace Agent.Infrastructure.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
