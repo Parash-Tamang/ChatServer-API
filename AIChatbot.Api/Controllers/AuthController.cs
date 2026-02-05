@@ -1,7 +1,8 @@
-﻿using AIChatbot.Application.Interfaces;
-using AIChatbot.Api.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using AIChatbot.Api.Models.Auth;
+using AIChatbot.Application.Auth.Commands;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace AIChatbot.Api.Controllers;
@@ -10,80 +11,93 @@ namespace AIChatbot.Api.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly IAuthService _authService;
+    private readonly IMediator _mediator;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IMediator mediator)
     {
-        _authService = authService;
+        _mediator = mediator;
     }
 
+   
+    // Registers a new user
+   
     [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest r)
     {
-        var result = await _authService.RegisterAsync(request.Email, request.Password );
+        var result = await _mediator.Send(
+            new RegisterUserCommand(
+                r.FirstName,
+                r.LastName,
+                r.Email,
+                r.Phone,
+                r.Password));
 
-        if (!result.Success)
-            return BadRequest(result.Error);
-
-        return Ok(new
-        {
-            accessToken = result.AccessToken,
-            refreshToken = result.RefreshToken,
-            expiresIn = result.ExpiresIn
-        });
+        return Ok(result);
     }
 
+
+    /// Authenticates user and returns access & refresh tokens
+   
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest r)
     {
-        var result = await _authService.LoginAsync(request.Email, request.Password);
+        var result = await _mediator.Send(
+            new LoginCommand(r.Email, r.Password));
 
-        if (!result.Success)
-            return Unauthorized(result.Error);
-
-        return Ok(new
-        {
-            accessToken = result.AccessToken,
-            refreshToken = result.RefreshToken,
-            expiresIn = result.ExpiresIn
-        });
+        return Ok(result);
     }
 
+  
+    /// Issues a new access token using refresh token
+   
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest r)
+    {
+        var result = await _mediator.Send(
+            new RefreshTokenCommand(r.RefreshToken));
+
+        return Ok(result);
+    }
+
+  
+    // Logs out the currently authenticated user
+   
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        // SAFER: Try common claim types instead of assuming NameIdentifier exists
+        var userId =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            User.FindFirstValue("sub") ??
+            User.FindFirstValue("userId");
 
-        await _authService.LogoutAsync(userId);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized("Invalid token: user identifier missing.");
 
-        return Ok(new { message = "Logged out successfully" });
+        await _mediator.Send(new LogoutCommand(userId));
+        return NoContent();
     }
 
-    [Authorize]
-    [HttpPost("revoke-all")]
-    public async Task<IActionResult> RevokeAll()
+  
+    //Sends password reset token to user's email
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest r)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-
-        await _authService.RevokeAllAsync(userId);
-
-        return Ok(new { message = "All sessions revoked" });
+        await _mediator.Send(new ForgotPasswordCommand(r.Email));
+        return NoContent();
     }
 
-    [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] string refreshToken)
+ 
+    // Resets user password using reset token
+    
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest r)
     {
-        var result = await _authService.RefreshTokenAsync(refreshToken);
+        await _mediator.Send(
+            new ResetPasswordCommand(r.Email, r.Token, r.NewPassword));
 
-        if (!result.Success)
-            return Unauthorized(result.Error);
-
-        return Ok(new
-        {
-            accessToken = result.AccessToken,
-            refreshToken = result.RefreshToken,
-            expiresIn = result.ExpiresIn
-        });
+        return NoContent();
     }
 }

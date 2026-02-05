@@ -1,11 +1,12 @@
-﻿using System.Data;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-using AIChatbot.Application.DTOs;
-using AIChatbot.Application.Interfaces;
+﻿using AIChatbot.Application.Abstractions;
+using AIChatbot.Domain.Entities;
 using AIChatbot.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace AIChatbot.Infrastructure.Repositories;
+
+
+// EF Core repository for chat sessions and messages
 
 public class ChatSessionRepository : IChatSessionRepository
 {
@@ -16,126 +17,121 @@ public class ChatSessionRepository : IChatSessionRepository
         _context = context;
     }
 
-    // ================================
     // CREATE CHAT SESSION
-    // ================================
+  
     public async Task<Guid> CreateChatSessionAsync(string userId)
     {
-        await using var conn = new SqlConnection(
-            _context.Database.GetConnectionString()
-        );
-        await conn.OpenAsync();
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("UserId is required", nameof(userId));
 
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "CreateChatSession";
-        cmd.CommandType = CommandType.StoredProcedure;
+        var chatSession = new ChatSession
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            CreatedAt = DateTime.UtcNow
+        };
 
-        cmd.Parameters.Add(
-            new SqlParameter("@UserId", SqlDbType.NVarChar, 450) { Value = userId }
-        );
+        _context.ChatSessions.Add(chatSession);
+        await _context.SaveChangesAsync();
 
-        await using var reader = await cmd.ExecuteReaderAsync();
-
-        if (!await reader.ReadAsync())
-            throw new InvalidOperationException("CreateChatSession returned no result");
-
-        var success = reader.GetInt32(0);
-
-        if (success == 0)
-            throw new InvalidOperationException(reader.GetString(1));
-
-        return reader.GetGuid(1);
+        return chatSession.Id;
     }
 
-    // ================================
     // SAVE MESSAGE
-    // ================================
-    public async Task SaveMessageAsync(Guid chatSessionId, string role, string content)
+  
+    public async Task SaveMessageAsync(
+        Guid chatSessionId,
+        string role,
+        string content)
     {
-        await using var conn = new SqlConnection(
-            _context.Database.GetConnectionString()
-        );
-        await conn.OpenAsync();
-
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SaveMessage";
-        cmd.CommandType = CommandType.StoredProcedure;
-
-        cmd.Parameters.Add(new SqlParameter("@ChatSessionId", SqlDbType.UniqueIdentifier)
+        var message = new Message
         {
-            Value = chatSessionId
-        });
-        cmd.Parameters.Add(new SqlParameter("@Role", SqlDbType.NVarChar, 50)
-        {
-            Value = role
-        });
-        cmd.Parameters.Add(new SqlParameter("@Content", SqlDbType.NVarChar)
-        {
-            Value = content
-        });
+            Id = Guid.NewGuid(),
+            ChatSessionId = chatSessionId,
+            Role = role,
+            Content = content,
+            // Explicit timestamp for clarity & consistency
+            
+        };
 
-        await using var reader = await cmd.ExecuteReaderAsync();
-
-        if (!await reader.ReadAsync())
-            throw new InvalidOperationException("SaveMessage returned no result");
-
-        var success = reader.GetInt32(0);
-
-        if (success == 0)
-            throw new InvalidOperationException(reader.GetString(1));
+        _context.Messages.Add(message);
+        await _context.SaveChangesAsync();
     }
 
-    // ================================
+   
     // SECURITY CHECK
-    // ================================
-    public async Task<bool> ChatSessionBelongsToUser(Guid chatSessionId, string userId)
+ 
+    public async Task<bool> ChatSessionBelongsToUser(
+        Guid chatSessionId,
+        string userId)
     {
         return await _context.ChatSessions
             .AsNoTracking()
-            .AnyAsync(x => x.Id == chatSessionId && x.UserId == userId);
+            .AnyAsync(x =>
+                x.Id == chatSessionId &&
+                x.UserId == userId);
     }
 
-    // ================================
-    // LOAD MESSAGES
-    // ================================
-    public async Task<IEnumerable<MessageDto>> GetMessagesAsync(Guid chatSessionId)
+   
+    // LOAD ALL MESSAGES
+  
+    public async Task<IReadOnlyList<Message>> GetMessagesAsync(
+        Guid chatSessionId)
     {
         return await _context.Messages
             .AsNoTracking()
             .Where(m => m.ChatSessionId == chatSessionId)
             .OrderBy(m => m.CreatedAt)
-            .Select(m => new MessageDto
-            {
-                Role = m.Role,
-                Content = m.Content,
-                CreatedAt = m.CreatedAt
-            })
             .ToListAsync();
     }
 
-    // ================================
+   
     // LOAD ALL SESSIONS
-    // ================================
-    public async Task<IEnumerable<ChatSessionDto>> GetAllSessionsAsync(string userId)
+  
+    public async Task<IReadOnlyList<ChatSession>> GetAllSessionsAsync(
+        string userId)
     {
         return await _context.ChatSessions
             .AsNoTracking()
             .Where(c => c.UserId == userId)
             .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new ChatSessionDto
-            {
-                Id = c.Id,
-                CreatedAt = c.CreatedAt
-            })
             .ToListAsync();
     }
 
-    // ================================
+   
+    // LOAD LATEST N MESSAGES
+   
+    public async Task<IReadOnlyList<Message>> GetLatestMessagesAsync(
+        Guid chatSessionId,
+        int count)
+    {
+        return await _context.Messages
+            .AsNoTracking()
+            .Where(m => m.ChatSessionId == chatSessionId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(count)
+            .OrderBy(m => m.CreatedAt) // restore chronological order
+            .ToListAsync();
+    }
+
+   
+    // LOAD SINGLE MESSAGE
+ 
+    public async Task<Message?> GetMessageAsync(Guid messageId)
+    {
+        return await _context.Messages
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == messageId);
+    }
+
+   
     // DELETE SESSION
-    // ================================
+   
     public async Task DeleteChatSessionAsync(Guid chatSessionId)
     {
-        var session = await _context.ChatSessions.FindAsync(chatSessionId);
+        var session = await _context.ChatSessions
+            .FirstOrDefaultAsync(x => x.Id == chatSessionId);
+
         if (session == null)
             return;
 

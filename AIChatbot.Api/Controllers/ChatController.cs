@@ -1,84 +1,143 @@
-﻿using AIChatbot.Application.Interfaces;
-using AIChatbot.Api.Models;   // <-- for ChatRequest
+﻿using AIChatbot.Api.Models.Chat;
+using AIChatbot.Application.Chat.Commands;
+using AIChatbot.Application.Chat.Queries;
+using AIChatbot.Application.Common;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+
 namespace AIChatbot.Api.Controllers;
-
-
 
 [ApiController]
 [Route("api/chat")]
-[Authorize]
+[Authorize] // 🔐 Chat APIs must be authenticated
 public class ChatController : ControllerBase
 {
-    private readonly IChatSessionService _chatService;
+    private readonly IMediator _mediator;
 
-    public ChatController(IChatSessionService chatService)
+    public ChatController(IMediator mediator)
     {
-        _chatService = chatService;
+        _mediator = mediator;
     }
 
-    private string GetUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier)
-               ?? throw new Exception("User not authenticated");
-    }
+    
+    /// Safely resolves authenticated user id from JWT
+  
+    private string? UserId =>
+        User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+        User.FindFirstValue("sub") ??
+        User.FindFirstValue("userId");
 
-    // GET /api/chat
+
+
+
+    // API/CHAT/GETALL { for getting all chat sessions of the user }
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var userId = GetUserId();
-        var sessions = await _chatService.GetAllAsync(userId);
-        return Ok(sessions);
-        
+        if (UserId is null)
+            return Unauthorized();
+
+        return Ok(await _mediator.Send(
+            new GetChatSessionsQuery(UserId)));
     }
 
+
+
+    // API/CHAT/GETMESSAGES { for getting all messages of a specific chat session }
 
     [HttpGet("{chatSessionId:guid}/messages")]
     public async Task<IActionResult> GetMessages(Guid chatSessionId)
     {
-        var userId = GetUserId();
+        if (UserId is null)
+            return Unauthorized();
 
-        var ownsSession = await _chatService
-            .ChatSessionBelongsToUserAsync(chatSessionId, userId);
-
-        if (!ownsSession)
-            return Forbid();
-
-        var messages = await _chatService.GetMessagesAsync(chatSessionId);
-        return Ok(messages);
+        return Ok(await _mediator.Send(
+            new GetChatMessagesQuery(UserId, chatSessionId)));
     }
 
-    // POST /api/chat
-    [HttpPost]
-    public async Task<IActionResult> Send(ChatRequest request)
+
+
+    // API/CHAT/GETLATEST { for getting latest N messages of a specific chat session }
+
+    [HttpGet("{chatSessionId:guid}/messages/latest/{count:int}")]
+    public async Task<IActionResult> GetLatest(Guid chatSessionId, int count)
     {
-        if (string.IsNullOrWhiteSpace(request.Message))
-            return BadRequest("Message cannot be empty");
+        if (UserId is null)
+            return Unauthorized();
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-
-        var result = await _chatService.SendAsync(
-            userId,
-            request.ChatSessionId,
-            request.Message
-        );
-
-        return Ok(new
-        {
-            chatSessionId = result.ChatSessionId,
-            reply = result.Reply
-        });
+        return Ok(await _mediator.Send(
+            new GetLatestChatMessagesQuery(UserId, chatSessionId, count)));
     }
 
+
+
+    // API/CHAT/SEND { for sending a new message to a specific chat session or if  chatsession id == null create new chat session }
+    [HttpPost]
+    public async Task<IActionResult> Send([FromBody] ChatRequest request)
+    {
+        if (UserId is null)
+            return Unauthorized();
+
+        var result = await _mediator.Send(
+            new SendChatMessageCommand(
+                UserId,
+                request.ChatSessionId,
+                request.Message));
+
+        return result.Status switch
+        {
+            ExecutionStatus.Success => Ok(result),
+            ExecutionStatus.PartiallyExecuted => StatusCode(206, result),
+            _ => StatusCode(500, result)
+        };
+    }
+
+
+
+    // API/CHAT/RETRY { for retrying assistant reply to a specific user message }
+    [HttpPost("{chatSessionId:guid}/messages/{messageId:guid}/retry")]
+    public async Task<IActionResult> Retry(Guid chatSessionId, Guid messageId)
+    {
+        if (UserId is null)
+            return Unauthorized();
+
+        var result = await _mediator.Send(
+            new RetryAssistantReplyCommand(UserId, chatSessionId, messageId));
+
+        return result.Status switch
+        {
+            ExecutionStatus.Success => Ok(result),
+            ExecutionStatus.PartiallyExecuted => StatusCode(206, result),
+            _ => StatusCode(500, result)
+        };
+    }
+
+
+    // API/CHAT/DELETE { for deleting a specific chat session }
 
     [HttpDelete("{chatSessionId:guid}")]
-    public async Task<IActionResult> Delete(Guid chatSessionId) // Changed to public
+    public async Task<IActionResult> Delete(Guid chatSessionId)
     {
-        var userId = GetUserId();
-        await _chatService.DeleteAsync(chatSessionId, userId);
+        if (UserId is null)
+            return Unauthorized();
+
+        await _mediator.Send(
+            new DeleteChatSessionCommand(UserId, chatSessionId));
+
         return NoContent();
     }
+
+
+  
+    /// Debug endpoint to inspect JWT claims
+   
+    [HttpGet("whoami")]
+    public IActionResult WhoAmI()
+        => Ok(new
+        {
+            IsAuthenticated = User.Identity?.IsAuthenticated,
+            Claims = User.Claims.Select(c => new { c.Type, c.Value })
+        });
 }

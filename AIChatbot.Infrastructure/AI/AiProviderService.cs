@@ -1,9 +1,12 @@
-﻿using AIChatbot.Application.DTOs;
-using AIChatbot.Application.Interfaces;
+﻿using AIChatbot.Application.Abstractions;
+using AIChatbot.Domain.Entities;
 using System.Net.Http.Json;
 using System.Text;
 
 namespace AIChatbot.Infrastructure.AI;
+
+
+/// AI provider implementation using Ollama local API
 
 public class AiProviderService : IAiProviderService
 {
@@ -14,18 +17,23 @@ public class AiProviderService : IAiProviderService
         _http = http;
     }
 
-    public async Task<string> GetReplyAsync(IEnumerable<MessageDto> context)
+   
+    /// Generates an assistant reply based on conversation context
+   
+    public async Task<string> GetReplyAsync(IEnumerable<Message> context)
     {
+        // Build prompt from conversation history
         var sb = new StringBuilder();
 
         foreach (var msg in context)
         {
-            if (msg.Role == "user")
-                sb.AppendLine($"User: {msg.Content}");
-            else
-                sb.AppendLine($"Assistant: {msg.Content}");
+            sb.AppendLine(
+                msg.Role == "user"
+                    ? $"User: {msg.Content}"
+                    : $"Assistant: {msg.Content}");
         }
 
+        // Instruct the model to continue as assistant
         sb.AppendLine("Assistant:");
 
         var payload = new
@@ -35,29 +43,28 @@ public class AiProviderService : IAiProviderService
             stream = false
         };
 
-        try
-        {
-            var response = await _http.PostAsJsonAsync(
-                "http://localhost:11434/api/generate",
-                payload);
+        // Send request to local Ollama instance
+        var response = await _http.PostAsJsonAsync(
+            "http://localhost:11434/api/generate",
+            payload);
 
-            if (!response.IsSuccessStatusCode)
-                return "AI service is currently unavailable.";
+        // Fail fast on non-success responses
+        response.EnsureSuccessStatusCode();
 
-            var result =
-                await response.Content.ReadFromJsonAsync<OllamaResponse>();
+        var result =
+            await response.Content.ReadFromJsonAsync<OllamaResponse>();
 
-            return result?.response ?? "No response from model.";
-        }
-        catch (Exception)
-        {
-            // Prevent ER500
-            return "AI service failed to respond.";
-        }
+        if (string.IsNullOrWhiteSpace(result?.Response))
+            throw new InvalidOperationException("Empty AI response");
+
+        return result.Response;
     }
 
+    
+    /// Minimal response contract from Ollama API
+   
     private sealed class OllamaResponse
     {
-        public string response { get; set; } = string.Empty;
+        public string Response { get; set; } = string.Empty;
     }
 }
