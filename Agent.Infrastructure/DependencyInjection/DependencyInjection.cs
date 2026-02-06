@@ -32,24 +32,25 @@ public static class DependencyInjection
             options.Password.RequireUppercase = true;
             options.Password.RequireLowercase = true;
             options.Password.RequireDigit = true;
-            options.Password.RequireNonAlphanumeric = true; // special character
+            options.Password.RequireNonAlphanumeric = true;
             options.Password.RequiredUniqueChars = 1;
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 
-        // 3. Read JWT settings from appsettings.json
+        // 3. Read JWT settings
         var jwtSettings = new JwtSettings();
         config.Bind(nameof(JwtSettings), jwtSettings);
         services.AddSingleton(jwtSettings);
 
-        // 4. Register JWT Authentication Scheme
+        // 4. JWT Authentication
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        }).AddJwtBearer(options =>
+        })
+        .AddJwtBearer(options =>
         {
             var key = Encoding.UTF8.GetBytes(jwtSettings.Key);
 
@@ -69,61 +70,73 @@ public static class DependencyInjection
                 ClockSkew = TimeSpan.Zero
             };
 
-            // ✅ CUSTOM AUTH RESPONSES
             options.Events = new JwtBearerEvents
             {
-                // ❌ Token invalid / expired
-                OnAuthenticationFailed = context =>
+                OnAuthenticationFailed = async context =>
                 {
+                    // ⚠️ Must set NoResult() to prevent default response
                     context.NoResult();
-                    context.Response.StatusCode = 401;
-                    context.Response.ContentType = "application/json";
 
-                    var response = new
+                    // ⚠️ Check if response hasn't started
+                    if (!context.Response.HasStarted)
                     {
-                        success = false,
-                        error = context.Exception is SecurityTokenExpiredException
-                            ? "TOKEN_EXPIRED"
-                            : "TOKEN_INVALID",
-                        message = context.Exception is SecurityTokenExpiredException
-                            ? "Access token expired"
-                            : "Invalid access token"
-                    };
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
 
-                    return context.Response.WriteAsJsonAsync(response);
+                        var response = new
+                        {
+                            success = false,
+                            error = context.Exception is SecurityTokenExpiredException
+                                ? "TOKEN_EXPIRED"
+                                : "TOKEN_INVALID",
+                            message = context.Exception is SecurityTokenExpiredException
+                                ? "Access token expired"
+                                : "Invalid access token"
+                        };
+
+                        await context.Response.WriteAsJsonAsync(response);
+                    }
                 },
 
-                // ❌ Token missing
-                OnChallenge = context =>
+                OnChallenge = async context =>
                 {
-                    context.HandleResponse(); // VERY IMPORTANT
-                    context.Response.StatusCode = 401;
-                    context.Response.ContentType = "application/json";
+                    // ✅ CRITICAL: Must call this FIRST to prevent default response
+                    context.HandleResponse();
 
-                    var response = new
+                    // ⚠️ Check if response hasn't started
+                    if (!context.Response.HasStarted)
                     {
-                        success = false,
-                        error = "TOKEN_MISSING",
-                        message = "Access token is missing"
-                    };
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
 
-                    return context.Response.WriteAsJsonAsync(response);
+                        var response = new
+                        {
+                            success = false,
+                            error = "TOKEN_MISSING",
+                            message = "Access token is missing"
+                        };
+
+                        await context.Response.WriteAsJsonAsync(response);
+                    }
                 },
 
-                // ❌ Authenticated but not authorized (roles)
-                OnForbidden = context =>
+                OnForbidden = async context =>
                 {
-                    context.Response.StatusCode = 403;
-                    context.Response.ContentType = "application/json";
-
-                    var response = new
+                    // ⚠️ Check if response hasn't started
+                    if (!context.Response.HasStarted)
                     {
-                        success = false,
-                        error = "FORBIDDEN",
-                        message = "You do not have permission to access this resource"
-                    };
+                        context.Response.StatusCode = 403;
+                        context.Response.ContentType = "application/json";
 
-                    return context.Response.WriteAsJsonAsync(response);
+                        var response = new
+                        {
+                            success = false,
+                            error = "FORBIDDEN",
+                            message = "You do not have permission to access this resource"
+                        };
+
+                        await context.Response.WriteAsJsonAsync(response);
+                    }
                 }
             };
         });
@@ -132,9 +145,9 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IChatSessionService, ChatSessionService>();
         services.AddScoped<IChatMessageService, ChatMessageService>();
-        services.AddScoped<IAgentService, AgentService>();
+        services.AddHttpClient<IAgentService, AgentService>();
         services.AddScoped<ISchoolService, SchoolService>();
-    
+
         return services;
     }
 }

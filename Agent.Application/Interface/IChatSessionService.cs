@@ -1,10 +1,11 @@
-﻿using Agent.Domain.Entities.UserManagement;
+﻿using Agent.Application.Dto.UserManagement;
+using Agent.Domain.Entities.UserManagement;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Agent.Application.Dto.UserManagement;
 namespace Agent.Application.Interface
 {
     public interface IChatSessionService
@@ -16,5 +17,6 @@ namespace Agent.Application.Interface
 
         Task<SessionTitleResponseDto> GetUserSessionsAsync(string userId);
 
+        Task<List<UserMessageResponseDto>> GetLastChatMessagesAsync(string sessionId);
     }
 }

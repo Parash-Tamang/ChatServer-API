@@ -65,22 +65,62 @@ namespace Agent.Infrastructure.Services
             return messages;
         }
 
+        //public async Task<SessionTitleResponseDto> GetUserSessionsAsync(string userId)
+        //{
+        //    var sessions = await _DbContext.UserSessions
+        //.Where(s => s.UserId == userId)
+        //.Select(s => new ChatResponseDto
+        //{
+        //    SessionId = s.SessionId.ToString(),
+        //    SessionTitle = s.Title
+        //})
+        //.ToListAsync();
+
+        //    return new SessionTitleResponseDto
+        //    {
+        //        sessionTitleList = sessions
+        //    };
+        //}
+
         public async Task<SessionTitleResponseDto> GetUserSessionsAsync(string userId)
         {
             var sessions = await _DbContext.UserSessions
-        .Where(s => s.UserId == userId)
-        .Select(s => new ChatResponseDto
-        {
-            SessionId = s.SessionId.ToString(),
-            SessionTitle = s.Title
-        })
-        .ToListAsync();
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.CreatedAt) // ✅ Sort newest first at database level
+                .Select(s => new ChatResponseDto
+                {
+                    SessionId = s.SessionId.ToString(),
+                    SessionTitle = s.Title,
+                    CreatedAt = s.CreatedAt // ✅ Include timestamp for client-side display
+                })
+                .ToListAsync();
 
             return new SessionTitleResponseDto
             {
                 sessionTitleList = sessions
             };
         }
+
+        public async Task<List<UserMessageResponseDto>> GetLastChatMessagesAsync(string sessionId)
+        {
+            var messages = await _DbContext.UserMessages
+                .Where(m => m.SessionId == sessionId)
+                .OrderByDescending(m => m.CreatedAt)   // newest first
+                .Take(5)                              // last 5 only
+                .OrderBy(m => m.CreatedAt)             // reorder oldest → newest
+                .Select(m => new UserMessageResponseDto
+                {
+                    MessageId = m.MessageId.ToString(),
+                    SessionId = m.SessionId.ToString(),
+                    SenderType = m.SenderType,
+                    MessageText = m.MessageText,
+                    CreatedAt = m.CreatedAt
+                })
+                .ToListAsync();
+
+            return messages;
+        }
+
     }
 }
 

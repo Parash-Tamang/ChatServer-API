@@ -49,10 +49,11 @@
     <script src="/js/auth/auth.service.js"></script>
 
     <script src="/js/auth/auth.interceptor.js"></script>
+    <!-- Add this in _Layout.cshtml -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    @* <script src="~/js/auth/guard.Dashboard.js" asp-append-version="true"></script> *@
 
-    <script src="~/js/auth/guard.Dashboard.js" asp-append-version="true"></script>
-
-    <script src="~/js/talktodb.js"></script>
+    <script src="~/js/talktodb.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

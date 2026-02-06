@@ -25,6 +25,8 @@ namespace Agent.Application.ChatMediator.Handler
         {
             SessionTitleResponseDto data = await _chatSessionService.GetUserSessionsAsync(request.userId);
 
+
+
             if(data.sessionTitleList == null || !data.sessionTitleList.Any())
             {
                 return ApiResult<SessionTitleResponseDto>.Ok(data, "No sessions found.");

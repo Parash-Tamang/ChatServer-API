@@ -9,7 +9,12 @@ namespace Agent.Application.Dto.UserManagement
         public string SessionId { get; set; }
 
         public string SessionTitle { get; set; }
+
+        public DateTime CreatedAt { get; set; }
         public UserMessageResponseDto? AssistantMessage { get; set; }
+
+        public List<ColumnMetaDto> Columns { get; set; }
+        public List<List<object>> Rows { get; set; }
     }
 }
 

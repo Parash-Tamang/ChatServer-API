@@ -7,7 +7,7 @@ namespace Agent.Application.Interface
         Task<UserMessageResponseDto> SendDataAgentAsync (UserMessageRequestDto userMessageRequestDto);
         Task<SQLQueryResponseDto> ExecuteSQlQueryAsync(SQLQueryReceivedDto sqlQueryDto);
 
-        string GenerateAsync(string request);
+        Task<AgentResponseDto?> GenerateAsync(string request, List<UserMessageResponseDto> lastMessages);
 
     }
 }

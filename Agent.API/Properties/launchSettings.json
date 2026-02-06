@@ -35,7 +35,11 @@
       "launchUrl": "swagger",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+      },
+      "FlaskApi": {
+          "BaseUrl": "http://localhost:5000"
+        }
+
     }
   }
 }

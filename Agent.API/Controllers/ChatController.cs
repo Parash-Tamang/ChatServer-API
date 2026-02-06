@@ -51,6 +51,7 @@ namespace Agent.API.Controllers
         }
 
         [HttpPost("chat")]
+
         public async Task<IActionResult> SendChatMessage(ChatRequestDto chatRequestDto)
         {
             var validationResult = await _chatRequestValidate.ValidateAsync(chatRequestDto);
@@ -77,6 +78,7 @@ namespace Agent.API.Controllers
         }
 
         [HttpGet("message/{sessionId}")]
+
         public async Task<IActionResult> SendAllMessage(string sessionId)
         {
             var validationResult = await _chatSessionIdValidate.ValidateAsync(sessionId);

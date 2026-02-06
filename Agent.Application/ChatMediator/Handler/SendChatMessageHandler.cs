@@ -61,18 +61,20 @@ namespace Agent.Application.ChatMediator.Handler
               SessionId = sessionId,
             });
 
-            // Generate reply
-            var reply = _agentService.GenerateAsync(sessionId);
+            var lastMessages = await _chatSessionService.GetLastChatMessagesAsync(sessionId);
 
-            if (string.IsNullOrWhiteSpace(reply))
+            // Generate reply
+            var agentResponse = await _agentService.GenerateAsync(request.chatRequestDto.message,lastMessages);
+
+            if (agentResponse == null || !agentResponse.success)
             {
-                return ApiResult<ChatResponseDto>.Fail(
-                    "Failed to generate a response. Please try again."
-                );
+                return ApiResult<ChatResponseDto>.Fail("Failed to generate response.");
             }
 
+            var reply = agentResponse.message;
+
             // Save assistant message
-            await _chatMessageService.StoreChatMessageAsync(new UserMessageRequestDto
+            UserMessage message = await _chatMessageService.StoreChatMessageAsync(new UserMessageRequestDto
             {
                 MessageText = reply,
                 SenderType = "assistant",
@@ -85,10 +87,15 @@ namespace Agent.Application.ChatMediator.Handler
                 SessionTitle = title,
                 AssistantMessage = new UserMessageResponseDto
                 {
-                    SessionId = sessionId,
-                    MessageText = reply,
-                    SenderType = "assistant"
-    }
+                    MessageId = message.MessageId,
+                    SessionId = message.SessionId,
+                    MessageText = message.MessageText,
+                    SenderType = message.SenderType,
+                    CreatedAt = message.CreatedAt
+                    
+    },
+                    Columns = agentResponse.columns,
+                    Rows = agentResponse.rows
             };
             return ApiResult<ChatResponseDto>.Ok(data,"Message send successfully");
         }

@@ -19,9 +19,9 @@ namespace Agent.Infrastructure.Services
             _DbContext = DbContext;
         }
         
-        public async Task StoreChatMessageAsync(UserMessageRequestDto userMessageRequestDto)
+        public async Task<UserMessage> StoreChatMessageAsync(UserMessageRequestDto userMessageRequestDto)
         {
-            var message = new UserMessage 
+            UserMessage message = new UserMessage 
             { 
                 SessionId = userMessageRequestDto.SessionId, 
                 MessageText = userMessageRequestDto.MessageText,
@@ -30,6 +30,8 @@ namespace Agent.Infrastructure.Services
 
             await _DbContext.UserMessages.AddAsync(message);
             await _DbContext.SaveChangesAsync();
+
+            return message;
            
         }
     }
