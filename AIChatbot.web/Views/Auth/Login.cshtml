@@ -1,0 +1,48 @@
+﻿@{
+    Layout = "_Layout";
+    ViewData["FullPage"] = true;
+}
+
+<div class="auth-page">
+
+    <div class="auth-card">
+
+        <div class="text-center mb-3">
+            <i class="bi bi-robot" style="font-size:32px;"></i>
+        </div>
+
+        <div class="auth-title">Welcome back</div>
+
+        <div id="loginError" class="error" style="display:none;"></div>
+
+        <!-- EMAIL -->
+        <input id="email"
+               class="input"
+               type="email"
+               placeholder="Email"
+               autocomplete="username" />
+        <small class="error" id="loginEmailErr"></small>
+
+        <!-- PASSWORD -->
+        <input id="password"
+               class="input"
+               type="password"
+               placeholder="Password"
+               autocomplete="current-password" />
+        <small class="error" id="loginPassErr"></small>
+
+        <!-- LOGIN BUTTON -->
+        <button class="auth-btn" onclick="loginUser()">
+            Login
+        </button>
+
+        <div class="auth-link">
+            New user?
+            <a href="/Auth/Register">Create account</a>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="~/js/auth.js"></script>

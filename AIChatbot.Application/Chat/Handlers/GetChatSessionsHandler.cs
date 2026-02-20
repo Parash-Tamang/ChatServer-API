@@ -5,9 +5,6 @@ using MediatR;
 
 namespace AIChatbot.Application.Chat.Handlers;
 
-
-/// Retrieves all chat sessions for a user
-
 public class GetChatSessionsHandler
     : IRequestHandler<GetChatSessionsQuery, IReadOnlyList<ChatSessionSummaryResult>>
 {
@@ -22,14 +19,15 @@ public class GetChatSessionsHandler
         GetChatSessionsQuery request,
         CancellationToken cancellationToken)
     {
-        var sessions = await _repo.GetAllSessionsAsync(request.UserId);
+        var sessions = await _repo.GetAllSessionsWithTopicAsync(request.UserId);
 
-        return sessions
-            .Select(s => new ChatSessionSummaryResult
-            {
-                Id = s.Id,
-                CreatedAt = s.CreatedAt
-            })
-            .ToList();
+        return sessions.Select(s => new ChatSessionSummaryResult
+        {
+            Id = s.Id,
+            CreatedAt = s.CreatedAt,
+            TopicName = string.IsNullOrWhiteSpace(s.Topic)
+                ? "New Chat"
+                : s.Topic
+        }).ToList();
     }
 }

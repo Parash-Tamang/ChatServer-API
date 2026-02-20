@@ -1,4 +1,5 @@
-﻿using AIChatbot.Domain.Entities;
+﻿using AIChatbot.Application.Common;
+using AIChatbot.Domain.Entities;
 
 namespace AIChatbot.Application.Abstractions;
 
@@ -8,8 +9,9 @@ namespace AIChatbot.Application.Abstractions;
 
 public interface IAiProviderService
 {
-   
+
     /// Generates an AI reply based on conversation context
-  
-    Task<string> GetReplyAsync(IEnumerable<Message> context);
+
+    Task<LlmResponse> GetReplyAsync(string query, IEnumerable<Message> history);
 }
+

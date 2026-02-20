@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Security.Claims;
 using System.Text;
 
@@ -29,7 +30,16 @@ builder.Services.AddSwaggerGen(c =>
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT"
+
     });
+  
+        c.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "AI Core Platform API",
+            Version = "v1"
+        });
+ 
+
 
     c.AddSecurityRequirement(new()
     {
@@ -128,7 +138,20 @@ builder.Services.AddAuthorization();
 // -------------------- Dependency Injection --------------------
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
-builder.Services.AddHttpClient<IAiProviderService, AiProviderService>();
+//builder.Services.AddHttpClient<IAiProviderService, AiProviderService>();
+builder.Services.AddHttpClient<IAiProviderService, AiProviderService>(client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5000/");
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+
+//builder.Services.AddHttpClient<IAiProviderService, ResponseProvider>();
+// add for testing without Flask
+builder.Services.AddScoped<IResponseMetadataRepository, ResponseMetadataRepository>();
+
+builder.Services.AddScoped<IChatSessionNamingRepository, ChatSessionNamingRepository>();
+
+
 
 var app = builder.Build();
 
@@ -153,5 +176,15 @@ app.MapControllers();
 
 // Health check
 app.MapGet("/ping", () => "pong");
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+    await RoleSeeder.SeedRolesAsync(roleManager);
+    await SuperAdminSeeder.SeedSuperAdminAsync(userManager, roleManager, config);
+}
 
 app.Run();

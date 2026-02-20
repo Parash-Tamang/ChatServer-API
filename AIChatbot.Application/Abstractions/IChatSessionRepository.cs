@@ -16,17 +16,15 @@ public interface IChatSessionRepository
    
     Task<Guid> CreateChatSessionAsync(string userId);
 
-    
-    /// Persists a chat message
-   
-    Task SaveMessageAsync(
-        Guid chatSessionId,
-        string role,
-        string content);
 
-    
+    /// Persists a chat message
+
+    Task<Guid> SaveMessageAsync(Guid chatSessionId, string role, string content);
+
+
+
     /// Checks whether a chat session belongs to the user
-    
+
     Task<bool> ChatSessionBelongsToUser(
         Guid chatSessionId,
         string userId);
@@ -50,9 +48,15 @@ public interface IChatSessionRepository
         Guid chatSessionId,
         int count);
 
-   
+
     /// Deletes a chat session and its messages
-  
+
     Task DeleteChatSessionAsync(
         Guid chatSessionId);
+
+    Task<string?> GetSessionTopicAsync(Guid chatSessionId);
+
+    Task<IReadOnlyList<(Guid Id, DateTime CreatedAt, string? Topic)>>
+    GetAllSessionsWithTopicAsync(string userId);
+
 }

@@ -16,11 +16,16 @@ public class LoginHandler
     }
 
     public async Task<AuthResult> Handle(
-        LoginCommand request,
-        CancellationToken cancellationToken)
+    LoginCommand request,
+    CancellationToken cancellationToken)
     {
-        return await _auth.LoginAsync(
+        var result = await _auth.LoginAsync(
             request.Email,
             request.Password);
+
+        if (!result.Success)
+            throw new UnauthorizedAccessException(result.Error ?? "Invalid credentials");
+
+        return result;
     }
 }

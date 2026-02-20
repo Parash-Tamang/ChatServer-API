@@ -31,9 +31,13 @@ public interface IAuthService
    
     Task LogoutAsync(string userId);
 
-   
+    /// Get user Details
+
+    Task<UserProfileResult> GetProfileAsync(string userId);
+
+
     /// Initiates forgot-password flow
-   
+
     Task ForgotPasswordAsync(string email);
 
    
@@ -45,4 +49,6 @@ public interface IAuthService
     /// Revokes all tokens/sessions for the given user
   
     Task RevokeAllAsync(string userId);
+    
+
 }

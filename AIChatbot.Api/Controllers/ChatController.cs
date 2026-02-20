@@ -10,7 +10,7 @@ using System.Security.Claims;
 namespace AIChatbot.Api.Controllers;
 
 [ApiController]
-[Route("api/chat")]
+[Route("api/chat/V1/Conversation-engine")]
 [Authorize] // 🔐 Chat APIs must be authenticated
 public class ChatController : ControllerBase
 {
@@ -33,7 +33,7 @@ public class ChatController : ControllerBase
 
 
     // API/CHAT/GETALL { for getting all chat sessions of the user }
-    [HttpGet]
+    [HttpGet ("Get/ChatSessions")]
     public async Task<IActionResult> GetAll()
     {
         if (UserId is null)
@@ -61,20 +61,20 @@ public class ChatController : ControllerBase
 
     // API/CHAT/GETLATEST { for getting latest N messages of a specific chat session }
 
-    [HttpGet("{chatSessionId:guid}/messages/latest/{count:int}")]
-    public async Task<IActionResult> GetLatest(Guid chatSessionId, int count)
-    {
-        if (UserId is null)
-            return Unauthorized();
+    //[HttpGet("{chatSessionId:guid}/messages/latest/{count:int}")]
+    //public async Task<IActionResult> GetLatest(Guid chatSessionId, int count)
+    //{
+    //    if (UserId is null)
+    //        return Unauthorized();
 
-        return Ok(await _mediator.Send(
-            new GetLatestChatMessagesQuery(UserId, chatSessionId, count)));
-    }
+    //    return Ok(await _mediator.Send(
+    //        new GetLatestChatMessagesQuery(UserId, chatSessionId, count)));
+    //}
 
 
 
     // API/CHAT/SEND { for sending a new message to a specific chat session or if  chatsession id == null create new chat session }
-    [HttpPost]
+    [HttpPost ("Push-Query/Session!")]
     public async Task<IActionResult> Send([FromBody] ChatRequest request)
     {
         if (UserId is null)
@@ -117,7 +117,7 @@ public class ChatController : ControllerBase
 
     // API/CHAT/DELETE { for deleting a specific chat session }
 
-    [HttpDelete("{chatSessionId:guid}")]
+    [HttpDelete("{chatSessionId:guid}/Delete")]
     public async Task<IActionResult> Delete(Guid chatSessionId)
     {
         if (UserId is null)

@@ -38,29 +38,78 @@ public class ChatSessionRepository : IChatSessionRepository
     }
 
     // SAVE MESSAGE
-  
-    public async Task SaveMessageAsync(
-        Guid chatSessionId,
-        string role,
-        string content)
+    public async Task<Guid> SaveMessageAsync(
+       Guid chatSessionId,
+       string role,
+       string content)
     {
+        if (chatSessionId == Guid.Empty)
+            throw new ArgumentException("ChatSessionId cannot be empty");
+
+        if (string.IsNullOrWhiteSpace(role))
+            throw new ArgumentException("Role is required");
+
+        content ??= string.Empty;
+
         var message = new Message
         {
             Id = Guid.NewGuid(),
             ChatSessionId = chatSessionId,
-            Role = role,
-            Content = content,
-            // Explicit timestamp for clarity & consistency
-            
+            Role = role.Trim().ToLower(),   // normalize
+            Content = content.Trim(),
+            CreatedAt = DateTime.UtcNow     // 🔥 IMPORTANT
         };
 
         _context.Messages.Add(message);
         await _context.SaveChangesAsync();
+
+        return message.Id;
     }
 
-   
+    // get header of session 
+    public async Task<string?> GetSessionTopicAsync(Guid chatSessionId)
+    {
+        var topic = await _context.ChatSessionNaming
+            .AsNoTracking()
+            .Where(x => x.ChatSessionId == chatSessionId)
+            .Select(x => x.TopicName)
+            .FirstOrDefaultAsync();
+
+        return topic;
+    }
+
+    public async Task<IReadOnlyList<(Guid Id, DateTime CreatedAt, string? Topic)>>
+      GetAllSessionsWithTopicAsync(string userId)
+
+    {
+        var result = await
+            (from s in _context.ChatSessions.AsNoTracking()
+             where s.UserId == userId
+             join n in _context.ChatSessionNaming.AsNoTracking()
+                on s.Id equals n.ChatSessionId into naming
+             from n in naming.DefaultIfEmpty()
+             orderby s.CreatedAt descending
+             select new
+             {
+                 s.Id,
+                 s.CreatedAt,
+                 Topic = n.TopicName
+             })
+             .ToListAsync();
+
+        return result
+      .Select(x => (
+          x.Id,
+          x.CreatedAt,
+          (string?)x.Topic   // 🔥 fix nullable
+      ))
+      .ToList();
+    }
+
+
+
     // SECURITY CHECK
- 
+
     public async Task<bool> ChatSessionBelongsToUser(
         Guid chatSessionId,
         string userId)

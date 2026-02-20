@@ -2,13 +2,9 @@
 using AIChatbot.Application.Chat.Commands;
 using AIChatbot.Application.Chat.Results;
 using AIChatbot.Application.Common;
+using AIChatbot.Domain.Entities;
 using MediatR;
-
 namespace AIChatbot.Application.Chat.Handlers;
-
-
-/// Retries AI assistant reply for a specific user message
-
 public class RetryAssistantReplyHandler
     : IRequestHandler<RetryAssistantReplyCommand, ChatCommandResult>
 {
@@ -27,15 +23,15 @@ public class RetryAssistantReplyHandler
         RetryAssistantReplyCommand request,
         CancellationToken cancellationToken)
     {
-        // Security: session must belong to user
-        var ownsSession = await _repo.ChatSessionBelongsToUser(
+        // 🔒 security check
+        var owns = await _repo.ChatSessionBelongsToUser(
             request.ChatSessionId,
             request.UserId);
 
-        if (!ownsSession)
+        if (!owns)
             throw new UnauthorizedAccessException();
 
-        // Load the user message
+        // load message
         var msg = await _repo.GetMessageAsync(request.MessageId);
 
         if (msg == null || msg.Role != "user")
@@ -43,20 +39,24 @@ public class RetryAssistantReplyHandler
 
         try
         {
-            // Generate reply using only this message
-            var reply = await _ai.GetReplyAsync(new[] { msg });
+            // 🟢 load history (last 5)
+            var history = await _repo.GetLatestMessagesAsync(msg.ChatSessionId, 5);
 
-            // ✅ FIX: correct repository call
+            // 🟢 call LLM correctly
+            var llm = await _ai.GetReplyAsync(msg.Content, history);
+
+            // 🟢 save assistant reply
             await _repo.SaveMessageAsync(
                 msg.ChatSessionId,
                 "assistant",
-                reply);
+                llm.Message ?? ""
+            );
 
             return new ChatCommandResult
             {
                 Status = ExecutionStatus.Success,
                 ChatSessionId = msg.ChatSessionId,
-                AssistantReply = reply
+                AssistantReply = llm.Message
             };
         }
         catch

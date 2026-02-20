@@ -9,10 +9,12 @@ public class LoginValidator
     public LoginValidator()
     {
         RuleFor(x => x.Email)
-            .NotEmpty()
-            .EmailAddress();
+    .NotEmpty()
+    .EmailAddress()
+    .WithMessage("Invalid email format");
 
         RuleFor(x => x.Password)
-            .NotEmpty();
+            .NotEmpty()
+            .MinimumLength(6);
     }
 }

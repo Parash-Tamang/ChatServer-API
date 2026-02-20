@@ -54,11 +54,8 @@ public class AuthService : IAuthService
 
         if (!result.Succeeded)
         {
-            return new AuthResult
-            {
-                Success = false,
-                Error = string.Join("; ", result.Errors.Select(e => e.Description))
-            };
+            throw new InvalidOperationException(
+                string.Join("; ", result.Errors.Select(e => e.Description)));
         }
 
         return await IssueAuthResultAsync(user);
@@ -69,14 +66,14 @@ public class AuthService : IAuthService
     {
         var user = await _userManager.FindByEmailAsync(email);
 
-        if (user == null || !await _userManager.CheckPasswordAsync(user, password))
-        {
-            return new AuthResult
-            {
-                Success = false,
-                Error = "Invalid credentials"
-            };
-        }
+        //  SECURITY: do NOT reveal whether email exists
+        if (user == null)
+            throw new UnauthorizedAccessException("Invalid email or password");
+
+        var validPassword = await _userManager.CheckPasswordAsync(user, password);
+
+        if (!validPassword)
+            throw new UnauthorizedAccessException("Invalid email or password");
 
         return await IssueAuthResultAsync(user);
     }
@@ -96,11 +93,7 @@ public class AuthService : IAuthService
             if (storedToken != null)
                 await RevokeAllAsync(storedToken.UserId);
 
-            return new AuthResult
-            {
-                Success = false,
-                Error = "Invalid refresh token"
-            };
+            throw new UnauthorizedAccessException("Invalid refresh token");
         }
 
         // Rotate token
@@ -138,6 +131,23 @@ public class AuthService : IAuthService
         // 🔔 Send token via email/SMS (implementation external)
     }
 
+    //-------------------GetUserdetails----------------
+    public async Task<UserProfileResult> GetProfileAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId)
+                   ?? throw new KeyNotFoundException("User not found");
+
+        return new UserProfileResult
+        {
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email!,
+            Phone = user.PhoneNumber!
+        };
+    }
+
+
+    //-------------------Reset password----------------
     public async Task ResetPasswordAsync(
         string email,
         string token,
@@ -156,7 +166,7 @@ public class AuthService : IAuthService
     // ---------------- TOKEN CORE ----------------
     private async Task<AuthResult> IssueAuthResultAsync(ApplicationUser user)
     {
-        var accessToken = GenerateJwt(user);
+        var accessToken = await GenerateJwt(user);
         var refreshToken = GenerateSecureToken();
 
         var refreshDays =
@@ -182,7 +192,7 @@ public class AuthService : IAuthService
     }
 
     // ---------------- JWT GENERATION ----------------
-    private string GenerateJwt(ApplicationUser user)
+    private async Task<string> GenerateJwt(ApplicationUser user)
     {
         var jwt = _config.GetSection("Jwt");
 
@@ -195,6 +205,12 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
             new Claim(JwtRegisteredClaimNames.Email, user.Email!)
         };
+        var roles = await _userManager.GetRolesAsync(user);
+
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(jwt["Key"]!));

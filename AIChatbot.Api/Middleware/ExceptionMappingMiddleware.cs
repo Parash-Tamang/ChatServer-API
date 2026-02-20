@@ -1,14 +1,9 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Net;
 
 namespace AIChatbot.Api.Middleware;
 
-/// <summary>
-/// Global exception handler middleware
-/// Maps known exceptions to proper HTTP responses
-/// </summary>
 public class ExceptionMappingMiddleware
 {
     private readonly RequestDelegate _next;
@@ -28,20 +23,26 @@ public class ExceptionMappingMiddleware
         {
             await _next(context);
         }
+
+        // 🔴 VALIDATION → 400
         catch (ValidationException ex)
         {
-            // Validation failures (FluentValidation)
-            context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
 
             await context.Response.WriteAsJsonAsync(new
             {
                 error = "Validation failed",
-                details = ex.Errors.Select(e => e.ErrorMessage)
+                details = ex.Errors.Select(e => new
+                {
+                    field = e.PropertyName,
+                    message = e.ErrorMessage
+                })
             });
         }
+
+        // 🔴 NOT FOUND → 404
         catch (KeyNotFoundException ex)
         {
-            // Entity not found or ownership mismatch
             context.Response.StatusCode = StatusCodes.Status404NotFound;
 
             await context.Response.WriteAsJsonAsync(new
@@ -49,9 +50,10 @@ public class ExceptionMappingMiddleware
                 error = ex.Message
             });
         }
+
+        // 🔴 UNAUTHORIZED → 401
         catch (UnauthorizedAccessException ex)
         {
-            // Explicit authorization failures
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 
             await context.Response.WriteAsJsonAsync(new
@@ -59,9 +61,21 @@ public class ExceptionMappingMiddleware
                 error = ex.Message
             });
         }
+
+        // 🔴 CONFLICT → 409
+        catch (InvalidOperationException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = ex.Message
+            });
+        }
+
+        // 🔴 FALLBACK → 500
         catch (Exception ex)
         {
-            // Unexpected failures
             _logger.LogError(ex, "Unhandled exception");
 
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;

@@ -1,0 +1,84 @@
+﻿@{
+    Layout = "_Layout";
+}
+
+<div class="app-body">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+        <!-- Top -->
+        <div class="sidebar-top">
+            <button class="btn btn-dark new-chat-btn" onclick="newChat()">
+                + New Chat
+            </button>
+        </div>
+        <div class="sidebar-top">
+            Chats
+        </div>
+        <!-- Sessions -->
+        <div id="historyList" class="session-list">
+            <!-- loaded dynamically -->
+        </div>
+
+        <!-- Bottom user -->
+        <div class="sidebar-bottom">
+
+            <div id="userName">Loading...</div>
+
+            <div class="dropdown">
+                <i class="bi bi-three-dots-vertical"
+                   data-bs-toggle="dropdown"
+                   style="cursor:pointer;"></i>
+
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="/Settings/Index">
+                            Settings
+                        </a>
+                    </li>
+                   
+                </ul>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CHAT AREA -->
+    <div class="chat-area">
+
+        <!-- Messages -->
+        <div id="messages" class="messages">
+
+            <div id="emptyState" class="text-center mt-5 text-muted">
+                <h5>Start a conversation</h5>
+                <div>Ask anything. The AI is ready.</div>
+            </div>
+
+        </div>
+
+        <!-- INPUT -->
+        <div class="chat-input">
+
+            <div class="input-group">
+
+                <textarea id="messageBox"
+                          class="form-control"
+                          rows="1"
+                          placeholder="Type your message..."
+                          autocomplete="off"></textarea>
+
+                <button class="btn btn-dark" onclick="sendMessage()">
+                    <i class="bi bi-send"></i>
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="~/js/chat.js"></script>

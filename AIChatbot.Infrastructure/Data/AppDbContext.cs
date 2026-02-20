@@ -14,6 +14,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<ResponseMetadata> ResponseMetadata => Set<ResponseMetadata>();
+
+    public DbSet<ChatSessionNaming> ChatSessionNaming => Set<ChatSessionNaming>();
+
+
+
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

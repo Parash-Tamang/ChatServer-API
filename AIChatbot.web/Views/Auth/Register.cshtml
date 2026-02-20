@@ -1,0 +1,70 @@
+﻿@{
+    Layout = "_Layout";
+    ViewData["FullPage"] = true;
+}
+
+<div class="auth-page">
+
+    <div class="auth-card">
+
+        <div class="auth-title">Create account</div>
+
+        <div id="regError" class="error" style="display:none;"></div>
+
+        <!-- FIRST NAME -->
+        <input id="fname" class="input" placeholder="First name" />
+        <small class="error" id="fnameErr"></small>
+
+        <!-- LAST NAME -->
+        <input id="lname" class="input" placeholder="Last name" />
+        <small class="error" id="lnameErr"></small>
+
+        <!-- EMAIL -->
+        <input id="regEmail"
+               class="input"
+               type="text"
+               placeholder="Email" />
+        <small class="error" id="emailErr"></small>
+
+        <!-- PHONE -->
+        <div class="phone-field">
+            <span class="phone-prefix">+91</span>
+            <input id="phone"
+                   class="phone-input"
+                   type="tel"
+                   maxlength="10"
+                   placeholder="Phone number" />
+        </div>
+        <small class="error" id="phoneErr"></small>
+
+        
+
+        <!-- PASSWORD -->
+        <input id="regPass"
+               class="input"
+               type="password"
+               placeholder="Password" />
+        <small class="error" id="passErr"></small>
+
+        <!-- CONFIRM PASSWORD -->
+        <input id="confirmPass"
+               class="input"
+               type="password"
+               placeholder="Confirm password" />
+        <small class="error" id="confirmErr"></small>
+
+        <!-- REGISTER BUTTON -->
+        <button class="btn auth-btn" onclick="registerUser()">
+            Register
+        </button>
+
+        <div class="auth-link">
+            Already have an account?
+            <a href="/Auth/Login">Login</a>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="~/js/auth.js"></script>

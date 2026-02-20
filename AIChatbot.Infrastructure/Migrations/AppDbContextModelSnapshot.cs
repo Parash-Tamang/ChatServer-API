@@ -45,6 +45,30 @@ namespace AIChatbot.Infrastructure.Migrations
                     b.ToTable("ChatSessions");
                 });
 
+            modelBuilder.Entity("AIChatbot.Domain.Entities.ChatSessionNaming", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ChatSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TopicName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ChatSessionNaming");
+                });
+
             modelBuilder.Entity("AIChatbot.Domain.Entities.Message", b =>
                 {
                     b.Property<Guid>("Id")
@@ -101,6 +125,55 @@ namespace AIChatbot.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("AIChatbot.Domain.Entities.ResponseMetadata", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("ClarificationNeeded")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ColumnsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InfoMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Query")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RowsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SqlGenerated")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TokenUsageJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("WasReconstructed")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId");
+
+                    b.ToTable("ResponseMetadata");
                 });
 
             modelBuilder.Entity("AIChatbot.Infrastructure.Identity.ApplicationUser", b =>
@@ -318,6 +391,17 @@ namespace AIChatbot.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ChatSession");
+                });
+
+            modelBuilder.Entity("AIChatbot.Domain.Entities.ResponseMetadata", b =>
+                {
+                    b.HasOne("AIChatbot.Domain.Entities.Message", "Message")
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

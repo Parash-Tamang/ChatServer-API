@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace AIChatbot.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class ChatSessionNamingMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -50,6 +50,21 @@ namespace AIChatbot.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUsers", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ChatSessionNaming",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ChatSessionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    MessageId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TopicName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatSessionNaming", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -208,6 +223,35 @@ namespace AIChatbot.Infrastructure.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "ResponseMetadata",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    MessageId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Success = table.Column<bool>(type: "bit", nullable: false),
+                    Query = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    InfoMessage = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SqlGenerated = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ColumnsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RowsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RowCount = table.Column<int>(type: "int", nullable: false),
+                    WasReconstructed = table.Column<bool>(type: "bit", nullable: false),
+                    ClarificationNeeded = table.Column<bool>(type: "bit", nullable: false),
+                    TokenUsageJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ResponseMetadata", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ResponseMetadata_Messages_MessageId",
+                        column: x => x.MessageId,
+                        principalTable: "Messages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -256,6 +300,11 @@ namespace AIChatbot.Infrastructure.Migrations
                 name: "IX_Messages_ChatSessionId",
                 table: "Messages",
                 column: "ChatSessionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ResponseMetadata_MessageId",
+                table: "ResponseMetadata",
+                column: "MessageId");
         }
 
         /// <inheritdoc />
@@ -277,16 +326,22 @@ namespace AIChatbot.Infrastructure.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "Messages");
+                name: "ChatSessionNaming");
 
             migrationBuilder.DropTable(
                 name: "RefreshTokens");
+
+            migrationBuilder.DropTable(
+                name: "ResponseMetadata");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "Messages");
 
             migrationBuilder.DropTable(
                 name: "ChatSessions");

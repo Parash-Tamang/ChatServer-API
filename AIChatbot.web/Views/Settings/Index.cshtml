@@ -1,0 +1,29 @@
+﻿@{
+    Layout = "_Layout";
+    ViewData["FullPage"] = true;
+}
+
+
+<div class="settings-container">
+
+    <h3>Settings</h3>
+
+    <div class="settings-card">
+
+        <div class="settings-title">User Profile</div>
+
+        <div id="userInfo">
+            Loading...
+        </div>
+
+        <hr />
+
+        <button class="btn btn-danger mt-3" onclick="logout()">
+            Logout
+        </button>
+
+    </div>
+
+</div>
+
+<script src="~/js/settings.js"></script>

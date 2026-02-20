@@ -20,12 +20,19 @@ public class RegisterUserValidator
             .NotEmpty()
             .EmailAddress();
 
+        RuleFor(x => x.Email)
+    .NotEmpty()
+    .EmailAddress()
+    .WithMessage("Invalid email format");
+
         RuleFor(x => x.Phone)
-            .NotEmpty()
-            .MaximumLength(20);
+            .Matches(@"^[6-9]\d{9}$")
+            .WithMessage("Invalid Indian phone number");
 
         RuleFor(x => x.Password)
-            .NotEmpty()
-            .MinimumLength(8);
+            .MinimumLength(8)
+            .Matches("[A-Z]").WithMessage("Password must contain uppercase")
+            .Matches("[a-z]").WithMessage("Password must contain lowercase")
+            .Matches("[0-9]").WithMessage("Password must contain digit");
     }
 }
