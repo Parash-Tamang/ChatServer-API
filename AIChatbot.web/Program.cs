@@ -1,5 +1,6 @@
 using AIChatbot.web.Filters;
 using AIChatbot.web.Services;
+using AIChatbot.web.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,9 +11,10 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
 
-// Custom services
+// Custom services - Register interface
 builder.Services.AddScoped<ApiClient>();
-builder.Services.AddScoped<AuthApiService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IAuthService>(sp => sp.GetRequiredService<AuthService>());
 builder.Services.AddScoped<ChatApiService>();
 builder.Services.AddScoped<TokenService>();
 
