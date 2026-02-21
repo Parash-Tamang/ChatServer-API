@@ -2,6 +2,10 @@
 
 namespace AIChatbot.web.Models.Chat
 {
+    /// <summary>
+    /// Represents a chat session summary returned from API
+    /// Matches ChatSessionSummaryResult from backend
+    /// </summary>
     public class ChatSessionDto
     {
         [JsonPropertyName("id")]

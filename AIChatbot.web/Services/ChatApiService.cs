@@ -1,5 +1,4 @@
-﻿using AIChatbot.web.Models.Chat;
-using System.Text.Json;
+using AIChatbot.web.Models.Chat;
 
 namespace AIChatbot.web.Services
 {
@@ -12,46 +11,50 @@ namespace AIChatbot.web.Services
             _api = api;
         }
 
+        // ? GET /api/chat/V1/Conversation-engine/Get/ChatSessions
         public async Task<List<ChatSessionDto>> GetSessionsAsync()
         {
             var res = await _api.GetAsync("/api/chat/V1/Conversation-engine/Get/ChatSessions");
 
-
             if (!res.IsSuccessStatusCode)
                 return new List<ChatSessionDto>();
 
-            var json = await res.Content.ReadAsStringAsync();
-
-            var data = JsonSerializer.Deserialize<List<ChatSessionDto>>(json,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-            return data ?? new List<ChatSessionDto>();
+            return await res.Content.ReadFromJsonAsync<List<ChatSessionDto>>() ?? new List<ChatSessionDto>();
         }
 
-
-
-        public async Task<List<ChatMessageDto>> GetMessagesAsync(Guid id)
+        // ? GET /api/chat/V1/Conversation-engine/{sessionId}/messages
+        public async Task<ChatSessionDto?> GetSessionAsync(Guid sessionId)
         {
-            var res = await _api.GetAsync(
-                
-
-              $"/api/chat/V1/Conversation-engine/{id}/messages");
+            var res = await _api.GetAsync($"/api/chat/V1/Conversation-engine/{sessionId}");
 
             if (!res.IsSuccessStatusCode)
-                return new();
+                return null;
 
-            return await res.Content.ReadFromJsonAsync<List<ChatMessageDto>>()
-                   ?? new();
+            return await res.Content.ReadFromJsonAsync<ChatSessionDto>();
         }
 
+        // ? POST /api/chat/V1/Conversation-engine/Push-Query/Session!
+        public async Task<ChatSessionDto?> CreateSessionAsync()
+        {
+            var res = await _api.PostAsync("/api/chat/V1/Conversation-engine/Push-Query/Session!", new { });
+
+            if (!res.IsSuccessStatusCode)
+                return null;
+
+            return await res.Content.ReadFromJsonAsync<ChatSessionDto>();
+        }
+
+        // ? DELETE /api/chat/V1/Conversation-engine/{sessionId}/Delete
+        public async Task<bool> DeleteSessionAsync(Guid sessionId)
+        {
+            var res = await _api.DeleteAsync($"/api/chat/V1/Conversation-engine/{sessionId}/Delete");
+            return res.IsSuccessStatusCode;
+        }
+
+        // ? POST /api/chat/V1/Conversation-engine/Push-Query/Session!
         public async Task<ChatExecutionResult?> SendMessageAsync(SendMessageRequest req)
         {
-            var res = await _api.PostAsync(
-                "/api/chat/V1/Conversation-engine/Push-Query/Session!",
-                req);
+            var res = await _api.PostAsync("/api/chat/V1/Conversation-engine/Push-Query/Session!", req);
 
             if (!res.IsSuccessStatusCode)
                 return null;
@@ -59,19 +62,21 @@ namespace AIChatbot.web.Services
             return await res.Content.ReadFromJsonAsync<ChatExecutionResult>();
         }
 
-        public async Task<bool> DeleteSessionAsync(Guid id)
+        // ? GET /api/chat/V1/Conversation-engine/{sessionId}/messages
+        public async Task<List<ChatMessageDto>> GetMessagesAsync(Guid sessionId)
         {
-            var res = await _api.DeleteAsync(
-                $"/api/chat/V1/Conversation-engine/{id}/Delete");
+            var res = await _api.GetAsync($"/api/chat/V1/Conversation-engine/{sessionId}/messages");
 
-            return res.IsSuccessStatusCode;
+            if (!res.IsSuccessStatusCode)
+                return new List<ChatMessageDto>();
+
+            return await res.Content.ReadFromJsonAsync<List<ChatMessageDto>>() ?? new List<ChatMessageDto>();
         }
 
+        // ? POST /api/chat/V1/Conversation-engine/{sessionId}/messages/{messageId}/retry
         public async Task<ChatExecutionResult?> RetryAsync(Guid sessionId, Guid messageId)
         {
-            var res = await _api.PostAsync(
-                $"/api/chat/V1/Conversation-engine/{sessionId}/messages/{messageId}/retry",
-                new { });
+            var res = await _api.PostAsync($"/api/chat/V1/Conversation-engine/{sessionId}/messages/{messageId}/retry", new { });
 
             if (!res.IsSuccessStatusCode)
                 return null;

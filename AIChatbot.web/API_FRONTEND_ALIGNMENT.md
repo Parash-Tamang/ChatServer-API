@@ -1,0 +1,351 @@
+# API vs Web Frontend Authorization Alignment
+
+## Backend API Implementation (AIChatbot.Api)
+
+### Authentication Flow in Backend
+```
+Program.cs:
+??? JWT Configuration
+?   ??? Force JWT only (remove cookie auth)
+?   ??? Token validation parameters
+?   ??? Issuer/Audience verification
+?   ??? Lifetime validation
+?   ??? Signature validation (HMAC SHA256)
+?
+??? Auth Controller
+?   ??? POST /register ? RegisterUserCommand
+?   ??? POST /login ? LoginCommand
+?   ??? POST /refresh ? RefreshTokenCommand
+?   ??? [Authorize] POST /logout ? LogoutCommand
+?   ??? [Authorize] GET /user-details ? GetUserProfileQuery
+?   ??? ExceptionMappingMiddleware (global error handling)
+?
+??? AuthService (Infrastructure)
+?   ??? GenerateJwt() - Creates JWT tokens
+?   ??? IssueAuthResultAsync() - Issues both tokens
+?   ??? Hash() - SHA256 hash for refresh tokens
+?   ??? GenerateSecureToken() - Secure random 64 bytes
+?   ??? Stores hashed refresh tokens in DB
+?
+??? Chat Controller
+    ??? [Authorize] - Requires valid JWT
+        ??? Extracts UserId from ClaimTypes.NameIdentifier
+        ??? Passes UserId to MediatR handlers
+        ??? 401 Unauthorized if token invalid
+```
+
+### Key Backend Features
+? **JWT Bearer Only** - No cookie auth on API  
+? **Refresh Token Rotation** - Old token revoked when new issued  
+? **Refresh Token Storage** - Hashed in DB (cannot use leaked token)  
+? **Global Exception Handling** - ExceptionMappingMiddleware  
+? **User Isolation** - Each API call validated with user's ID  
+
+---
+
+## Web Frontend Implementation (AIChatbot.web)
+
+### Authorization Flow in Frontend
+```
+Program.cs (Startup):
+??? Register Services
+?   ??? HttpClient
+?   ??? ApiClient (HTTP communication)
+?   ??? AuthService (implements IAuthService)
+?   ??? TokenService (cookie management)
+?   ??? ChatApiService (chat operations)
+?
+??? MVC Configuration
+?   ??? AddControllersWithViews()
+?   ??? MapControllerRoute (default routing)
+?
+??? Auth Filter Registration
+    ??? AuthFilter (IActionFilter)
+
+Controllers:
+??? AuthController
+?   ??? GET  /login ? View()
+?   ??? POST /login ? AuthService.LoginAsync()
+?   ??? GET  /register ? View()
+?   ??? POST /register ? AuthService.RegisterAsync()
+?   ??? POST /logout ? AuthService.LogoutAsync() + ClearTokens()
+?   ??? GET  /user-details ? GetUserDetailsAsync()
+?
+??? ChatController
+    ??? [AuthFilter] GET  /index
+    ??? [AuthFilter] GET  /sessions
+    ??? [AuthFilter] GET  /messages/{id}
+    ??? [AuthFilter] POST /send
+    ??? [AuthFilter] POST /retry
+    ??? [AuthFilter] DELETE /delete
+
+Services:
+??? AuthService (implements IAuthService)
+?   ??? LoginAsync() ? API /login ? Save tokens
+?   ??? RegisterAsync() ? API /register ? Save tokens
+?   ??? LogoutAsync() ? API /logout
+?   ??? RefreshTokenAsync() ? API /refresh
+?   ??? Validation methods (client-side)
+?
+??? TokenService
+?   ??? SaveTokens() ? HTTP-only cookies
+?   ??? GetAccessToken() ? Used by ApiClient
+?   ??? GetRefreshToken() ? For token refresh
+?   ??? ClearTokens() ? On logout
+?
+??? ApiClient
+    ??? SetAuthorizationHeader()
+    ??? GET/POST/PUT/DELETE methods
+    ??? Always adds "Authorization: Bearer {token}"
+
+Filters:
+??? AuthFilter (IActionFilter)
+    ??? OnActionExecuting()
+    ?   ??? Check for accessToken cookie
+    ?   ??? Parse JWT to check expiration
+    ?   ??? If expired/missing ? Redirect to login
+    ?   ??? If valid ? Allow action
+    ??? OnActionExecuted() - (empty)
+
+Models:
+??? AuthResponse
+    ??? Success (bool)
+    ??? AccessToken (string)
+    ??? RefreshToken (string)
+    ??? ExpiresIn (int) ? From API
+    ??? Error (string)
+```
+
+---
+
+## Data Flow Comparison
+
+### Backend: User Login
+```
+1. POST /api/auth/login { email, password }
+   ?
+2. AuthService.LoginAsync(email, password)
+   ??? Find user by email
+   ??? Verify password
+   ??? Generate JWT
+   ??? Generate refresh token
+   ??? Hash & store refresh token in DB
+   ??? Return { accessToken, refreshToken, expiresIn }
+   ?
+3. Response 200 OK { success: true, accessToken, refreshToken, expiresIn }
+```
+
+### Frontend: User Login
+```
+1. User submits form
+   ?
+2. AuthController.Login(email, password)
+   ??? Validate input (server-side)
+   ??? Call AuthService.LoginAsync()
+   ??? AuthService calls ApiClient.PostAsync("/api/auth/login", req)
+   ?
+3. ApiClient sends HTTP request
+   ??? Serializes { email, password } to JSON
+   ??? POST to https://localhost:7048/api/auth/login
+   ??? Backend returns { accessToken, refreshToken, expiresIn }
+   ?
+4. AuthService receives response
+   ??? Extract tokens
+   ??? Call TokenService.SaveTokens()
+   ??? Save to HTTP-only cookies with expiration
+   ?
+5. AuthController redirects to /Chat/Index
+   ?
+6. Next request to /Chat/Index
+   ??? AuthFilter executes
+   ??? Gets accessToken from cookies
+   ??? Parses JWT to check expiration
+   ??? If valid ? Allow access
+   ??? If expired ? Redirect to login
+```
+
+### Frontend: Chat Operations
+```
+1. User at /Chat/Index (logged in)
+   ?
+2. Send message
+   ??? ChatController.SendMessage()
+   ??? Calls ChatApiService.SendMessageAsync()
+   ??? ChatApiService calls ApiClient.PostAsync()
+   ??? ApiClient.SetAuthorizationHeader()
+   ?
+3. ApiClient prepares request
+   ??? Gets accessToken from cookies
+   ??? Sets header: "Authorization: Bearer {token}"
+   ??? POST to /api/chat/V1/Conversation-engine/Push-Query/Session!
+   ??? Includes message content in body
+   ??? Sends request
+   ?
+4. Backend Chat Controller
+   ??? [Authorize] attribute checks JWT
+   ??? Validates signature
+   ??? Validates issuer/audience
+   ??? Validates expiration
+   ??? If valid:
+   ?   ??? Extract UserId from claims
+   ?   ??? Process message
+   ?   ??? Return response
+   ??? If invalid:
+       ??? Return 401 Unauthorized
+```
+
+---
+
+## Security Implementation Details
+
+### Backend (API)
+- ? JWT signed with HS256
+- ? Claims include user ID
+- ? Token validation on every [Authorize] endpoint
+- ? Refresh tokens hashed in DB (defense against DB breach)
+- ? Automatic token rotation on refresh
+- ? Global exception handling
+
+### Frontend (Web)
+- ? Tokens stored in HTTP-only cookies
+- ? Bearer token sent in Authorization header
+- ? AuthFilter validates token before action
+- ? Server-side form validation
+- ? Tokens cleared on logout
+- ? Token expiration detected by parsing JWT
+
+---
+
+## Key Differences & Why
+
+| Aspect | Backend API | Frontend Web | Why |
+|--------|-------------|--------------|-----|
+| Token Storage | DB (hashed) | Cookies (HTTP-only) | API needs DB for rotation; Browser uses cookies |
+| Token Type | JWT | Same JWT | API and frontend share JWT standard |
+| Validation | On every [Authorize] endpoint | In AuthFilter + API | Defense in depth |
+| Refresh Flow | Database lookup + new token | Direct API call | API controls token rotation |
+| Error Handling | Global ExceptionMappingMiddleware | ViewData + redirects | Different app types |
+| User ID Extraction | User.FindFirstValue(ClaimTypes.NameIdentifier) | Not needed (filter prevents access) | Frontend filters before accessing; API extracts for business logic |
+
+---
+
+## How They Work Together
+
+```
+???????????????????????????????????????????????????????
+? Browser                                             ?
+???????????????????????????????????????????????????????
+? User fills login form                               ?
+? ?                                                   ?
+? /Auth/Login (POST) ? AuthController                ?
+? ?                                                   ?
+? AuthService calls ApiClient                        ?
+? ?                                                   ?
+? HTTP Request: POST /api/auth/login + credentials   ?
+? ?????????????????????????????????????????????????????
+?                                                     ?
+???????????????????????????????????????????????????????
+? Backend API (AIChatbot.Api)                         ?
+???????????????????????????????????????????????????????
+? POST /api/auth/login                                ?
+? ??? AuthService.LoginAsync()                        ?
+? ??? Validate credentials                            ?
+? ??? GenerateJwt() - Create JWT token                ?
+? ??? GenerateSecureToken() - Random refresh token    ?
+? ??? Save hash of refresh token to DB                ?
+? ??? Return { accessToken, refreshToken, expiresIn } ?
+? ?                                                   ?
+? HTTP Response: 200 OK with tokens                   ?
+? ?????????????????????????????????????????????????????
+?                                                     ?
+???????????????????????????????????????????????????????
+? Browser                                             ?
+???????????????????????????????????????????????????????
+? TokenService.SaveTokens()                           ?
+? ??? Save accessToken to HTTP-only cookie            ?
+? ??? Save refreshToken to HTTP-only cookie           ?
+? ??? Set expiration times                            ?
+? ?                                                   ?
+? Redirect to /Chat/Index                             ?
+? ?                                                   ?
+? AuthFilter checks accessToken (valid) ? Allow       ?
+? ?                                                   ?
+? ChatController.Index() ? Show chat UI               ?
+???????????????????????????????????????????????????????
+```
+
+---
+
+## Token Lifecycle
+
+### Access Token (JWT)
+```
+User Logs In
+    ?
+Backend generates JWT (60 min expiration)
+    ?
+TokenService saves to HTTP-only cookie
+    ?
+User makes requests to chat APIs
+    ??? Each request includes "Authorization: Bearer JWT" header
+    ??? Backend validates JWT signature & claims
+    ??? Backend processes request with UserId from JWT
+    ?
+55 minutes later (before expiration)
+    ??? AuthFilter parses JWT
+    ??? Sees exp claim is soon
+    ??? (Optional: Could trigger refresh)
+    ??? Still allows access
+    ?
+60 minutes later (expired)
+    ??? AuthFilter parses JWT
+    ??? Sees exp claim in past
+    ??? Clears tokens
+    ??? Redirects to login
+    ?
+User Must Log In Again
+```
+
+### Refresh Token
+```
+User Logs In
+    ?
+Backend generates secure random token
+    ??? Hash it with SHA256
+    ??? Store hash in DB
+    ?
+TokenService saves plain token to HTTP-only cookie
+    ?
+Access token expires
+    ?
+Frontend calls POST /api/auth/refresh { refreshToken: plain_token }
+    ?
+Backend:
+    ??? Hash the received refresh token
+    ??? Look up hash in DB
+    ??? If found & not revoked & not expired:
+    ?   ??? Mark old token as revoked
+    ?   ??? Generate new tokens
+    ?   ??? Return new accessToken
+    ??? If not found/revoked/expired:
+        ??? Return 401 Unauthorized
+    ?
+Frontend saves new tokens to cookies
+    ?
+User continues without re-logging in
+```
+
+---
+
+## Summary
+
+Your implementation now:
+? Matches the backend's JWT authorization  
+? Uses the same token format and claims  
+? Validates tokens consistently  
+? Protects all chat operations  
+? Handles logout properly  
+? Stores tokens securely  
+? Ready for refresh token implementation  
+
+The frontend acts as a **secure gateway** to the API, validating before sending requests and protecting routes with AuthFilter!

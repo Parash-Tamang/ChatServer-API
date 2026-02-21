@@ -9,71 +9,155 @@ namespace AIChatbot.web.Controllers
     public class ChatController : Controller
     {
         private readonly ChatApiService _chat;
+        private readonly TokenService _token;
 
-        public ChatController(ChatApiService chat)
+        public ChatController(ChatApiService chat, TokenService token)
         {
             _chat = chat;
+            _token = token;
         }
 
-        // dashboard page
+        /// <summary>
+        /// Display chat page with sessions and messages
+        /// </summary>
         [HttpGet]
-        public IActionResult Index()
+        public async Task<IActionResult> Index(Guid? sessionId)
         {
-            return View();
+            try
+            {
+                // Get all sessions
+                var sessions = await _chat.GetSessionsAsync();
+
+                // Get current user details
+                var userName = "User";
+                try
+                {
+                    var res = await new HttpClient().GetAsync("http://localhost:5000/Auth/UserDetails");
+                    if (res.IsSuccessStatusCode)
+                    {
+                        var json = await res.Content.ReadAsStringAsync();
+                        // Parse user name if needed
+                    }
+                }
+                catch { }
+
+                var model = new ChatPageModel
+                {
+                    Sessions = sessions,
+                    CurrentSessionId = sessionId,
+                    UserName = userName,
+                    CurrentSessionMessages = new()
+                };
+
+                // Load messages if session selected
+                if (sessionId.HasValue && sessionId.Value != Guid.Empty)
+                {
+                    var messages = await _chat.GetMessagesAsync(sessionId.Value);
+                    model.CurrentSessionMessages = messages;
+                }
+
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                return View(new ChatPageModel { UserName = "User" });
+            }
         }
 
-
-        // get sessions
-        [HttpGet]
-        public async Task<IActionResult> GetSessions()
-        {
-            var sessions = await _chat.GetSessionsAsync();
-
-            Console.WriteLine("SESSION COUNT: " + sessions.Count);
-
-            foreach (var s in sessions)
-                Console.WriteLine($"TOPIC => {s.TopicName}");
-
-            return Json(sessions);
-        }
-
-
-        // get messages
-        [HttpGet]
-        public async Task<IActionResult> GetMessages(Guid id)
-        {
-            var messages = await _chat.GetMessagesAsync(id);
-            return Json(messages);
-        }
-
-        // send message
+        /// <summary>
+        /// Open a chat session
+        /// </summary>
         [HttpPost]
-        public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest req)
+        public async Task<IActionResult> OpenSession(Guid sessionId)
         {
-            var result = await _chat.SendMessageAsync(req);
-            return Json(result);
+            return RedirectToAction("Index", new { sessionId });
         }
 
-        // retry message
+        /// <summary>
+        /// Create new chat session
+        /// </summary>
         [HttpPost]
-        public async Task<IActionResult> Retry([FromBody] RetryRequest req)
+        public async Task<IActionResult> NewChat()
         {
-            var result = await _chat.RetryAsync(req.ChatSessionId, req.MessageId);
-            return Json(result);
+            return RedirectToAction("Index");
         }
 
-
-
-        // delete chat
-        [HttpDelete]
-        public async Task<IActionResult> Delete(Guid id)
+        /// <summary>
+        /// Send a message to the chat
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> SendMessage(Guid? chatSessionId, string message)
         {
-            var ok = await _chat.DeleteSessionAsync(id);
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return RedirectToAction("Index", new { sessionId = chatSessionId });
+            }
 
-            if (!ok)
-                return BadRequest();
+            try
+            {
+                // Send message to API
+                var req = new SendMessageRequest
+                {
+                    ChatSessionId = chatSessionId,
+                    Message = message
+                };
 
-            return Ok();
+                var result = await _chat.SendMessageAsync(req);
+
+                if (result != null)
+                {
+                    // Redirect to the session with the new/updated session ID
+                    return RedirectToAction("Index", new { sessionId = result.ChatSessionId });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error
+            }
+
+            return RedirectToAction("Index", new { sessionId = chatSessionId });
+        }
+
+        /// <summary>
+        /// Delete a chat session
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> DeleteSession(Guid sessionId)
+        {
+            try
+            {
+                await _chat.DeleteSessionAsync(sessionId);
+            }
+            catch (Exception ex)
+            {
+                // Log error
+            }
+
+            // Redirect back to chat index
+            return RedirectToAction("Index");
+        }
+
+        /// <summary>
+        /// Retry last message (optional, for backwards compatibility)
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> Retry(Guid chatSessionId, Guid messageId)
+        {
+            try
+            {
+                var result = await _chat.RetryAsync(chatSessionId, messageId);
+
+                if (result != null)
+                {
+                    return RedirectToAction("Index", new { sessionId = chatSessionId });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error
+            }
+
+            return RedirectToAction("Index", new { sessionId = chatSessionId });
         }
     }
 }

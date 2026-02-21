@@ -9,54 +9,97 @@
 
         <div class="auth-title">Create account</div>
 
-        <div id="regError" class="error" style="display:none;"></div>
+        @if (ViewData["ErrorMessage"] != null)
+        {
+            <div class="error" style="margin-bottom: 15px;">
+                @ViewData["ErrorMessage"]
+            </div>
+        }
 
-        <!-- FIRST NAME -->
-        <input id="fname" class="input" placeholder="First name" />
-        <small class="error" id="fnameErr"></small>
+        <form id="registerForm" method="post" asp-action="Register" asp-controller="Auth">
+            
+            <!-- FIRST NAME -->
+            <input id="firstName"
+                   name="firstName"
+                   class="input"
+                   type="text"
+                   placeholder="First name"
+                   required />
+            @if (ViewData["FirstNameError"] != null)
+            {
+                <small class="error">@ViewData["FirstNameError"]</small>
+            }
 
-        <!-- LAST NAME -->
-        <input id="lname" class="input" placeholder="Last name" />
-        <small class="error" id="lnameErr"></small>
+            <!-- LAST NAME -->
+            <input id="lastName"
+                   name="lastName"
+                   class="input"
+                   type="text"
+                   placeholder="Last name"
+                   required />
+            @if (ViewData["LastNameError"] != null)
+            {
+                <small class="error">@ViewData["LastNameError"]</small>
+            }
 
-        <!-- EMAIL -->
-        <input id="regEmail"
-               class="input"
-               type="text"
-               placeholder="Email" />
-        <small class="error" id="emailErr"></small>
+            <!-- EMAIL -->
+            <input id="email"
+                   name="email"
+                   class="input"
+                   type="email"
+                   placeholder="Email"
+                   required />
+            @if (ViewData["EmailError"] != null)
+            {
+                <small class="error">@ViewData["EmailError"]</small>
+            }
 
-        <!-- PHONE -->
-        <div class="phone-field">
-            <span class="phone-prefix">+91</span>
-            <input id="phone"
-                   class="phone-input"
-                   type="tel"
-                   maxlength="10"
-                   placeholder="Phone number" />
-        </div>
-        <small class="error" id="phoneErr"></small>
+            <!-- PHONE -->
+            <div class="phone-field">
+                <span class="phone-prefix">+91</span>
+                <input id="phone"
+                       name="phone"
+                       class="phone-input"
+                       type="tel"
+                       maxlength="10"
+                       placeholder="Phone number"
+                       required />
+            </div>
+            @if (ViewData["PhoneError"] != null)
+            {
+                <small class="error">@ViewData["PhoneError"]</small>
+            }
 
-        
+            <!-- PASSWORD -->
+            <input id="password"
+                   name="password"
+                   class="input"
+                   type="password"
+                   placeholder="Password"
+                   required />
+            @if (ViewData["PasswordError"] != null)
+            {
+                <small class="error">@ViewData["PasswordError"]</small>
+            }
 
-        <!-- PASSWORD -->
-        <input id="regPass"
-               class="input"
-               type="password"
-               placeholder="Password" />
-        <small class="error" id="passErr"></small>
+            <!-- CONFIRM PASSWORD -->
+            <input id="confirmPassword"
+                   name="confirmPassword"
+                   class="input"
+                   type="password"
+                   placeholder="Confirm password"
+                   required />
+            @if (ViewData["ConfirmPasswordError"] != null)
+            {
+                <small class="error">@ViewData["ConfirmPasswordError"]</small>
+            }
 
-        <!-- CONFIRM PASSWORD -->
-        <input id="confirmPass"
-               class="input"
-               type="password"
-               placeholder="Confirm password" />
-        <small class="error" id="confirmErr"></small>
+            <!-- REGISTER BUTTON -->
+            <button type="submit" class="btn auth-btn">
+                Register
+            </button>
 
-        <!-- REGISTER BUTTON -->
-        <button class="btn auth-btn" onclick="registerUser()">
-            Register
-        </button>
+        </form>
 
         <div class="auth-link">
             Already have an account?
@@ -66,5 +109,3 @@
     </div>
 
 </div>
-
-<script src="~/js/auth.js"></script>

@@ -1,129 +1,72 @@
-﻿using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using AIChatbot.web.Models.Auth;
-
 namespace AIChatbot.web.Services
 {
     public class ApiClient
     {
-        private readonly IHttpClientFactory _factory;
-        private readonly TokenService _token;
-        private readonly IConfiguration _config;
+        private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
+        private readonly TokenService _tokenService;
 
-        public ApiClient(
-            IHttpClientFactory factory,
-            TokenService token,
-            IConfiguration config)
+        public ApiClient(HttpClient httpClient, IConfiguration configuration, TokenService tokenService)
         {
-            _factory = factory;
-            _token = token;
-            _config = config;
+            _httpClient = httpClient;
+            _configuration = configuration;
+            _tokenService = tokenService;
+            
+            // Set base address from configuration
+            var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5000";
+            _httpClient.BaseAddress = new Uri(apiBaseUrl);
         }
 
-        private async Task<HttpClient> CreateClient()
+        private void SetAuthorizationHeader()
         {
-            var client = _factory.CreateClient();
-
-            var baseUrl = _config["ApiSettings:BaseUrl"];
-            if (string.IsNullOrEmpty(baseUrl))
-                throw new Exception("ApiSettings:BaseUrl missing");
-
-            client.BaseAddress = new Uri(baseUrl);
-
-            var access = await _token.GetValidAccessToken();
-
-            if (!string.IsNullOrEmpty(access))
+            var token = _tokenService.GetAccessToken();
+            
+            if (!string.IsNullOrEmpty(token))
             {
-                client.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", access);
+                _httpClient.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
-
-            return client;
-        }
-
-        public async Task<HttpResponseMessage> GetAsync(string url)
-        {
-            var client = await CreateClient();
-            var response = await client.GetAsync(url);
-
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            else
             {
-                if (await TryRefreshToken())
-                {
-                    client = await CreateClient();
-                    response = await client.GetAsync(url);
-                }
+                // Clear authorization if no token
+                _httpClient.DefaultRequestHeaders.Authorization = null;
             }
-
-            return response;
         }
 
-        public async Task<HttpResponseMessage> PostAsync(string url, object body)
+        public async Task<HttpResponseMessage> GetAsync(string endpoint)
         {
-            var client = await CreateClient();
-            var response = await client.PostAsJsonAsync(url, body);
-
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                if (await TryRefreshToken())
-                {
-                    client = await CreateClient();
-                    response = await client.PostAsJsonAsync(url, body);
-                }
-            }
-
-            return response;
+            SetAuthorizationHeader();
+            return await _httpClient.GetAsync(endpoint);
         }
 
-        public async Task<HttpResponseMessage> DeleteAsync(string url)
+        public async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
         {
-            var client = await CreateClient();
-            var response = await client.DeleteAsync(url);
+            SetAuthorizationHeader();
 
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                if (await TryRefreshToken())
-                {
-                    client = await CreateClient();
-                    response = await client.DeleteAsync(url);
-                }
-            }
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(data),
+                System.Text.Encoding.UTF8,
+                "application/json");
 
-            return response;
+            return await _httpClient.PostAsync(endpoint, content);
         }
 
-        private async Task<bool> TryRefreshToken()
+        public async Task<HttpResponseMessage> PutAsync<T>(string endpoint, T data)
         {
-            var refresh = _token.GetRefreshToken();
-            if (string.IsNullOrEmpty(refresh))
-                return false;
+            SetAuthorizationHeader();
 
-            var client = _factory.CreateClient();
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(data),
+                System.Text.Encoding.UTF8,
+                "application/json");
 
-            var baseUrl = _config["ApiSettings:BaseUrl"];
+            return await _httpClient.PutAsync(endpoint, content);
+        }
 
-            if (string.IsNullOrEmpty(baseUrl))
-                throw new Exception("BaseUrl missing in appsettings");
-
-            client.BaseAddress = new Uri(baseUrl);
-
-
-            var res = await client.PostAsJsonAsync(
-                "/api/auth/V1/Security-engine/refresh",
-                new { refreshToken = refresh });
-
-            if (!res.IsSuccessStatusCode)
-                return false;
-
-            var data = await res.Content.ReadFromJsonAsync<AuthResponse>();
-
-            if (data == null || !data.Success)
-                return false;
-
-            _token.SaveTokens(data.AccessToken!, data.RefreshToken!, 3600);
-
-            return true;
+        public async Task<HttpResponseMessage> DeleteAsync(string endpoint)
+        {
+            SetAuthorizationHeader();
+            return await _httpClient.DeleteAsync(endpoint);
         }
     }
 }
