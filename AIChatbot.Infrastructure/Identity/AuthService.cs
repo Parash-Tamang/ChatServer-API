@@ -146,7 +146,6 @@ public class AuthService : IAuthService
         };
     }
 
-
     //-------------------Reset password----------------
     public async Task ResetPasswordAsync(
         string email,

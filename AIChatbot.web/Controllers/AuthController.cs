@@ -127,13 +127,7 @@ namespace AIChatbot.web.Controllers
                 ViewData["ConfirmPasswordError"] = "Passwords do not match";
                 return View();
             }
-
-            // Add +91 prefix to phone if not already present
-            if (!phone.StartsWith("+91"))
-                phone = "+91" + phone;
-
-            req.Phone = phone;
-
+           
             var result = await _authService.RegisterAsync(req);
 
             if (!result.Success)
