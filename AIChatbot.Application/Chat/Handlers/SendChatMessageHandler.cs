@@ -2,8 +2,10 @@
 using AIChatbot.Application.Chat.Commands;
 using AIChatbot.Application.Chat.Results;
 using AIChatbot.Application.Common;
+using AIChatbot.Application.RoleAccess.Services;
 using AIChatbot.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 using System.Text.Json;
 
 namespace AIChatbot.Application.Chat.Handlers;
@@ -15,52 +17,75 @@ public class SendChatMessageHandler
     private readonly IAiProviderService _ai;
     private readonly IResponseMetadataRepository _metadataRepo;
     private readonly IChatSessionNamingRepository _namingRepo;
+    private readonly IRoleAccessService _roleAccessService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public SendChatMessageHandler(
         IChatSessionRepository repo,
         IAiProviderService ai,
         IResponseMetadataRepository metadataRepo,
-        IChatSessionNamingRepository namingRepo)
+        IChatSessionNamingRepository namingRepo,
+        IRoleAccessService roleAccessService,
+        UserManager<ApplicationUser> userManager)
     {
         _repo = repo;
         _ai = ai;
         _metadataRepo = metadataRepo;
         _namingRepo = namingRepo;
+        _roleAccessService = roleAccessService;
+        _userManager = userManager;
     }
 
     public async Task<ChatExecutionResult> Handle(
         SendChatMessageCommand request,
         CancellationToken cancellationToken)
     {
-        // 🔵 detect new session
-        bool isNewSession = request.ChatSessionId == null;
-
         var sessionId = request.ChatSessionId
             ?? await _repo.CreateChatSessionAsync(request.UserId);
 
+        bool isNewSession = request.ChatSessionId == null;
+
         try
         {
-            // 🟢 load last 5 history BEFORE saving new message
+            // 🔐 1. Validate user
+            var user = await _userManager.FindByIdAsync(request.UserId);
+            if (user == null)
+                throw new Exception("User not found.");
+
+            // 🔐 2. Validate role
+            var roles = await _userManager.GetRolesAsync(user);
+            if (!roles.Any())
+                throw new Exception("User has no role assigned.");
+
+            var primaryRole = roles.First();
+
+            // 🔐 3. Get role access restrictions
+            var roleAccess = await _roleAccessService.GetAccessAsync(primaryRole);
+
+            // 🟢 4. Load history
             var history = await _repo.GetLatestMessagesAsync(sessionId, 5);
 
-            // 🟢 call LLM
-            var llm = await _ai.GetReplyAsync(request.Message, history);
+            // 🟢 5. Call AI
+            var llm = await _ai.GetReplyAsync(
+                request.Message,
+                history,
+                roleAccess
+            );
 
-            // 🟢 save USER message
+            // 🟢 6. Save USER message
             var userMessageId = await _repo.SaveMessageAsync(
                 sessionId,
                 "user",
                 request.Message
             );
 
-            // 🟢 if new chat session → create topic name
+            // 🟢 7. Auto topic generation
             if (isNewSession)
             {
-                var words = request.Message
-                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                    .TakeLast(4);
-
-                var topic = string.Join(" ", words);
+                var topic = string.Join(" ",
+                    request.Message
+                        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                        .TakeLast(4));
 
                 await _namingRepo.CreateAsync(new ChatSessionNaming
                 {
@@ -70,14 +95,14 @@ public class SendChatMessageHandler
                 });
             }
 
-            // 🟢 save assistant reply
+            // 🟢 8. Save assistant reply
             var assistantMessageId = await _repo.SaveMessageAsync(
                 sessionId,
                 "assistant",
                 llm.Message ?? ""
             );
 
-            // 🟢 save response metadata
+            // 🟢 9. Save metadata
             await _metadataRepo.SaveAsync(new ResponseMetadata
             {
                 MessageId = assistantMessageId,
@@ -85,22 +110,20 @@ public class SendChatMessageHandler
                 Query = request.Message,
                 InfoMessage = llm.Message,
                 SqlGenerated = llm.SqlGenerated,
-                ColumnsJson = llm.Columns != null ? JsonSerializer.Serialize(llm.Columns) : null,
-                RowsJson = llm.Rows != null ? JsonSerializer.Serialize(llm.Rows) : null,
+                LlmResponseJson = JsonSerializer.Serialize(llm),
                 RowCount = llm.RowCount,
                 WasReconstructed = llm.WasReconstructed,
                 ClarificationNeeded = llm.ClarificationNeeded,
-                TokenUsageJson = llm.TokenUsage != null ? JsonSerializer.Serialize(llm.TokenUsage) : null
+                CreatedAt = DateTime.UtcNow
             });
 
             return new ChatExecutionResult
             {
                 Status = ExecutionStatus.Success,
                 ChatSessionId = sessionId,
-                MessageId = assistantMessageId,   // 🔥 RETURNING MESSAGE ID
+                MessageId = assistantMessageId,
                 AssistantReply = llm.Message
             };
-
         }
         catch (Exception ex)
         {

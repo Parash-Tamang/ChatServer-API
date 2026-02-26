@@ -30,7 +30,8 @@ public class AuthController : ControllerBase
                 r.LastName,
                 r.Email,
                 r.Phone,
-                r.Password));
+                r.Password,
+                r.Role));
 
         // 201 Created for new resource
         return Created(string.Empty, result);

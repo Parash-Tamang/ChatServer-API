@@ -26,8 +26,8 @@ public class RegisterUserValidator
     .WithMessage("Invalid email format");
 
         RuleFor(x => x.Phone)
-            .Matches(@"^[6-9]\d{9}$")
-            .WithMessage("Invalid Indian phone number");
+        .Matches(@"^(\+91)?[6-9]\d{9}$")
+        .WithMessage("Invalid Indian phone number");
 
         RuleFor(x => x.Password)
             .MinimumLength(8)

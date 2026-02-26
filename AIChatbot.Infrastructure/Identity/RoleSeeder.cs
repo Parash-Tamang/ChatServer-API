@@ -15,8 +15,8 @@ public static class RoleSeeder
 
         foreach (var role in roles)
         {
-            if (!await roleManager.RoleExistsAsync(role))
-                await roleManager.CreateAsync(new IdentityRole(role));
+            if (!await roleManager.RoleExistsAsync("SuperAdmin"))
+                await roleManager.CreateAsync(new IdentityRole("SuperAdmin"));
         }
     }
 }

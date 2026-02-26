@@ -19,7 +19,8 @@ public interface IAuthService
         string lastName,
         string email,
         string phone,
-        string password);
+        string password,
+        string Role);
 
    
     /// Issues a new access token using a refresh token

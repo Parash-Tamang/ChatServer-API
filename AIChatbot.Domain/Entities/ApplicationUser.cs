@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace AIChatbot.Infrastructure.Identity;
+namespace AIChatbot.Domain.Entities;
 
 
 /// Application user entity extending ASP.NET Identity user

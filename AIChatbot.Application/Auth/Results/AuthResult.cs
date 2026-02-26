@@ -11,4 +11,5 @@ public sealed class AuthResult
     public int ExpiresIn { get; init; }
 
     public string? Error { get; init; }
+    public IList<string>? Roles { get; init; }
 }

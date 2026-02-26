@@ -1,14 +1,19 @@
 ﻿using AIChatbot.Application.Abstractions;
 using AIChatbot.Application.Common;
+using AIChatbot.Application.RoleAccess.Models;
+using AIChatbot.Application.RoleAccess.Services;
 using AIChatbot.Domain.Entities;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using System.Net.Http.Json;
 
 namespace AIChatbot.Infrastructure.AI;
 
 /// <summary>
-/// TEMPORARY provider to test Ollama directly (without Flask)
+/// LOCAL LLM provider (Ollama) for testing without Flask + schema pipeline.
+/// Ignores RoleAccessResult and only uses:
+/// - user query
+/// - last 5 chat messages
 /// </summary>
 public class ResponseProvider : IAiProviderService
 {
@@ -21,19 +26,17 @@ public class ResponseProvider : IAiProviderService
 
     public async Task<LlmResponse> GetReplyAsync(
         string userQuery,
-        IEnumerable<Message> history)
+        IEnumerable<Message> history,
+        RoleAccessResult schema   // REQUIRED by interface (ignored here)
+    )
     {
         // 🔵 Build combined prompt
         var sb = new StringBuilder();
 
-        // System instruction
-        sb.AppendLine("You are an AI assistant. Your task is to answer the user's current question accurately and relevantly.");
-        sb.AppendLine("Follow these rules strictly:");
-        sb.AppendLine("1. Focus primarily on the CURRENT QUESTION.");
-        sb.AppendLine("2. Use the provided last 5 messages only as context memory if they are relevant.");
-        sb.AppendLine("3. If history is null or irrelevant, ignore it.");
-        sb.AppendLine("4. Do NOT assume information beyond what is provided.");
-        sb.AppendLine("5. Provide a clear, precise, and helpful response.");
+        sb.AppendLine("You are an AI assistant.");
+        sb.AppendLine("Answer ONLY the current user question.");
+        sb.AppendLine("Use previous messages only if relevant.");
+        sb.AppendLine("Be concise and helpful.");
         sb.AppendLine();
 
         // Current query
@@ -41,8 +44,8 @@ public class ResponseProvider : IAiProviderService
         sb.AppendLine(userQuery);
         sb.AppendLine();
 
-        // Conversation memory
-        sb.AppendLine("=== LAST 5 MESSAGES (CONTEXT MEMORY - MAY BE NULL) ===");
+        // Conversation history
+        sb.AppendLine("=== LAST 5 MESSAGES ===");
 
         if (history != null && history.Any())
         {
@@ -53,16 +56,11 @@ public class ResponseProvider : IAiProviderService
         }
         else
         {
-            sb.AppendLine("No previous messages available.");
+            sb.AppendLine("No previous messages.");
         }
 
         sb.AppendLine();
-
-        // Final instruction
-        sb.AppendLine("=== RESPONSE INSTRUCTION ===");
-        sb.AppendLine("Generate the best possible answer to the CURRENT QUESTION using the context above only when necessary.");
-        sb.AppendLine("Keep the response relevant, structured, and directly useful.");
-
+        sb.AppendLine("=== RESPONSE ===");
 
         var finalPrompt = sb.ToString();
 
@@ -70,7 +68,7 @@ public class ResponseProvider : IAiProviderService
         Console.WriteLine(finalPrompt);
         Console.WriteLine("==========================\n");
 
-        // 🔵 call ollama
+        // 🔵 OLLAMA CALL
         var payload = new
         {
             model = "gemma3:1b",
@@ -84,14 +82,13 @@ public class ResponseProvider : IAiProviderService
 
         response.EnsureSuccessStatusCode();
 
-        // 🔴 READ RAW RESPONSE FIRST
         var raw = await response.Content.ReadAsStringAsync();
 
         Console.WriteLine("\n====== RAW OLLAMA JSON ======");
         Console.WriteLine(raw);
         Console.WriteLine("=============================\n");
 
-        // 🔵 Parse safely
+        // 🔵 parse Ollama output
         string reply = "No reply";
 
         try
@@ -101,7 +98,7 @@ public class ResponseProvider : IAiProviderService
             if (doc.RootElement.TryGetProperty("response", out var r))
                 reply = r.GetString() ?? "Empty response";
             else
-                reply = raw; // fallback
+                reply = raw;
         }
         catch
         {
@@ -112,19 +109,27 @@ public class ResponseProvider : IAiProviderService
         Console.WriteLine(reply);
         Console.WriteLine("=========================\n");
 
-        // 🔵 Return structured JSON like Flask
+        // 🔵 return DUMMY structured payload (compatible with pipeline)
         return new LlmResponse
         {
             Success = true,
             Query = userQuery,
             Message = reply,
-            SqlGenerated = "demo sql",
-            Columns = new object[] { "col1", "col2" },
-            Rows = new object[] { },
+
+            // Dummy SQL info
+            SqlGenerated = null,
+            Columns = Array.Empty<object>(),
+            Rows = Array.Empty<object>(),
             RowCount = 0,
+
             WasReconstructed = false,
             ClarificationNeeded = false,
-            TokenUsage = new { prompt = 0, completion = 0 }
+
+            TokenUsage = new
+            {
+                prompt = 0,
+                completion = 0
+            }
         };
     }
 }

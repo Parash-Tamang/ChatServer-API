@@ -3,6 +3,10 @@ using AIChatbot.Application.Abstractions;
 using AIChatbot.Application.Chat.Handlers;
 using AIChatbot.Application.Chat.Validators;
 using AIChatbot.Application.Common.Behaviours;
+
+using AIChatbot.Application.RoleAccess.Services;
+using AIChatbot.Application.RoleManagement.Handlers;
+using AIChatbot.Domain.Entities;
 using AIChatbot.Infrastructure.AI;
 using AIChatbot.Infrastructure.Data;
 using AIChatbot.Infrastructure.Identity;
@@ -56,9 +60,13 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-
+// --------------------Network --------------------
+//builder.WebHost.UseUrls(
+//    "http://192.168.10.96:5048",
+//    "https://192.168.10.96:7048"
+//);
 // -------------------- MediatR + Validation --------------------
-builder.Services.AddMediatR(typeof(SendChatMessageHandler).Assembly);
+builder.Services.AddMediatR(typeof(AIChatbot.Application.AssemblyReference).Assembly);
 builder.Services.AddValidatorsFromAssemblyContaining<SendChatMessageValidator>();
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
@@ -138,14 +146,20 @@ builder.Services.AddAuthorization();
 // -------------------- Dependency Injection --------------------
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
+builder.Services.AddScoped<IConnectionRepository, ConnectionRepository>();
+builder.Services.AddScoped<IPromptRepository, PromptRepository>();
+builder.Services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+builder.Services.AddScoped<IRoleAccessService, RoleAccessService>();
+builder.Services.AddScoped<ISchemaRepository, SchemaRepository>();
+builder.Services.AddScoped<SchemaAccessService>();
 //builder.Services.AddHttpClient<IAiProviderService, AiProviderService>();
-builder.Services.AddHttpClient<IAiProviderService, AiProviderService>(client =>
-{
-    client.BaseAddress = new Uri("http://localhost:5000/");
-    client.Timeout = TimeSpan.FromMinutes(5);
-});
+//builder.Services.AddHttpClient<IAiProviderService, AiProviderService>(client =>
+//{
+//    client.BaseAddress = new Uri("http://localhost:5000/");
+//    client.Timeout = TimeSpan.FromMinutes(5);
+//});
 
-//builder.Services.AddHttpClient<IAiProviderService, ResponseProvider>();
+builder.Services.AddHttpClient<IAiProviderService, ResponseProvider>();
 // add for testing without Flask
 builder.Services.AddScoped<IResponseMetadataRepository, ResponseMetadataRepository>();
 

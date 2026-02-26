@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-
+using AIChatbot.Domain.Entities;
 namespace AIChatbot.Infrastructure.Identity;
 
 public static class SuperAdminSeeder

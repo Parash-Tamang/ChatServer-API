@@ -20,10 +20,12 @@ public class RegisterUserHandler
         CancellationToken cancellationToken)
     {
         return await _auth.RegisterAsync(
-            request.FirstName,
-            request.LastName,
-            request.Email,
-            request.Phone,
-            request.Password);
+      request.FirstName,
+      request.LastName,
+      request.Email,
+      request.Phone,
+      request.Password,
+      request.Role   // 🔥 ADD THIS
+  );
     }
 }

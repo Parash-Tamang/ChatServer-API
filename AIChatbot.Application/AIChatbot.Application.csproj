@@ -13,6 +13,7 @@
     <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -23,6 +24,12 @@
 
 	  <ItemGroup>
 		  <ProjectReference Include="..\AIChatbot.Domain\AIChatbot.Domain.csproj" />
+	  </ItemGroup>
+
+
+	  <ItemGroup>
+	    <Folder Include="RoleManagement\Results\" />
+	    <Folder Include="RoleManagement\Validators\" />
 	  </ItemGroup>
 
 
