@@ -1,63 +1,77 @@
-﻿using AIChatbot.web.Models.Auth;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-
 namespace AIChatbot.web.Services
 {
     public class TokenService
     {
-        private readonly IHttpClientFactory _factory;
-        private readonly IConfiguration _config;
-        private readonly IHttpContextAccessor _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public TokenService(
-            IHttpClientFactory factory,
-            IConfiguration config,
-            IHttpContextAccessor context)
+        public TokenService(IHttpContextAccessor httpContextAccessor)
         {
-            _factory = factory;
-            _config = config;
-            _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        public string? GetAccessToken()
+        /// <summary>
+        /// Save access and refresh tokens to secure HTTP-only cookies
+        /// </summary>
+        public void SaveTokens(string accessToken, string refreshToken, int expiresIn)
         {
-            return _context.HttpContext?.Request.Cookies["accessToken"];
-        }
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) return;
 
-        public string? GetRefreshToken()
-        {
-            return _context.HttpContext?.Request.Cookies["refreshToken"];
-        }
-
-        public void SaveTokens(string access, string refresh, int expiresIn)
-        {
-            var http = _context.HttpContext;
-            if (http == null) return;
-
-            var cookieOptions = new CookieOptions
+            // ? Save access token with expiration
+            httpContext.Response.Cookies.Append("accessToken", accessToken, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddSeconds(expiresIn)
-            };
+                Expires = DateTimeOffset.UtcNow.AddSeconds(expiresIn)
+            });
 
-            http.Response.Cookies.Append("accessToken", access, cookieOptions);
-            http.Response.Cookies.Append("refreshToken", refresh, cookieOptions);
+            // ? Save refresh token (typically 7 days)
+            httpContext.Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddDays(7)
+            });
         }
 
-        public Task<string?> GetValidAccessToken()
+        /// <summary>
+        /// Get access token from cookies
+        /// </summary>
+        public string? GetAccessToken()
         {
-            var accessToken = GetAccessToken();
-
-            if (string.IsNullOrEmpty(accessToken))
-                return Task.FromResult<string?>(null);
-
-            return Task.FromResult<string?>(accessToken);
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext?.Request.Cookies.TryGetValue("accessToken", out var token) ?? false)
+            {
+                return token;
+            }
+            return null;
         }
 
+        /// <summary>
+        /// Get refresh token from cookies
+        /// </summary>
+        public string? GetRefreshToken()
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext?.Request.Cookies.TryGetValue("refreshToken", out var token) ?? false)
+            {
+                return token;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Clear both tokens from cookies (on logout or token expiration)
+        /// </summary>
+        public void ClearTokens()
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) return;
+
+            httpContext.Response.Cookies.Delete("accessToken");
+            httpContext.Response.Cookies.Delete("refreshToken");
+        }
     }
 }

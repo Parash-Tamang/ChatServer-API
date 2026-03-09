@@ -13,28 +13,53 @@
 
         <div class="auth-title">Welcome back</div>
 
-        <div id="loginError" class="error" style="display:none;"></div>
+        @if (ViewData["ErrorMessage"] != null)
+        {
+            <div class="error" style="margin-bottom: 15px;">
+                @ViewData["ErrorMessage"]
+            </div>
+        }
 
-        <!-- EMAIL -->
-        <input id="email"
-               class="input"
-               type="email"
-               placeholder="Email"
-               autocomplete="username" />
-        <small class="error" id="loginEmailErr"></small>
+        <form id="loginForm" method="post" asp-action="Login" asp-controller="Auth">
+            
+            <!-- EMAIL -->
+            <input id="email"
+                   name="email"
+                   class="input"
+                   type="email"
+                   placeholder="Email"
+                   autocomplete="username"
+                   required />
+            @if (ViewData["EmailError"] != null)
+            {
+                <small class="error">@ViewData["EmailError"]</small>
+            }
 
-        <!-- PASSWORD -->
-        <input id="password"
-               class="input"
-               type="password"
-               placeholder="Password"
-               autocomplete="current-password" />
-        <small class="error" id="loginPassErr"></small>
+            <!-- PASSWORD -->
+            <input id="password"
+                   name="password"
+                   class="input"
+                   type="password"
+                   placeholder="Password"
+                   autocomplete="current-password"
+                   required />
+            @if (ViewData["PasswordError"] != null)
+            {
+                <small class="error">@ViewData["PasswordError"]</small>
+            }
 
-        <!-- LOGIN BUTTON -->
-        <button class="auth-btn" onclick="loginUser()">
-            Login
-        </button>
+            <!-- RETURN URL (Hidden) -->
+            @if (ViewData["ReturnUrl"] != null)
+            {
+                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+            }
+
+            <!-- LOGIN BUTTON -->
+            <button type="submit" class="auth-btn">
+                Login
+            </button>
+
+        </form>
 
         <div class="auth-link">
             New user?
@@ -44,5 +69,3 @@
     </div>
 
 </div>
-
-<script src="~/js/auth.js"></script>

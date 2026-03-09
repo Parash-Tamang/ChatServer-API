@@ -18,7 +18,10 @@
 
         <hr />
 
-        <button class="btn btn-danger mt-3" onclick="logout()">
+        <form id="logoutForm" method="post" asp-action="Logout" asp-controller="Auth" style="display: none;">
+        </form>
+
+        <button class="btn btn-danger mt-3" onclick="logout(event)">
             Logout
         </button>
 
@@ -27,3 +30,16 @@
 </div>
 
 <script src="~/js/settings.js"></script>
+
+<script>
+    // ================= LOGOUT FUNCTION =================
+    function logout(event) {
+        event.preventDefault();
+        
+        // Show confirmation dialog
+        if (confirm("Are you sure you want to logout?")) {
+            // Submit the logout form
+            document.getElementById("logoutForm").submit();
+        }
+    }
+</script>
