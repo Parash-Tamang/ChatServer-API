@@ -1,0 +1,60 @@
+﻿@using RoleManager
+@model AIChatbot.web.Models.ViewModels.RoleManagerViewModel.RoleUsersViewModel
+@{  
+    ViewData["Title"] = "Users in Role";
+}
+
+<div class="rm-dashboard">
+    <div class="rm-header">
+        <a href="/RoleManager" class="rm-back">← Back</a>
+        <h1>👥 Users — <span class="rm-role-name">@Model.RoleName</span></h1>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="rm-alert rm-alert--success">✅ @TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null || Model.ErrorMessage != null)
+    {
+        <div class="rm-alert rm-alert--error">❌ @(TempData["ErrorMessage"] ?? Model.ErrorMessage)</div>
+    }
+
+    <div class="rm-section">
+        @if (!Model.Users.Any())
+        {
+            <p class="rm-empty">No users found for this role.</p>
+        }
+        else
+        {
+            <table class="rm-table">
+                <thead>
+                    <tr><th>User ID</th><th>Username</th><th>Email</th><th>Delete</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr>
+                            <td><code>@user.UserId</code></td>
+                            <td>@user.Username</td>
+                            <td>@user.Email</td>
+                            <td>
+                                <form method="post" action="/RoleManager/DeleteUser"
+                                      onsubmit="return confirm('Delete @user.Username?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" value="@user.UserId" />
+                                    <input type="hidden" name="returnRoleId" value="@Model.RoleId" />
+                                    <button type="submit" class="rm-btn rm-btn--sm rm-btn--danger">🗑 Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+
+@section Styles {
+    <link rel="stylesheet" href="/css/rolemanager.css" />
+}

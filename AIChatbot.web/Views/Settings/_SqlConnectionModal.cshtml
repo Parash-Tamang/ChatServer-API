@@ -1,0 +1,103 @@
+﻿@model AIChatbot.web.Models.Chat.SqlConnectionViewModel
+
+<div class="modal fade" id="dbConnectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered db-modal-dialog">
+        <div class="modal-content db-modal-content">
+            <div class="db-modal-header">
+                <h5 class="db-modal-title">SQL Server Connection</h5>
+            </div>
+
+            <div class="modal-body">
+                <form asp-action="ConnectDatabase" asp-controller="Chat" method="post" id="dbConnectForm">
+
+                    <div class="mb-1">
+                        <label asp-for="Server" class="db-form-label"></label>
+                        <input asp-for="Server" class="form-control form-control-sm" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label asp-for="Database" class="db-form-label"></label>
+                        <input asp-for="Database" class="form-control form-control-sm" />
+                    </div>
+
+                    <div class="db-auth-section">
+                        <div class="db-auth-title">Authentication</div>
+
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="radio" asp-for="AuthMode" value="SQL" id="sqlLogin" />
+                            <label class="form-check-label fw-bold db-text-sm" for="sqlLogin">
+                                SQL Login
+                            </label>
+                        </div>
+
+                        <div class="db-sql-fields" id="sqlLoginFields">
+                            <div class="row g-1 align-items-center mb-1">
+                                <div class="col-4">
+                                    <label class="db-form-label m-0">User</label>
+                                </div>
+                                <div class="col-8">
+                                    <input asp-for="Username" class="form-control form-control-sm" />
+                                </div>
+                            </div>
+
+                            <div class="row g-1 align-items-center">
+                                <div class="col-4">
+                                    <label class="db-form-label m-0">Pass</label>
+                                </div>
+                                <div class="col-8">
+                                    <input asp-for="Password" type="password" class="form-control form-control-sm" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="AuthMode" value="Windows" id="winIntegrated" />
+                            <label class="form-check-label db-text-sm" for="winIntegrated">
+                                Windows Integrated
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="db-advanced-toggle" data-bs-toggle="collapse" href="#advancedOptions" role="button">
+                        <i class="bi bi-chevron-down"></i> Advanced Options
+                    </div>
+
+                    <div class="collapse" id="advancedOptions">
+                        <div class="db-advanced-body">
+
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" asp-for="EncryptConnection" id="encryptConn" />
+                                <label class="form-check-label db-text-xs" for="encryptConn">
+                                    Encrypt Connection
+                                </label>
+                            </div>
+
+                            <div class="row g-1 align-items-center">
+                                <div class="col-8">
+                                    <label class="db-form-label m-0 db-text-xs">
+                                        Timeout (sec)
+                                    </label>
+                                </div>
+                                <div class="col-4">
+                                    <input asp-for="Timeout" class="form-control form-control-sm" />
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="db-modal-footer">
+                        <button type="button" class="btn btn-db-cancel" data-bs-dismiss="modal">
+                            Skip
+                        </button>
+
+                        <button type="submit" class="btn btn-db-connect">
+                            Connect
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
