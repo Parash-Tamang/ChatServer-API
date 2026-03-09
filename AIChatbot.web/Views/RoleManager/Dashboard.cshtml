@@ -1,0 +1,80 @@
+﻿@using AIChatbot.web.Models.RoleManager
+@model AIChatbot.web.Models.RoleManager.RoleManagerViewModels.RoleManagerDashboardViewModel
+@{
+    ViewData["Title"] = "Role Manager";
+    var isSuperAdmin = Model.UserRole == "SuperAdmin";
+    var isAdminOrAbove = isSuperAdmin || Model.UserRole == "Admin";
+}
+
+<div class="rm-dashboard">
+    <div class="rm-header">
+        <h1>⚙️ Role Manager</h1>
+        <span class="rm-badge rm-badge--@Model.UserRole.ToLower()">@Model.UserRole</span>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="rm-alert rm-alert--success">✅ @TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null || Model.ErrorMessage != null)
+    {
+        <div class="rm-alert rm-alert--error">❌ @(TempData["ErrorMessage"] ?? Model.ErrorMessage)</div>
+    }
+
+    <div class="rm-cards">
+        @if (isAdminOrAbove)
+        {
+            <a href="/RoleManager/CreateAdmin" class="rm-card rm-card--blue">
+                <div class="rm-card__icon">👤</div>
+                <div class="rm-card__title">Create Admin</div>
+                <div class="rm-card__desc">Add a new admin user</div>
+            </a>
+            <a href="/RoleManager/CreateRole" class="rm-card rm-card--green">
+                <div class="rm-card__icon">🏷️</div>
+                <div class="rm-card__title">Create Role</div>
+                <div class="rm-card__desc">Define a new role</div>
+            </a>
+        }
+    </div>
+
+    @if (isSuperAdmin)
+    {
+        <div class="rm-section">
+            <h2>All Roles</h2>
+            @if (!Model.Roles.Any())
+            {
+                <p class="rm-empty">No roles found.</p>
+            }
+            else
+            {
+                <table class="rm-table">
+                    <thead>
+                        <tr><th>Role ID</th><th>Name</th><th>Description</th><th>Users</th><th>Delete</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var role in Model.Roles)
+                        {
+                            <tr>
+                                <td><code>@role.RoleId</code></td>
+                                <td>@role.RoleName</td>
+                                <td>@role.Description</td>
+                                <td><a href="/RoleManager/Users/@role.RoleId" class="rm-btn rm-btn--sm rm-btn--outline">View Users</a></td>
+                                <td>
+                                    <form method="post" action="/RoleManager/DeleteRole"
+                                          onsubmit="return confirm('Delete role @role.RoleName?')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="roleId" value="@role.RoleId" />
+                                        <button type="submit" class="rm-btn rm-btn--sm rm-btn--danger">🗑 Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+</div>
+@section Styles {
+    <link rel="stylesheet" href="/css/rolemanager.css" />
+}
