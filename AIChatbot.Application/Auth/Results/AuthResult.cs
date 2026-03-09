@@ -4,6 +4,8 @@ public sealed class AuthResult
 {
     public bool Success { get; init; }
 
+    public string? UserId { get; init; }
+
     public string? AccessToken { get; init; }
 
     public string? RefreshToken { get; init; }

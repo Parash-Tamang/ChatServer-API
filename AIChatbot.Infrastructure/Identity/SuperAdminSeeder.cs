@@ -39,6 +39,9 @@ public static class SuperAdminSeeder
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
             throw new Exception($"SuperAdmin creation failed: {errors}");
         }
+        if (!await roleManager.RoleExistsAsync("SuperAdmin"))
+            throw new Exception("SuperAdmin role does not exist");
+
         await userManager.AddToRoleAsync(superAdmin, "SuperAdmin");
     }
 }

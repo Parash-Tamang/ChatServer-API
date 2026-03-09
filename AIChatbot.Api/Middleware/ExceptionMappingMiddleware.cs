@@ -76,13 +76,11 @@ public class ExceptionMappingMiddleware
         // 🔴 FALLBACK → 500
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
-
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-
+            context.Response.StatusCode = 500;
             await context.Response.WriteAsJsonAsync(new
             {
-                error = "Internal server error"
+                error = ex.Message,
+                stack = ex.StackTrace
             });
         }
     }

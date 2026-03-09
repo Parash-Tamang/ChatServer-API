@@ -1,58 +1,58 @@
 ﻿using AIChatbot.Api.Middleware;
 using AIChatbot.Application.Abstractions;
-using AIChatbot.Application.Chat.Handlers;
 using AIChatbot.Application.Chat.Validators;
 using AIChatbot.Application.Common.Behaviours;
-
 using AIChatbot.Application.RoleAccess.Services;
-using AIChatbot.Application.RoleManagement.Handlers;
 using AIChatbot.Domain.Entities;
 using AIChatbot.Infrastructure.AI;
 using AIChatbot.Infrastructure.Data;
 using AIChatbot.Infrastructure.Identity;
 using AIChatbot.Infrastructure.Repositories;
+
 using FluentValidation;
 using MediatR;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+
 using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// -------------------- Controllers & Swagger --------------------
+
+// ==========================================================
+// Controllers + Swagger
+// ==========================================================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition("Bearer", new()
+    c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Title = "AI Core Platform API",
+        Version = "v1"
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT"
-
     });
-  
-        c.SwaggerDoc("v1", new OpenApiInfo
-        {
-            Title = "AI Core Platform API",
-            Version = "v1"
-        });
- 
 
-
-    c.AddSecurityRequirement(new()
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            new OpenApiSecurityScheme
             {
-                Reference = new()
+                Reference = new OpenApiReference
                 {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
             },
@@ -60,22 +60,31 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-// --------------------Network --------------------
-//builder.WebHost.UseUrls(
-//    "http://192.168.10.96:5048",
-//    "https://192.168.10.96:7048"
-//);
-// -------------------- MediatR + Validation --------------------
-builder.Services.AddMediatR(typeof(AIChatbot.Application.AssemblyReference).Assembly);
-builder.Services.AddValidatorsFromAssemblyContaining<SendChatMessageValidator>();
-builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-// -------------------- Database --------------------
+
+// ==========================================================
+// MediatR + Validation
+// ==========================================================
+builder.Services.AddMediatR(
+    typeof(AIChatbot.Application.AssemblyReference).Assembly);
+
+builder.Services.AddValidatorsFromAssemblyContaining<SendChatMessageValidator>();
+
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>),
+    typeof(ValidationBehavior<,>));
+
+
+// ==========================================================
+// Database
+// ==========================================================
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// -------------------- Identity --------------------
+
+// ==========================================================
+// Identity
+// ==========================================================
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequiredLength = 6;
@@ -84,23 +93,21 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// -------------------- JWT Authentication --------------------
+
+// ==========================================================
+// JWT Authentication
+// ==========================================================
 var jwt = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwt["Key"]!);
 
 builder.Services.AddAuthentication(options =>
 {
-    // 🔥 FORCE JWT ONLY
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
-    var jwt = builder.Configuration.GetSection("Jwt");
-    var key = Encoding.UTF8.GetBytes(jwt["Key"]!);
-
-    options.TokenValidationParameters = new()
+    options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
         ValidateAudience = true,
@@ -119,6 +126,7 @@ builder.Services.AddAuthentication(options =>
             context.HandleResponse();
             context.Response.StatusCode = 401;
             context.Response.ContentType = "application/json";
+
             return context.Response.WriteAsJsonAsync(new
             {
                 error = "Unauthorized - token missing or invalid"
@@ -126,50 +134,57 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.Events.OnRedirectToLogin = ctx =>
-    {
-        ctx.Response.StatusCode = 401;
-        return Task.CompletedTask;
-    };
-
-    options.Events.OnRedirectToAccessDenied = ctx =>
-    {
-        ctx.Response.StatusCode = 403;
-        return Task.CompletedTask;
-    };
-});
 
 builder.Services.AddAuthorization();
 
-// -------------------- Dependency Injection --------------------
+
+// ==========================================================
+// Dependency Injection
+// ==========================================================
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
-builder.Services.AddScoped<IConnectionRepository, ConnectionRepository>();
-builder.Services.AddScoped<IPromptRepository, PromptRepository>();
-builder.Services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
-builder.Services.AddScoped<IRoleAccessService, RoleAccessService>();
-builder.Services.AddScoped<ISchemaRepository, SchemaRepository>();
-builder.Services.AddScoped<SchemaAccessService>();
-//builder.Services.AddHttpClient<IAiProviderService, AiProviderService>();
-//builder.Services.AddHttpClient<IAiProviderService, AiProviderService>(client =>
-//{
-//    client.BaseAddress = new Uri("http://localhost:5000/");
-//    client.Timeout = TimeSpan.FromMinutes(5);
-//});
-
-builder.Services.AddHttpClient<IAiProviderService, ResponseProvider>();
-// add for testing without Flask
 builder.Services.AddScoped<IResponseMetadataRepository, ResponseMetadataRepository>();
-
 builder.Services.AddScoped<IChatSessionNamingRepository, ChatSessionNamingRepository>();
 
+builder.Services.AddScoped<IConnectionRepository, ConnectionRepository>();
+builder.Services.AddScoped<IPromptFunctionRepository, PromptFunctionRepository>();
+
+builder.Services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+builder.Services.AddScoped<IRoleAccessService, RoleAccessService>();
 
 
+// ==========================================================
+// 🔥 AI PROVIDER SWITCH
+// ==========================================================
+
+// ===== PRODUCTION (Flask) =====
+//builder.Services.AddHttpClient<IAiProviderService, AiProviderService>(client =>
+//{
+//    client.BaseAddress = new Uri("http://localhost:8000/");
+//    client.Timeout = TimeSpan.FromMinutes(5);
+//});
+/// ==== Python connect vai wifi hotspot, use this if Flask is running on a different machine =====
+builder.Services.AddHttpClient<IAiProviderService, AiProviderService>(client =>
+{
+    client.BaseAddress = new Uri("http://192.168.10.97:5000/");
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+// ===== TEST MODE (Uncomment if needed) =====
+//builder.Services.AddHttpClient<IAiProviderService, ResponseProvider>(client =>
+//{
+//    client.BaseAddress = new Uri("http://localhost:11434/");
+//});
+
+
+// ==========================================================
+// Build App
+// ==========================================================
 var app = builder.Build();
 
-// -------------------- HTTP Pipeline --------------------
+
+// ==========================================================
+// Middleware Pipeline
+// ==========================================================
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -178,19 +193,29 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseRouting();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
-//  Global exception handler (must be here)
+app.UseMiddleware<JsonEscapeFixMiddleware>();
 app.UseMiddleware<ExceptionMappingMiddleware>();
 
 app.MapControllers();
 
-// Health check
 app.MapGet("/ping", () => "pong");
+////====== get roles in register page =======
+app.MapGet("/List all roles ", (RoleManager<IdentityRole> roleManager) =>
+{
+    var roles = roleManager.Roles
+        .Where(r => r.Name != "SuperAdmin" && r.Name != "Admin")
+        .Select(r => r.Name)
+        .ToList();
 
+    return Results.Ok(roles);
+});
+
+
+// ==========================================================
+// Seed Roles + SuperAdmin
+// ==========================================================
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();

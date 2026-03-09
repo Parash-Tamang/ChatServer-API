@@ -13,14 +13,15 @@ public class ConnectionString
     public bool TrustCertificate { get; set; }
     public int ConnectionTimeout { get; set; }
 
-    public string DbIdentifier { get; set; } = default!;
-    public string? Role { get; set; }
+   
 
-    public bool IsActive { get; set; } = true;
+    public bool Verified { get; set; } = false;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedAt { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; } = false;  // for soft delete
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 
-    public ICollection<PromptSet> PromptSets { get; set; } = new List<PromptSet>();
-    public ICollection<RoleDbPermission> RoleDbPermissions { get; set; } = new List<RoleDbPermission>();
+    public ICollection<PromptFunction> Functions { get; set; } = new List<PromptFunction>();
+   // public ICollection<RoleDbPermission> RoleDbPermissions { get; set; } = new List<RoleDbPermission>();
 }

@@ -215,6 +215,7 @@ public class AuthService : IAuthService
         return new AuthResult
         {
             Success = true,
+            UserId = user.Id,
             AccessToken = accessToken,
             RefreshToken = refreshToken,
             ExpiresIn =

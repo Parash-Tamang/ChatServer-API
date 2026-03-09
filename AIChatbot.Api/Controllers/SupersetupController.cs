@@ -1,17 +1,14 @@
-﻿using AIChatbot.Application.DTOs;
-using AIChatbot.Application.Supersetup.Commands;
-using AIChatbot.Application.Supersetup.Queries;
-using AIChatbot.Application.SuperSetup.Commands;
+﻿using AIChatbot.Application.Supersetup.Commands;
+using AIChatbot.Application.Supersetup.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AIChatbot.Api.Controllers;
 
 [ApiController]
 [Route("api/supersetup/V1/setup-engine")]
-[Authorize]
+[Authorize(Roles = "SuperAdmin")]
 public class SupersetupController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -21,65 +18,60 @@ public class SupersetupController : ControllerBase
         _mediator = mediator;
     }
 
-    private string UserId =>
-        User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-
-    // ---------------- HC1_conTest ----------------
-    [HttpPost("HC1_conTest")]
-    public async Task<IActionResult> TestConnection(ConnectionTestDto dto)
+    // ==========================================================
+    // 1️⃣ SAVE CONNECTION (Create / Update)
+    // ==========================================================
+    [HttpPost("connection")]
+    public async Task<IActionResult> SaveConnection(
+        [FromBody] SaveConnectionCommand command)
     {
-        var result = await _mediator.Send(new TestConnectionCommand(dto));
-
-        if (!result)
-            return StatusCode(500, "Database connection failed");
-
-        return Ok("Connection successful");
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 
-    // ---------------- HC1_integration ----------------
-    [HttpPost("HC1_integration")]
-    public async Task<IActionResult> Integrate(ConnectionTestDto dto)
+    // ==========================================================
+    // 2️⃣ SAVE FUNCTION + SYSTEM PROMPT
+    // ==========================================================
+    [HttpPost("function")]
+    public async Task<IActionResult> SaveFunction(
+        [FromBody] SavePromptFunctionCommand command)
     {
-        var dbId = await _mediator.Send(
-            new IntegrateDatabaseCommand(dto, UserId));
-
-        return Ok(new { databaseId = dbId });
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 
-    // ---------------- HC1_getdb ----------------
-    [HttpGet("HC1_getdb")]
-    public async Task<IActionResult> GetDb()
-        => Ok(await _mediator.Send(new GetAllDatabasesQuery(UserId)));
-
-    // ---------------- HC1_getprom ----------------
-    [HttpGet("HC1_getprom/{dbId}")]
-    public async Task<IActionResult> GetPrompt(Guid dbId)
-        => Ok(await _mediator.Send(new GetPromptQuery(dbId, UserId)));
-
-    // ---------------- HC1_setprompt ----------------
-    [HttpPost("HC1_setprompt")]
-    public async Task<IActionResult> SetPrompt(SetPromptCommand cmd)
+    // ==========================================================
+    // 3️⃣ DELETE CONNECTION / FUNCTION
+    // ==========================================================
+    [HttpDelete]
+    public async Task<IActionResult> Delete(
+      [FromQuery] Guid? connectionId,
+      [FromQuery] Guid? functionId)
     {
-        cmd = cmd with { RequestedByUserId = UserId };
-        return Ok(await _mediator.Send(cmd));
+        var command = new DeleteSupersetupCommand(connectionId, functionId);
+
+        var result = await _mediator.Send(command);
+
+        return Ok(result);
+    }
+    // ==========================================================
+    // 4️⃣ SAVE GLOBAL PROMPT
+    // ==========================================================
+    [HttpPost("global")]
+    public async Task<IActionResult> SaveGlobalPrompt(
+      [FromBody] SaveGlobalPromptCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 
-    // ---------------- HC1_rollback ----------------
-    [HttpPost("HC1_rollback/{dbId}")]
-    public async Task<IActionResult> Rollback(Guid dbId)
-        => Ok(await _mediator.Send(new RollbackPromptCommand(dbId, UserId)));
-
-    [HttpPost("HC1_DBwrite")]
-    public async Task<IActionResult> UpdateConnection(UpdateConnectionCommand cmd)
+    // ==========================================================
+    // 5️⃣ GET ALL SUPERSETUP DATA
+    // ==========================================================
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAll()
     {
-        cmd = cmd with { RequestedByUserId = UserId };
-        return Ok(await _mediator.Send(cmd));
-    }
-
-    [HttpDelete("HC1_DBErase/{dbId}")]
-    public async Task<IActionResult> DeleteConnection(Guid dbId)
-    {
-        return Ok(await _mediator.Send(
-            new DeleteConnectionCommand(dbId, UserId)));
+        var result = await _mediator.Send(new GetSupersetupDataQuery());
+        return Ok(result);
     }
 }

@@ -7,34 +7,61 @@ namespace AIChatbot.Infrastructure.Repositories;
 
 public class ConnectionRepository : IConnectionRepository
 {
-    private readonly AppDbContext _db;
+    private readonly AppDbContext _context;
 
-    public ConnectionRepository(AppDbContext db)
+    public ConnectionRepository(AppDbContext context)
     {
-        _db = db;
+        _context = context;
     }
 
-    public async Task<ConnectionString?> GetByIdAsync(Guid id)
-        => await _db.ConnectionStrings.FindAsync(id);
-
+    // Get all non-deleted connections
     public async Task<List<ConnectionString>> GetAllAsync()
-        => await _db.ConnectionStrings.ToListAsync();
+    {
+        return await _context.ConnectionStrings
+            .Where(x => !x.IsDeleted)
+            .ToListAsync();
+    }
 
+    // Get connection by Id
+    public async Task<ConnectionString?> GetByIdAsync(Guid id)
+    {
+        return await _context.ConnectionStrings
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+    }
+
+    // Add new connection
     public async Task AddAsync(ConnectionString entity)
     {
-        _db.ConnectionStrings.Add(entity);
-        await _db.SaveChangesAsync();
+        _context.ConnectionStrings.Add(entity);
+        await _context.SaveChangesAsync();
     }
 
+    // Update connection
     public async Task UpdateAsync(ConnectionString entity)
     {
-        _db.ConnectionStrings.Update(entity);
-        await _db.SaveChangesAsync();
+        _context.ConnectionStrings.Update(entity);
+        await _context.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(ConnectionString entity)
+    // Set one connection active (others inactive)
+    public async Task SetActiveAsync(Guid id)
     {
-        _db.ConnectionStrings.Remove(entity);
-        await _db.SaveChangesAsync();
+        var allConnections = await _context.ConnectionStrings
+            .Where(x => !x.IsDeleted)
+            .ToListAsync();
+
+        foreach (var conn in allConnections)
+        {
+            conn.IsActive = false;
+        }
+
+        var target = allConnections.FirstOrDefault(x => x.Id == id);
+
+        if (target == null)
+            throw new Exception("Connection not found");
+
+        target.IsActive = true;
+
+        await _context.SaveChangesAsync();
     }
 }

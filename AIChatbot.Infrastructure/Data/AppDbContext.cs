@@ -19,7 +19,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<ChatSessionNaming> ChatSessionNaming => Set<ChatSessionNaming>();
     public DbSet<ConnectionString> ConnectionStrings => Set<ConnectionString>();
-    public DbSet<PromptSet> PromptSets => Set<PromptSet>();
+ 
     public DbSet<PromptFunction> PromptFunctions => Set<PromptFunction>();
 
     public DbSet<RoleDbPermission> RoleDbPermissions => Set<RoleDbPermission>();
@@ -64,28 +64,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ServerName).IsRequired().HasMaxLength(200);
             entity.Property(x => x.DatabaseName).IsRequired().HasMaxLength(200);
             entity.Property(x => x.AuthMode).IsRequired().HasMaxLength(20);
-            entity.Property(x => x.DbIdentifier).IsRequired().HasMaxLength(100);
+            
 
-            entity.HasMany(x => x.PromptSets)
+            entity.Property(x => x.UpdatedAt)
+                  .HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasMany(x => x.Functions)
                   .WithOne(x => x.ConnectionString)
                   .HasForeignKey(x => x.ConnectionStringId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
         // -------------------- PromptSets --------------------
-        builder.Entity<PromptSet>(entity =>
-        {
-            entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.VersionType)
-                  .IsRequired()
-                  .HasMaxLength(20);
-
-            entity.HasMany(x => x.Functions)
-                  .WithOne(x => x.PromptSet)
-                  .HasForeignKey(x => x.PromptSetId)
-                  .OnDelete(DeleteBehavior.Cascade);
-        });
 
         // -------------------- PromptFunctions --------------------
         builder.Entity<PromptFunction>(entity =>
@@ -98,6 +89,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.SystemPrompt)
                   .IsRequired();
+
+            entity.HasOne(x => x.ConnectionString)
+                  .WithMany(x => x.Functions)
+                  .HasForeignKey(x => x.ConnectionStringId)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .IsRequired(false); // IMPORTANT
         });
 
         // -------------------- RoleDbPermissions --------------------
