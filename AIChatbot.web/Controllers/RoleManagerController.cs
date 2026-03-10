@@ -1,7 +1,7 @@
 ﻿using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.RoleManager;
 using Microsoft.AspNetCore.Mvc;
-using static AIChatbot.web.Models.RoleManager.RoleManagerViewModel;
+
 
 namespace AIChatbot.web.Controllers
 {
