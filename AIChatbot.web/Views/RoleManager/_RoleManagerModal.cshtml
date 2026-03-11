@@ -1,0 +1,44 @@
+﻿<div class="modal fade" id="roleManagerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content role-manager-container">
+            <!-- Sidebar -->
+            <div class="role-sidebar">
+                <div class="sidebar-header">
+                    <button type="button" class="btn-close-custom" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <nav class="role-nav">
+                    <button class="nav-item active" onclick="loadRoleContent('Dashboard', this)">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </button>
+                    <button class="nav-item" onclick="loadRoleContent('CreateRole', this)">
+                        <i class="bi bi-shield-plus"></i> Create Role
+                    </button>
+                    <button class="nav-item" onclick="loadRoleContent('CreateAdmin', this)">
+                        <i class="bi bi-person-plus"></i> Create Admin
+                    </button>
+                    <button class="nav-item" onclick="loadRoleContent('Users', this)">
+                        <i class="bi bi-people"></i> Manage Users
+                    </button>
+                </nav>
+                <div class="sidebar-footer">
+                    <div class="user-info">
+                        <i class="bi bi-person-circle"></i>
+                        <span>Admin Panel</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="role-content">
+                <div id="roleContentBody">
+                    <!-- Dynamic content loads here -->
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-light" role="status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

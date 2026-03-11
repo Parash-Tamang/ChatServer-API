@@ -1,7 +1,7 @@
 ﻿namespace AIChatbot.web.Models.RoleManager
 {
-    public class RoleManagerViewModel
-    {
+  
+    
         public class RoleManagerDashboardViewModel
         {
             public List<RoleDto> Roles { get; set; } = new();
@@ -19,5 +19,5 @@
             public string? ErrorMessage { get; set; }
             public string? SuccessMessage { get; set; }
         }
-    }
+    
 }

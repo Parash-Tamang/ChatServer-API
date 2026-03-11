@@ -1,7 +1,7 @@
 ﻿using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.RoleManager;
 using Microsoft.AspNetCore.Mvc;
-using static AIChatbot.web.Models.RoleManager.RoleManagerViewModel;
+
 
 namespace AIChatbot.web.Controllers
 {
@@ -127,5 +127,18 @@ namespace AIChatbot.web.Controllers
 
         [HttpGet("AccessDenied")]
         public IActionResult AccessDenied() => View();
+
+        public IActionResult Index()
+        {
+            return PartialView("_RoleManagerModal");
+        //}
+
+        //// Sub-views for the modal content
+        //public IActionResult Dashboard() => PartialView("_Dashboard");
+        //public IActionResult CreateRole() => PartialView("_CreateRole");
+        //public IActionResult CreateAdmin() => PartialView("_CreateAdmin");
+        //public IActionResult Users() => PartialView("_Users");
+
+
     }
-}   
+}   }
