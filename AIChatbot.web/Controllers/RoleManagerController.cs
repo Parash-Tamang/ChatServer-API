@@ -127,5 +127,18 @@ namespace AIChatbot.web.Controllers
 
         [HttpGet("AccessDenied")]
         public IActionResult AccessDenied() => View();
+
+        public IActionResult Index()
+        {
+            return PartialView("_RoleManagerModal");
+        //}
+
+        //// Sub-views for the modal content
+        //public IActionResult Dashboard() => PartialView("_Dashboard");
+        //public IActionResult CreateRole() => PartialView("_CreateRole");
+        //public IActionResult CreateAdmin() => PartialView("_CreateAdmin");
+        //public IActionResult Users() => PartialView("_Users");
+
+
     }
-}   
+}   }

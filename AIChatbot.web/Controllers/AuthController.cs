@@ -93,51 +93,29 @@ namespace AIChatbot.web.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Register(string firstName, string lastName, string email, string phone, string password, string confirmPassword)
+        public async Task<IActionResult> Register(RegisterRequest registerRequestDto)
+
         {
+            if (!ModelState.IsValid)
+                return View(registerRequestDto); 
+
             var req = new RegisterRequest
             {
-                FirstName = firstName,
-                LastName = lastName,
-                Email = email,
-                Phone = phone,
-                Password = password
+                FirstName = registerRequestDto.FirstName,
+                LastName = registerRequestDto.LastName,
+                Phone = registerRequestDto.Phone,
+                Email = registerRequestDto.Email,
+                Password = registerRequestDto.Password,
+                Role = registerRequestDto.Role
             };
-
-            // Server-side validation
-            var (isValid, errors) = _authService.ValidateRegisterInput(req);
-            if (!isValid)
-            {
-                // Set ViewData for each error field
-                if (errors.ContainsKey("firstName"))
-                    ViewData["FirstNameError"] = errors["firstName"];
-                if (errors.ContainsKey("lastName"))
-                    ViewData["LastNameError"] = errors["lastName"];
-                if (errors.ContainsKey("email"))
-                    ViewData["EmailError"] = errors["email"];
-                if (errors.ContainsKey("phone"))
-                    ViewData["PhoneError"] = errors["phone"];
-                if (errors.ContainsKey("password"))
-                    ViewData["PasswordError"] = errors["password"];
-
-                return View();
-            }
-
-            // Validate password confirmation on server
-            if (password != confirmPassword)
-            {
-                ViewData["ConfirmPasswordError"] = "Passwords do not match";
-                return View();
-            }
-
-            
 
             var result = await _authService.RegisterAsync(req);
 
             if (!result.Success)
             {
+                ModelState.AddModelError(string.Empty, result.Error ?? "Registration failed");
                 ViewData["ErrorMessage"] = "Registration failed";
-                return View();
+                return View(registerRequestDto);
             }
 
             // ✅ After registration, redirect to Chat

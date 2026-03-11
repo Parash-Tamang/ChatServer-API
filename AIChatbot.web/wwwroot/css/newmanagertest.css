@@ -1,0 +1,148 @@
+﻿/* Scoping all styles to #roleManagerModal to prevent 
+   
+*/
+
+#roleManagerModal .modal-xl {
+    max-width: 900px;
+}
+
+#roleManagerModal .modal-content.role-manager-container {
+    background-color: #171717;
+    color: #ececec;
+    border: 1px solid #424242;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: row;
+    height: 600px;
+    overflow: hidden;
+    padding: 0; /* Remove default bootstrap padding */
+}
+
+/* Sidebar Specificity */
+#roleManagerModal .role-sidebar {
+    width: 260px;
+    background-color: #212121;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 8px;
+    border-right: 1px solid #424242;
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+}
+
+#roleManagerModal .sidebar-header {
+    display: flex;
+    justify-content: flex-start;
+    padding: 4px 8px;
+}
+
+#roleManagerModal .btn-close-custom {
+    background: transparent;
+    border: none;
+    color: #b4b4b4;
+    font-size: 1.1rem;
+    padding: 8px;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+    #roleManagerModal .btn-close-custom:hover {
+        color: #fff;
+    }
+
+#roleManagerModal .role-nav {
+    flex-grow: 1;
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+    /* Scoped Nav Items */
+    #roleManagerModal .role-nav .nav-item {
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: #b4b4b4;
+        text-align: left;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+    }
+
+        #roleManagerModal .role-nav .nav-item i {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        #roleManagerModal .role-nav .nav-item:hover {
+            background-color: #2f2f2f;
+            color: #fff;
+        }
+
+        #roleManagerModal .role-nav .nav-item.active {
+            background-color: #2f2f2f;
+            color: #fff;
+        }
+
+/* Content Area Specificity */
+#roleManagerModal .role-content {
+    flex-grow: 1;
+    padding: 32px;
+    overflow-y: auto;
+    background-color: #171717;
+}
+
+#roleManagerModal .sidebar-footer {
+    padding: 16px 8px;
+    border-top: 1px solid #424242;
+    color: #b4b4b4;
+    font-size: 0.85rem;
+}
+
+#roleManagerModal .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Custom Scrollbar for the Role Content only */
+#roleManagerModal .role-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+#roleManagerModal .role-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#roleManagerModal .role-content::-webkit-scrollbar-thumb {
+    background: #424242;
+    border-radius: 10px;
+}
+
+    #roleManagerModal .role-content::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+/* Form element styling inside the modal to match dark theme */
+#roleManagerModal .role-content input,
+#roleManagerModal .role-content select,
+#roleManagerModal .role-content textarea {
+    background-color: #2f2f2f;
+    border: 1px solid #424242;
+    color: #fff;
+    border-radius: 6px;
+}
+
+    #roleManagerModal .role-content input:focus {
+        background-color: #2f2f2f;
+        border-color: #666;
+        box-shadow: none;
+        color: #fff;
+    }
