@@ -1,5 +1,5 @@
 using AIChatbot.web.Models.Auth;
-
+using AIChatbot.web.Dto;
 namespace AIChatbot.web.Interfaces
 {
     /// <summary>
@@ -16,7 +16,7 @@ namespace AIChatbot.web.Interfaces
         /// <summary>
         /// Registers a new user and issues tokens
         /// </summary>
-        Task<AuthResponse> RegisterAsync(RegisterRequest req);
+        Task<AuthResponseDto> RegisterAsync(RegisterUserDto registerUserDto);
 
         /// <summary>
         /// Issues a new access token using refresh token
@@ -28,19 +28,7 @@ namespace AIChatbot.web.Interfaces
         /// </summary>
         Task LogoutAsync();
 
-        /// <summary>
-        /// Get user Details
-        /// </summary>
-        Task<string> GetUserDetailsAsync();
-
-        /// <summary>
-        /// Validates login input
-        /// </summary>
-        (bool isValid, string errorMessage) ValidateLoginInput(LoginRequest req);
-
-        /// <summary>
-        /// Validates registration input with multiple field validation
-        /// </summary>
-        (bool isValid, Dictionary<string, string> errors) ValidateRegisterInput(RegisterRequest req);
+     
+      
     }
 }

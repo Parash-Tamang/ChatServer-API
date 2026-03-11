@@ -1,6 +1,8 @@
-﻿using AIChatbot.web.Models.Auth;
+﻿using AIChatbot.web.Dto;
 using AIChatbot.web.Interfaces;
+using AIChatbot.web.Models.Auth;
 using AIChatbot.web.Services;
+using AIChatbot.Web.Models.Auth;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AIChatbot.web.Controllers
@@ -90,35 +92,32 @@ namespace AIChatbot.web.Controllers
             return View();
         }
 
-
-
         [HttpPost]
-        public async Task<IActionResult> Register(RegisterRequest registerRequestDto)
-
+        public async Task<IActionResult> Register(RegisterUser registerUser)
         {
             if (!ModelState.IsValid)
-                return View(registerRequestDto); 
+                return View(registerUser);
 
-            var req = new RegisterRequest
+            var dto = new RegisterUserDto
             {
-                FirstName = registerRequestDto.FirstName,
-                LastName = registerRequestDto.LastName,
-                Phone = registerRequestDto.Phone,
-                Email = registerRequestDto.Email,
-                Password = registerRequestDto.Password,
-                Role = registerRequestDto.Role
+                FirstName = registerUser.FirstName,
+                LastName = registerUser.LastName,
+                Email = registerUser.Email,
+                Phone = registerUser.Phone,
+                Password = registerUser.Password,
+                Role = registerUser.Role
             };
 
-            var result = await _authService.RegisterAsync(req);
+            var result = await _authService.RegisterAsync(dto);
 
             if (!result.Success)
             {
-                ModelState.AddModelError(string.Empty, result.Error ?? "Registration failed");
-                ViewData["ErrorMessage"] = "Registration failed";
-                return View(registerRequestDto);
+                TempData["Error"] = result.Error ?? "Registration failed";
+                return View(registerUser);
             }
 
-            // ✅ After registration, redirect to Chat
+            TempData["Success"] = "Registration successful";
+
             return RedirectToAction("Index", "Chat");
         }
 

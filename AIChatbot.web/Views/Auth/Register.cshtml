@@ -1,4 +1,5 @@
-﻿@model RegisterRequest
+﻿@using AIChatbot.Web.Models.Auth
+@model RegisterUser
 
 @{
     Layout = "_Layout";
@@ -12,32 +13,39 @@
         <div class="auth-title">Create account</div>
 
         <form method="post" asp-action="Register" asp-controller="Auth">
-            <div asp-validation-summary="ModelOnly" class="error"></div>
 
+            <div asp-validation-summary="ModelOnly" class="error"></div>
 
             <!-- FIRST NAME -->
             <input asp-for="FirstName"
                    class="input"
                    type="text"
                    placeholder="First name" />
+
             <span asp-validation-for="FirstName" class="error"></span>
+
 
             <!-- LAST NAME -->
             <input asp-for="LastName"
                    class="input"
                    type="text"
                    placeholder="Last name" />
+
             <span asp-validation-for="LastName" class="error"></span>
+
 
             <!-- EMAIL -->
             <input asp-for="Email"
                    class="input"
                    type="email"
                    placeholder="Email" />
+
             <span asp-validation-for="Email" class="error"></span>
+
 
             <!-- PHONE -->
             <div class="phone-field">
+
                 <span class="phone-prefix">+91</span>
 
                 <input asp-for="Phone"
@@ -45,29 +53,38 @@
                        type="tel"
                        maxlength="10"
                        placeholder="Phone number" />
+
             </div>
+
             <span asp-validation-for="Phone" class="error"></span>
 
+
             <!-- ROLE -->
-            <input asp-for="Role"
-                   class="input"
-                   type="text"
-                   placeholder="Role : If new type 'User'" />
+            <select asp-for="Role" class="input">
+                <option value="">Select role</option>
+                <option value="User">User</option>
+            </select>
+
             <span asp-validation-for="Role" class="error"></span>
+
 
             <!-- PASSWORD -->
             <input asp-for="Password"
                    class="input"
                    type="password"
                    placeholder="Password" />
+
             <span asp-validation-for="Password" class="error"></span>
+
 
             <!-- CONFIRM PASSWORD -->
             <input asp-for="ConfirmPassword"
                    class="input"
                    type="password"
                    placeholder="Confirm password" />
+
             <span asp-validation-for="ConfirmPassword" class="error"></span>
+
 
             <!-- REGISTER BUTTON -->
             <button type="submit" class="btn auth-btn">
@@ -78,13 +95,48 @@
 
         <div class="auth-link">
             Already have an account?
-            <a href="/Auth/Login">Login</a>
+            <a asp-controller="Auth" asp-action="Login">Login</a>
         </div>
 
     </div>
 
 </div>
-@* 
+
+
 @section Scripts {
+
+    <!-- MVC Validation -->
     <partial name="_ValidationScriptsPartial" />
-} *@
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const error = '@TempData["Error"]';
+            const success = '@TempData["Success"]';
+
+            if (error && error !== '') {
+                toastr.error(error);
+            }
+
+            if (success && success !== '') {
+                toastr.success(success);
+            }
+
+            // FluentValidation errors
+            let errors = [];
+
+            @foreach (var e in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                    <text>errors.push("@e.ErrorMessage");</text>
+            }
+
+            errors.forEach(function (err) {
+                toastr.error(err);
+            });
+
+        });
+
+    </script>
+
+}
