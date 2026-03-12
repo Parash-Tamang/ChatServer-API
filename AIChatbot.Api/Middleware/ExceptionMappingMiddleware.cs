@@ -27,6 +27,8 @@ public class ExceptionMappingMiddleware
         // 🔴 VALIDATION → 400
         catch (ValidationException ex)
         {
+            _logger.LogWarning(ex, "Validation error");
+
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
 
             await context.Response.WriteAsJsonAsync(new
@@ -43,44 +45,52 @@ public class ExceptionMappingMiddleware
         // 🔴 NOT FOUND → 404
         catch (KeyNotFoundException ex)
         {
+            _logger.LogWarning(ex, "Resource not found");
+
             context.Response.StatusCode = StatusCodes.Status404NotFound;
 
             await context.Response.WriteAsJsonAsync(new
             {
-                error = ex.Message
+                error = "Resource not found"
             });
         }
 
         // 🔴 UNAUTHORIZED → 401
         catch (UnauthorizedAccessException ex)
         {
+            _logger.LogWarning(ex, "Unauthorized access");
+
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 
             await context.Response.WriteAsJsonAsync(new
             {
-                error = ex.Message
+                error = "Unauthorized"
             });
         }
 
         // 🔴 CONFLICT → 409
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Conflict occurred");
+
             context.Response.StatusCode = StatusCodes.Status409Conflict;
 
             await context.Response.WriteAsJsonAsync(new
             {
-                error = ex.Message
+                error = "User already Exist or Email Already registered with another user "
             });
         }
 
         // 🔴 FALLBACK → 500
         catch (Exception ex)
         {
-            context.Response.StatusCode = 500;
+            _logger.LogError(ex, "Unhandled server error");
+
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
             await context.Response.WriteAsJsonAsync(new
             {
-                error = ex.Message,
-                stack = ex.StackTrace
+                error = "Internal server error"
             });
         }
     }
