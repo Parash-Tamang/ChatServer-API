@@ -15,9 +15,7 @@ namespace AIChatbot.web.Controllers
 
             try
             {
-                // your existing connection/service logic here
-                await _dbService.ConnectAsync(model);
-
+             
                 return Json(new { success = true, database = model.Database });
             }
             catch (Exception ex)
