@@ -1,17 +1,23 @@
-﻿namespace AIChatbot.Application.Auth.Results;
+﻿using System.Text.Json.Serialization;
+
+namespace AIChatbot.Application.Auth.Results;
 
 public sealed class AuthResult
 {
-    public bool Success { get; init; }
+    public bool Success { get; set; }
 
-    public string? UserId { get; init; }
+    public string? UserId { get; set; }
 
-    public string? AccessToken { get; init; }
+    public string? AccessToken { get; set; }
 
-    public string? RefreshToken { get; init; }
+    public string? RefreshToken { get; set; }
 
-    public int ExpiresIn { get; init; }
+    public int ExpiresIn { get; set; }
 
-    public string? Error { get; init; }
-    public IList<string>? Roles { get; init; }
+    public string? Error { get; set; }
+
+    [JsonIgnore]
+    public IList<string>? Roles { get; set; }
+
+    public string? Role => Roles?.FirstOrDefault();
 }

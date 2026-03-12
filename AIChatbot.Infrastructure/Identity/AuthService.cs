@@ -13,10 +13,6 @@ using System.Text;
 
 namespace AIChatbot.Infrastructure.Identity;
 
-/// <summary>
-/// Authentication and authorization service
-/// Handles JWT, refresh tokens, login, register, logout, and password flows
-/// </summary>
 public class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -36,7 +32,7 @@ public class AuthService : IAuthService
         _config = config;
     }
 
-    // ---------------- REGISTER ----------------
+    // ================= REGISTER =================
     public async Task<AuthResult> RegisterAsync(
         string firstName,
         string lastName,
@@ -65,7 +61,6 @@ public class AuthService : IAuthService
             };
         }
 
-        // Assign role safely
         if (!string.IsNullOrWhiteSpace(role))
         {
             if (!await _roleManager.RoleExistsAsync(role))
@@ -92,7 +87,7 @@ public class AuthService : IAuthService
         return await IssueAuthResultAsync(user);
     }
 
-    // ---------------- LOGIN ----------------
+    // ================= LOGIN =================
     public async Task<AuthResult> LoginAsync(string email, string password)
     {
         var user = await _userManager.FindByEmailAsync(email)
@@ -106,7 +101,7 @@ public class AuthService : IAuthService
         return await IssueAuthResultAsync(user);
     }
 
-    // ---------------- REFRESH TOKEN ----------------
+    // ================= REFRESH TOKEN =================
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
     {
         var hash = Hash(refreshToken);
@@ -132,7 +127,7 @@ public class AuthService : IAuthService
         return await IssueAuthResultAsync(user);
     }
 
-    // ---------------- LOGOUT ----------------
+    // ================= LOGOUT =================
     public async Task LogoutAsync(string userId)
         => await RevokeAllAsync(userId);
 
@@ -147,18 +142,7 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
     }
 
-    // ---------------- PASSWORD RESET ----------------
-    public async Task ForgotPasswordAsync(string email)
-    {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user == null) return;
-
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-
-        // Send token via email/SMS externally
-    }
-
-    //-------------------GetUserdetails----------------
+    // ================= USER PROFILE =================
     public async Task<UserProfileResult> GetProfileAsync(string userId)
     {
         var user = await _userManager.FindByIdAsync(userId)
@@ -176,7 +160,15 @@ public class AuthService : IAuthService
         };
     }
 
-    //-------------------Reset password----------------
+    // ================= PASSWORD RESET =================
+    public async Task ForgotPasswordAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user == null) return;
+
+        await _userManager.GeneratePasswordResetTokenAsync(user);
+    }
+
     public async Task ResetPasswordAsync(
         string email,
         string token,
@@ -192,7 +184,7 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Password reset failed");
     }
 
-    // ---------------- TOKEN CORE ----------------
+    // ================= TOKEN GENERATION =================
     private async Task<AuthResult> IssueAuthResultAsync(ApplicationUser user)
     {
         var accessToken = await GenerateJwt(user);
@@ -224,19 +216,19 @@ public class AuthService : IAuthService
         };
     }
 
-    // ---------------- JWT GENERATION ----------------
+    // ================= JWT CREATION =================
     private async Task<string> GenerateJwt(ApplicationUser user)
     {
         var jwt = _config.GetSection("Jwt");
 
-        List<Claim> claims =
-        [
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var claims = new List<Claim>
+        {
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(JwtRegisteredClaimNames.Sub, user.Id),
             new Claim(JwtRegisteredClaimNames.Email, user.Email!)
-        ];
-
-        var roles = await _userManager.GetRolesAsync(user);
+        };
 
         foreach (var role in roles)
             claims.Add(new Claim(ClaimTypes.Role, role));
@@ -249,16 +241,17 @@ public class AuthService : IAuthService
         var expires = DateTime.UtcNow.AddMinutes(
             int.Parse(jwt["AccessTokenExpirationMinutes"] ?? "60"));
 
-        return new JwtSecurityTokenHandler().WriteToken(
-            new JwtSecurityToken(
-                issuer: jwt["Issuer"],
-                audience: jwt["Audience"],
-                claims: claims,
-                expires: expires,
-                signingCredentials: creds));
+        var token = new JwtSecurityToken(
+            issuer: jwt["Issuer"],
+            audience: jwt["Audience"],
+            claims: claims,
+            expires: expires,
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    // ---------------- HELPERS ----------------
+    // ================= HELPERS =================
     private static string Hash(string input)
         => Convert.ToBase64String(
             SHA256.HashData(Encoding.UTF8.GetBytes(input)));
