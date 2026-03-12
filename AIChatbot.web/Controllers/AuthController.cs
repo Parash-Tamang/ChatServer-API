@@ -2,7 +2,7 @@
 using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.Auth;
 using AIChatbot.web.Services;
-using AIChatbot.Web.Models.Auth;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 
@@ -13,12 +13,17 @@ namespace AIChatbot.web.Controllers
         private readonly IAuthService _authService;
         private readonly TokenService _tokenService;
         private readonly IRoleManagerService _roleManagerService;
+        private readonly IValidator<RegisterUser> _validator;
 
-        public AuthController(IAuthService authService, TokenService tokenService, IRoleManagerService roleManagerService)
+        public AuthController(
+            IValidator<RegisterUser> validator,TokenService tokenService,
+            IRoleManagerService roleManagerService,
+            IAuthService authService)
         {
-            _authService = authService;
+            _validator = validator;
             _tokenService = tokenService;
             _roleManagerService = roleManagerService;
+            _authService = authService;
         }
 
         [HttpGet]
@@ -74,11 +79,30 @@ namespace AIChatbot.web.Controllers
         [HttpPost]
         public async Task<IActionResult> Register(RegisterUser registerUser)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                registerUser.Roles = await _roleManagerService.ListRoles(); // reload roles
+                // Roles needed for dropdown and validator
+                registerUser.Roles = await _roleManagerService.ListRoles();
+            }
+            catch
+            {
+                TempData["Error"] = "Unable to load roles. Please try again later.";
                 return View(registerUser);
             }
+
+            // Run FluentValidation
+            var validationResult = await _validator.ValidateAsync(registerUser);
+
+            if (!validationResult.IsValid)
+            {
+                TempData["ValidationErrors"] = validationResult.Errors
+                    .Select(e => e.ErrorMessage)
+                    .Distinct()
+                    .ToList();
+
+                return View(registerUser);
+            }
+
             var dto = new RegisterUserDto
             {
                 FirstName = registerUser.FirstName,

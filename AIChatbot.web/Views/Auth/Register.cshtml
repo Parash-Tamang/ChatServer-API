@@ -1,5 +1,4 @@
-﻿@using AIChatbot.Web.Models.Auth
-@model RegisterUser
+﻿@model RegisterUser
 
 @{
     Layout = "_Layout";
@@ -15,7 +14,7 @@
         <form method="post" asp-action="Register" asp-controller="Auth">
            
                 @Html.AntiForgeryToken()
-            <div asp-validation-summary="ModelOnly" class="error"></div>
+            @* <div asp-validation-summary="ModelOnly" class="error"></div> *@
 
             <!-- FIRST NAME -->
             <input asp-for="FirstName"
@@ -23,7 +22,7 @@
                    type="text"
                    placeholder="First name" />
 
-            <span asp-validation-for="FirstName" class="error"></span>
+            @* <span asp-validation-for="FirstName" class="error"></span> *@
 
 
             <!-- LAST NAME -->
@@ -32,7 +31,7 @@
                    type="text"
                    placeholder="Last name" />
 
-            <span asp-validation-for="LastName" class="error"></span>
+            @* <span asp-validation-for="LastName" class="error"></span> *@
 
 
             <!-- EMAIL -->
@@ -41,7 +40,7 @@
                    type="email"
                    placeholder="Email" />
 
-            <span asp-validation-for="Email" class="error"></span>
+            @* <span asp-validation-for="Email" class="error"></span> *@
 
 
             <!-- PHONE -->
@@ -57,7 +56,7 @@
 
             </div>
 
-            <span asp-validation-for="Phone" class="error"></span>
+            @* <span asp-validation-for="Phone" class="error"></span> *@
 
 
             <!-- ROLE -->
@@ -73,7 +72,7 @@
                 }
             </select>
 
-            <span asp-validation-for="SelectedRole" class="error"></span>
+            @* <span asp-validation-for="SelectedRole" class="error"></span> *@
 
 
             <!-- PASSWORD -->
@@ -82,7 +81,7 @@
                    type="password"
                    placeholder="Password" />
 
-            <span asp-validation-for="Password" class="error"></span>
+            @* <span asp-validation-for="Password" class="error"></span> *@
 
 
             <!-- CONFIRM PASSWORD -->
@@ -91,7 +90,7 @@
                    type="password"
                    placeholder="Confirm password" />
 
-            <span asp-validation-for="ConfirmPassword" class="error"></span>
+            @* <span asp-validation-for="ConfirmPassword" class="error"></span> *@
 
 
             <!-- REGISTER BUTTON -->
