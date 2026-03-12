@@ -1,6 +1,8 @@
 using AIChatbot.web.Filters;
-using AIChatbot.web.Services;
 using AIChatbot.web.Interfaces;
+using AIChatbot.web.Models.Auth;
+using AIChatbot.web.Services;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,9 +13,11 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
 
+
 // Custom services - Register interface
 builder.Services.AddScoped<ApiClient>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IValidator<RegisterUser>, RegisterValidator>();
 builder.Services.AddScoped<IAuthService>(sp => sp.GetRequiredService<AuthService>());
 builder.Services.AddScoped<IRoleManagerService, RoleManagerService>();
 builder.Services.AddScoped<ChatApiService>();

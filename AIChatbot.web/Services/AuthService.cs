@@ -62,7 +62,7 @@ namespace AIChatbot.web.Services
                     Error = data?.Error ?? "Registration failed"
                 };
             }
-
+            
             // Invalid API response
             if (data == null)
             {
