@@ -10,5 +10,7 @@ namespace AIChatbot.web.Interfaces
         Task<(bool Success, string Message)> DiscardRoleAsync(string roleId);
         Task<(bool Success, List<UserDto> Users, string Message)> ListUsersAsync(string roleId);
         Task<(bool Success, string Message)> DiscardUserAsync(string userId);
+
+        Task<List<string>> ListRoles();
     }
 }
