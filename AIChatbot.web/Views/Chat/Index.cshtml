@@ -82,10 +82,10 @@
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="/Settings/Index">Settings</a></li>
 
-                     <li>
+                    @*  <li>
                         <button type="button" class="dropdown-item" onclick="loadRoleManagerModal()"> </button>
                    
-                    </li>
+                    </li> *@
 
 
                     <li>
@@ -154,6 +154,7 @@
 
 @section Scripts {
     <script>
+       
         // ═══════════════════════════════════════════════════════
         //  STATE
         // ═══════════════════════════════════════════════════════
@@ -451,9 +452,26 @@
             } catch (err) {
                 console.error('loadDbModal error:', err);
             }
+
+
+   
+        }   
+
+        // ═══════════════════════════════════════════════════════
+        //  ROLE MANAGER MODAL
+        // ═══════════════════════════════════════════════════════
+        async function loadRoleManagerModal() {
+            try {
+                const response = await fetch('/RoleManager/LoadRoleManagerModal');
+                if (!response.ok) { alert('Access denied'); return; }
+                document.getElementById('modalContainer').innerHTML = await response.text();
+                new bootstrap.Modal(document.getElementById('roleManagerModal')).show();
+            } catch (err) {
+                console.error('loadRoleManagerModal error:', err);
+            }
         }
     </script>
-
+    <script src="~/js/connection.js"></script>
     <!-- Hidden antiforgery field so JS can grab the token -->
     <form id="__AjaxAntiForgery" style="display:none;">
         @Html.AntiForgeryToken()
