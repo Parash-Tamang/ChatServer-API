@@ -1,6 +1,8 @@
-﻿using AIChatbot.web.Interfaces;
+﻿using AIChatbot.web.Dto;
+using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.RoleManager;
 using System.Text.Json;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AIChatbot.web.Services
 {
@@ -17,12 +19,29 @@ namespace AIChatbot.web.Services
         }
         public async Task<List<string>> ListRoles()
         {
-            var res = await _apiClient.GetAsync("/List-roles");
-            if (!res.IsSuccessStatusCode)
-                return new List<string>();
-            var data = await res.Content.ReadFromJsonAsync<List<string>>();
-            return data ?? new List<string>();
+            try
+            {
+                var response = await _apiClient.GetAsync("/List all roles");
 
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception("Role service returned an error");
+
+                var data = await response.Content.ReadFromJsonAsync<RoleListDto>();
+
+                
+                if (data == null || !data.success)
+                    return [];
+
+                return data.roles ?? [];
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new Exception("Unable to reach role service", ex);
+            }
+            catch (TaskCanceledException ex)
+            {
+                throw new Exception("Role service request timed out", ex);
+            }
         }
 
         public async Task<(bool Success, string Message)> CreateAdminAsync(CreateAdminRequest request)
