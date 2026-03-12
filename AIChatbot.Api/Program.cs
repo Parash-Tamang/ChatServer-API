@@ -202,14 +202,20 @@ app.MapControllers();
 
 app.MapGet("/ping", () => "pong");
 ////====== get roles in register page =======
-app.MapGet("/List all roles ", (RoleManager<IdentityRole> roleManager) =>
+app.MapGet("/List all roles", (RoleManager<IdentityRole> roleManager) =>
 {
     var roles = roleManager.Roles
         .Where(r => r.Name != "SuperAdmin" && r.Name != "Admin")
         .Select(r => r.Name)
         .ToList();
 
-    return Results.Ok(roles);
+    var rolesString = string.Join(",", roles);
+
+    return Results.Ok(new
+    {
+        success = true,
+        roles = roles
+    });
 });
 
 
