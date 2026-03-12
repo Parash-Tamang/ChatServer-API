@@ -15,6 +15,15 @@ namespace AIChatbot.web.Services
             _apiClient = apiClient;
             _logger = logger;
         }
+        public async Task<List<string>> ListRoles()
+        {
+            var res = await _apiClient.GetAsync("/List-roles");
+            if (!res.IsSuccessStatusCode)
+                return new List<string>();
+            var data = await res.Content.ReadFromJsonAsync<List<string>>();
+            return data ?? new List<string>();
+
+        }
 
         public async Task<(bool Success, string Message)> CreateAdminAsync(CreateAdminRequest request)
         {

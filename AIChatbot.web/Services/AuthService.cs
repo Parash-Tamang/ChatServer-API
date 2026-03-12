@@ -129,8 +129,6 @@ namespace AIChatbot.web.Services
 
             return data;
         }
-
-    
-
+      
     }
 }

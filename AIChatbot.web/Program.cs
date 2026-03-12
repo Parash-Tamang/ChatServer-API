@@ -23,6 +23,8 @@ builder.Services.AddScoped<TokenService>();
 // Auth filter (for protecting dashboard/chat)
 builder.Services.AddScoped<AuthFilter>();
 
+builder.Services.AddScoped<IConnectionService, ConnectionService>();
+
 var app = builder.Build();
 
 // ---------------- PIPELINE ----------------

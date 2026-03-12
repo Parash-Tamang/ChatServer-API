@@ -14,6 +14,8 @@
 
         public string ConfirmPassword { get; set; }
 
-        public string Role { get; set; }
+        public string SelectedRole { get; set; }
+
+        public List<string> Roles { get; set; }
     }
 }

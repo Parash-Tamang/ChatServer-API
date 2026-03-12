@@ -34,9 +34,9 @@ public class RegisterValidator : AbstractValidator<RegisterUser>
             .Equal(x => x.Password)
             .WithMessage("Passwords do not match");
 
-        RuleFor(x => x.Role)
-            .NotEmpty()
-            .Must(role => role == "User")
-            .WithMessage("Invalid role");
+        RuleFor(x => x.SelectedRole)
+        .NotEmpty()
+        .Must((model, role) => model.Roles != null && model.Roles.Contains(role))
+        .WithMessage("Invalid role selected");
     }
 }

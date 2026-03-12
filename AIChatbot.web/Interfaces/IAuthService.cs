@@ -28,7 +28,5 @@ namespace AIChatbot.web.Interfaces
         /// </summary>
         Task LogoutAsync();
 
-     
-      
     }
 }
