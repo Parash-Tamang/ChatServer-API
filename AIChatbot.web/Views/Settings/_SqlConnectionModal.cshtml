@@ -8,8 +8,9 @@
             </div>
 
             <div class="modal-body">
-                <form asp-action="ConnectDatabase" asp-controller="Chat" method="post" id="dbConnectForm">
-
+                
+                <form asp-action="ConnectDatabase" asp-controller="Connection"  id="dbConnectForm">
+                    @Html.AntiForgeryToken()
                     <div class="mb-1">
                         <label asp-for="Server" class="db-form-label"></label>
                         <input asp-for="Server" class="form-control form-control-sm" />
@@ -86,14 +87,18 @@
                         </div>
                     </div>
 
+                    <div id="dbErrorMsg" class="alert alert-danger py-1 px-2 db-text-xs d-none" role="alert"></div>
+
                     <div class="db-modal-footer">
                         <button type="button" class="btn btn-db-cancel" data-bs-dismiss="modal">
                             Skip
                         </button>
 
-                        <button type="submit" class="btn btn-db-connect">
-                            Connect
+                        <button type="submit" class="btn btn-db-connect" id="dbConnectBtn">
+                            <span id="dbConnectText">Connect</span>
+                            <span id="dbConnectSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                         </button>
+
                     </div>
 
                 </form>
