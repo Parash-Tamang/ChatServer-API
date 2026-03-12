@@ -82,6 +82,12 @@
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="/Settings/Index">Settings</a></li>
 
+                     <li>
+                        <button type="button" class="dropdown-item" onclick="loadRoleManagerModal()"> </button>
+                   
+                    </li>
+
+
                     <li>
                         <button type="button" class="dropdown-item" onclick="loadRoleManagerModal()">Rolemanager</button>
                    
@@ -137,6 +143,14 @@
         </div>
     </div>
 </div>
+<!--For showing erros /flag for connection string -->
+<span id="dbConnectionFlag" class="db-connection-flag d-none">
+    <i class="bi bi-database-fill"></i>
+    <span id="dbConnectionLabel"></span>
+    <button type="button" id="disconnectDb" class="db-flag-close" title="Disconnect">
+        <i class="bi bi-x"></i>
+    </button>
+</span>
 
 @section Scripts {
     <script>
