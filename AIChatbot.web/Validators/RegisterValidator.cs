@@ -1,9 +1,10 @@
 ﻿using FluentValidation;
 using AIChatbot.web.Models.Auth;
-using AIChatbot.Web.Models.Auth;
+using AIChatbot.web.Interfaces;
+
 public class RegisterValidator : AbstractValidator<RegisterUser>
 {
-    public RegisterValidator()
+    public RegisterValidator(IRoleManagerService roleService)
     {
         RuleFor(x => x.FirstName)
             .NotEmpty()
@@ -24,6 +25,7 @@ public class RegisterValidator : AbstractValidator<RegisterUser>
 
         RuleFor(x => x.Password)
             .NotEmpty()
+            .WithMessage("Password is required")
             .MinimumLength(8)
             .Matches("[A-Z]").WithMessage("Password must contain uppercase letter")
             .Matches("[a-z]").WithMessage("Password must contain lowercase letter")
@@ -31,12 +33,19 @@ public class RegisterValidator : AbstractValidator<RegisterUser>
             .Matches("[^a-zA-Z0-9]").WithMessage("Password must contain special character");
 
         RuleFor(x => x.ConfirmPassword)
+            .NotEmpty()
+            .WithMessage("Password is required")
             .Equal(x => x.Password)
             .WithMessage("Passwords do not match");
 
-        RuleFor(x => x.SelectedRole)
-        .NotEmpty()
-        .Must((model, role) => model.Roles != null && model.Roles.Contains(role))
-        .WithMessage("Invalid role selected");
+            RuleFor(x => x.SelectedRole)
+         .Cascade(CascadeMode.Stop)
+         .NotEmpty()
+         .MustAsync(async (role, cancellation) =>
+         {
+             var roles = await roleService.ListRoles();
+             return roles.Contains(role);
+         })
+     .WithMessage("Invalid role selected");
     }
 }
