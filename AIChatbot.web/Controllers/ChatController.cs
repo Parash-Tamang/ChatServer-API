@@ -5,20 +5,20 @@ using System.Net.Http;
 using AIChatbot.web.Filters;
 using AIChatbot.web.Models.Chat;
 using AIChatbot.web.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AIChatbot.web.Controllers
 {
+    [ServiceFilter(typeof(TokenAuthorizationFilter))]
     public class ChatController : Controller
     {
         private readonly ChatApiService _chat;
-        private readonly TokenService _token;
+    
 
-        public ChatController(ChatApiService chat, TokenService token)
+        public ChatController(ChatApiService chat)
         {
             _chat = chat;
-            _token = token;
+         
         }
 
         // ?????????????????????????????????????????????

@@ -11,7 +11,7 @@ namespace AIChatbot.web.Interfaces
         /// <summary>
         /// Authenticates a user and issues access & refresh tokens
         /// </summary>
-        Task<AuthResponse> LoginAsync(LoginRequest req);
+        Task<AuthResponseDto> LoginAsync(LoginUserDto loginUserDto );
 
         /// <summary>
         /// Registers a new user and issues tokens

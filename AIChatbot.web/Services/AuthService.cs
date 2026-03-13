@@ -8,33 +8,63 @@ namespace AIChatbot.web.Services
     public class AuthService : IAuthService
     {
         private readonly ApiClient _api;
-        private readonly TokenService _token;
+        private readonly ITokenService _token;
 
-        public AuthService(ApiClient api, TokenService token)
+        public AuthService(ApiClient api, ITokenService token)
         {
             _api = api;
             _token = token;
         }
 
-        public async Task<AuthResponse> LoginAsync(LoginRequest req)
+        public async Task<AuthResponseDto> LoginAsync(LoginUserDto req)
         {
             var res = await _api.PostAsync(
                 "/api/auth/V1/Security-engine/login",
                 req);
 
+            if (res == null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Error = "Authentication server is unreachable."
+                };
+            }
+            var data = await res.Content.ReadFromJsonAsync<AuthResponseDto>();
+
+            // Transport error
             if (!res.IsSuccessStatusCode)
-                return new AuthResponse { Success = false };
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Error = data?.Error ?? "Login failed"
+                };
+            }
+            // Invalid API response
+            if (data == null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Error = "Invalid server response"
+                };
+            }
 
-            var data = await res.Content.ReadFromJsonAsync<AuthResponse>();
+            // Business logic error
+            if (!data.Success)
+            {
+                return data;
+            }
 
-            if (data == null || !data.Success)
-                return new AuthResponse { Success = false };
-
-            // ✅ Save both tokens - AccessToken for API calls, RefreshToken for renewal
-            _token.SaveTokens(
-                data.AccessToken ?? "",
-                data.RefreshToken ?? "",
-                data.ExpiresIn);
+            // Save tokens
+            if (data.AccessToken != null && data.RefreshToken != null)
+            {
+                _token.SaveTokens(
+                    data.AccessToken,
+                    data.RefreshToken,
+                    data.ExpiresIn);
+            }
 
             return data;
         }
@@ -129,6 +159,6 @@ namespace AIChatbot.web.Services
 
             return data;
         }
-      
+
     }
 }

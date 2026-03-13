@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using AIChatbot.web.Models.Auth;
 using AIChatbot.web.Interfaces;
+using AIChatbot.web.Dto;
 
 public class RegisterValidator : AbstractValidator<RegisterUser>
 {
@@ -8,14 +9,17 @@ public class RegisterValidator : AbstractValidator<RegisterUser>
     {
         RuleFor(x => x.FirstName)
             .NotEmpty()
+            .WithMessage("First name is required")
             .MaximumLength(100);
 
         RuleFor(x => x.LastName)
             .NotEmpty()
+            .WithMessage("Last name is required")
             .MaximumLength(100);
 
         RuleFor(x => x.Email)
             .NotEmpty()
+             .WithMessage("Email is required")
             .EmailAddress()
             .WithMessage("Invalid email format");
 
@@ -34,17 +38,18 @@ public class RegisterValidator : AbstractValidator<RegisterUser>
 
         RuleFor(x => x.ConfirmPassword)
             .NotEmpty()
-            .WithMessage("Password is required")
+            .WithMessage("Confirm Password is required")
             .Equal(x => x.Password)
             .WithMessage("Passwords do not match");
 
             RuleFor(x => x.SelectedRole)
          .Cascade(CascadeMode.Stop)
          .NotEmpty()
+          .WithMessage("Role is required")
          .MustAsync(async (role, cancellation) =>
          {
-             var roles = await roleService.ListRoles();
-             return roles.Contains(role);
+             RoleListDto roleListDto = await roleService.ListRoles();
+             return roleListDto.roles.Contains(role);
          })
      .WithMessage("Invalid role selected");
     }

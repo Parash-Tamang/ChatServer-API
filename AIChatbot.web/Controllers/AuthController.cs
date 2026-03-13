@@ -11,54 +11,72 @@ namespace AIChatbot.web.Controllers
     public class AuthController : Controller
     {
         private readonly IAuthService _authService;
-        private readonly TokenService _tokenService;
+        private readonly ITokenService _tokenService;
         private readonly IRoleManagerService _roleManagerService;
-        private readonly IValidator<RegisterUser> _validator;
+        private readonly IValidator<RegisterUser> _registerValidator;
+        private readonly IValidator<LoginUser> _loginValidator;
 
         public AuthController(
-            IValidator<RegisterUser> validator,TokenService tokenService,
+            IValidator<RegisterUser> registerValidator,
+            ITokenService tokenService,
             IRoleManagerService roleManagerService,
-            IAuthService authService)
+            IAuthService authService,
+            IValidator<LoginUser> loginValidator)
         {
-            _validator = validator;
+            _registerValidator = registerValidator;
+            _loginValidator = loginValidator;
             _tokenService = tokenService;
             _roleManagerService = roleManagerService;
             _authService = authService;
         }
 
         [HttpGet]
-        public IActionResult Login(string? returnUrl)
+        public IActionResult Login()
         {
             // ✅ Check if user is already logged in
             var accessToken = _tokenService.GetAccessToken();
             
             if (!string.IsNullOrEmpty(accessToken))
             {
-                // ✅ User already has a valid token
-                // If returnUrl provided, go there. Otherwise go to Chat
-                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                {
-                    return Redirect(returnUrl);
-                }
                 return RedirectToAction("Index", "Chat");
-            }
-
-            // Store returnUrl for use after login
-            if (!string.IsNullOrEmpty(returnUrl))
-            {
-                ViewData["ReturnUrl"] = returnUrl;
             }
             return View();
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login(string email, string password, string? returnUrl)
+        public async Task<IActionResult> Login(LoginUser loginUser)
         {
-            
-                return View();
+            // Run FluentValidation
+            var validationResult = await _loginValidator.ValidateAsync(loginUser);
+
+            if (!validationResult.IsValid)
+            {
+                TempData["ValidationErrors"] = validationResult.Errors
+                    .Select(e => e.ErrorMessage)
+                    .Distinct()
+                    .ToList();
+
+                return RedirectToAction("Login");
             }
 
+            var dto = new LoginUserDto
+            {
+                Email = loginUser.Email,
+                Password = loginUser.Password
+            };
 
+            var result = await _authService.LoginAsync(dto);
+
+            if (!result.Success)
+            {
+                TempData["Error"] = result.Error ?? "Login failed";
+                return RedirectToAction("Login");
+            }
+
+            TempData["Success"] = "Login successful";
+
+            return RedirectToAction("Index", "Chat");
+         }
 
         [HttpGet]
         public async Task<IActionResult> Register()
@@ -71,7 +89,8 @@ namespace AIChatbot.web.Controllers
             }
 
             var model = new RegisterUser();
-            model.Roles = await _roleManagerService.ListRoles();
+            RoleListDto roleList = await _roleManagerService.ListRoles();
+            model.Roles = roleList.roles;
 
             return View(model);
         }
@@ -82,16 +101,17 @@ namespace AIChatbot.web.Controllers
             try
             {
                 // Roles needed for dropdown and validator
-                registerUser.Roles = await _roleManagerService.ListRoles();
+                RoleListDto roleListDto = await _roleManagerService.ListRoles();
+                registerUser.Roles = roleListDto.roles;
             }
             catch
             {
                 TempData["Error"] = "Unable to load roles. Please try again later.";
-                return View(registerUser);
+                return RedirectToAction("Register");
             }
 
             // Run FluentValidation
-            var validationResult = await _validator.ValidateAsync(registerUser);
+            var validationResult = await _registerValidator.ValidateAsync(registerUser);
 
             if (!validationResult.IsValid)
             {
@@ -100,7 +120,7 @@ namespace AIChatbot.web.Controllers
                     .Distinct()
                     .ToList();
 
-                return View(registerUser);
+                return RedirectToAction("Register");
             }
 
             var dto = new RegisterUserDto
@@ -118,7 +138,7 @@ namespace AIChatbot.web.Controllers
             if (!result.Success)
             {
                 TempData["Error"] = result.Error ?? "Registration failed";
-                return View(registerUser);
+                return RedirectToAction("Register");
             }
 
             TempData["Success"] = "Registration successful";
