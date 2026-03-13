@@ -3,6 +3,6 @@
     public class RoleListDto
     {
         public bool success { get; set; }
-        public List<string> roles { get; set; } = [];
+        public List<string> roles { get; set; } = ["User"];
     }
 }

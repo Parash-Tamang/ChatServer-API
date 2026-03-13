@@ -11,10 +11,10 @@ namespace AIChatbot.web.Filters
     /// </summary>
     public class AuthFilter : IActionFilter
     {
-        private readonly TokenService _token;
+        private readonly ITokenService _token;
         private readonly IAuthService _authService;
 
-        public AuthFilter(TokenService token, IAuthService authService)
+        public AuthFilter(ITokenService token, IAuthService authService)
         {
             _token = token;
             _authService = authService;

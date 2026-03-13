@@ -8,9 +8,9 @@ namespace AIChatbot.web.Services
     public class AuthService : IAuthService
     {
         private readonly ApiClient _api;
-        private readonly TokenService _token;
+        private readonly ITokenService _token;
 
-        public AuthService(ApiClient api, TokenService token)
+        public AuthService(ApiClient api, ITokenService token)
         {
             _api = api;
             _token = token;
@@ -22,6 +22,14 @@ namespace AIChatbot.web.Services
                 "/api/auth/V1/Security-engine/login",
                 req);
 
+            if (res == null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Error = "Authentication server is unreachable."
+                };
+            }
             var data = await res.Content.ReadFromJsonAsync<AuthResponseDto>();
 
             // Transport error

@@ -11,13 +11,14 @@ namespace AIChatbot.web.Controllers
     public class AuthController : Controller
     {
         private readonly IAuthService _authService;
-        private readonly TokenService _tokenService;
+        private readonly ITokenService _tokenService;
         private readonly IRoleManagerService _roleManagerService;
         private readonly IValidator<RegisterUser> _registerValidator;
         private readonly IValidator<LoginUser> _loginValidator;
 
         public AuthController(
-            IValidator<RegisterUser> registerValidator,TokenService tokenService,
+            IValidator<RegisterUser> registerValidator,
+            ITokenService tokenService,
             IRoleManagerService roleManagerService,
             IAuthService authService,
             IValidator<LoginUser> loginValidator)
@@ -30,26 +31,14 @@ namespace AIChatbot.web.Controllers
         }
 
         [HttpGet]
-        public IActionResult Login(string? returnUrl)
+        public IActionResult Login()
         {
             // ✅ Check if user is already logged in
             var accessToken = _tokenService.GetAccessToken();
             
             if (!string.IsNullOrEmpty(accessToken))
             {
-                // ✅ User already has a valid token
-                // If returnUrl provided, go there. Otherwise go to Chat
-                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                {
-                    return Redirect(returnUrl);
-                }
                 return RedirectToAction("Index", "Chat");
-            }
-
-            // Store returnUrl for use after login
-            if (!string.IsNullOrEmpty(returnUrl))
-            {
-                ViewData["ReturnUrl"] = returnUrl;
             }
             return View();
         }
@@ -100,7 +89,8 @@ namespace AIChatbot.web.Controllers
             }
 
             var model = new RegisterUser();
-            model.Roles = await _roleManagerService.ListRoles();
+            RoleListDto roleList = await _roleManagerService.ListRoles();
+            model.Roles = roleList.roles;
 
             return View(model);
         }
@@ -111,7 +101,8 @@ namespace AIChatbot.web.Controllers
             try
             {
                 // Roles needed for dropdown and validator
-                registerUser.Roles = await _roleManagerService.ListRoles();
+                RoleListDto roleListDto = await _roleManagerService.ListRoles();
+                registerUser.Roles = roleListDto.roles;
             }
             catch
             {

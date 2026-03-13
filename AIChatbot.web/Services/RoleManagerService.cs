@@ -17,22 +17,25 @@ namespace AIChatbot.web.Services
             _apiClient = apiClient;
             _logger = logger;
         }
-        public async Task<List<string>> ListRoles()
+        public async Task<RoleListDto> ListRoles()
         {
             try
             {
                 var response = await _apiClient.GetAsync("/List all roles");
+                if (response == null)
+                {
+                    return new RoleListDto { success = false};
+                }
 
                 if (!response.IsSuccessStatusCode)
                     throw new Exception("Role service returned an error");
 
                 var data = await response.Content.ReadFromJsonAsync<RoleListDto>();
 
-                
                 if (data == null || !data.success)
-                    return [];
+                    return new RoleListDto { success = false };
 
-                return data.roles ?? [];
+                return data ?? new RoleListDto { success = false }; ;
             }
             catch (HttpRequestException ex)
             {

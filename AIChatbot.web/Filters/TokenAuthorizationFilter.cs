@@ -11,7 +11,7 @@ namespace AIChatbot.web.Filters
             private readonly ITokenService _tokenService;
             private readonly IAuthService _authService;
 
-            public TokenAuthorizationFilter(TokenService tokenService, IAuthService authService)
+            public TokenAuthorizationFilter(ITokenService tokenService, IAuthService authService)
             {
                 _tokenService = tokenService;
                 _authService = authService;
@@ -56,10 +56,10 @@ namespace AIChatbot.web.Filters
                 var http = context.HttpContext;
                 var returnUrl = http.Request.Path + http.Request.QueryString;
 
-                context.Result = new RedirectToActionResult(
-                    "Login",
-                    "Auth",
-                    new { returnUrl });
+            context.Result = new RedirectToActionResult(
+                "Login",
+                "Auth",
+                null); //new { returnUrl });
             }
         }
     }

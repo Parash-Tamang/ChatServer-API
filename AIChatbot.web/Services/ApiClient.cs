@@ -1,12 +1,13 @@
+using AIChatbot.web.Interfaces;
 namespace AIChatbot.web.Services
 {
     public class ApiClient
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
-        private readonly TokenService _tokenService;
+        private readonly ITokenService _tokenService;
 
-        public ApiClient(HttpClient httpClient, IConfiguration configuration, TokenService tokenService)
+        public ApiClient(HttpClient httpClient, IConfiguration configuration, ITokenService tokenService)
         {
             _httpClient = httpClient;
             _configuration = configuration;
@@ -15,6 +16,7 @@ namespace AIChatbot.web.Services
             // Set base address from configuration
             var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.0.104:5197";
             _httpClient.BaseAddress = new Uri(apiBaseUrl);
+            _httpClient.Timeout = TimeSpan.FromSeconds(3);
         }
 
         private void SetAuthorizationHeader()
@@ -33,40 +35,92 @@ namespace AIChatbot.web.Services
             }
         }
 
-        public async Task<HttpResponseMessage> GetAsync(string endpoint)
+        public async Task<HttpResponseMessage?> GetAsync(string endpoint)
         {
-            SetAuthorizationHeader();
-            return await _httpClient.GetAsync(endpoint);
+            try
+            {
+                SetAuthorizationHeader();
+                return await _httpClient.GetAsync(endpoint);
+            }
+            catch (HttpRequestException)
+            {
+                // API unreachable
+                return null;
+            }
+            catch (TaskCanceledException)
+            {
+                // timeout
+                return null;
+            }
         }
 
-        public async Task<HttpResponseMessage> PostAsync<T>(string endpoint, T data)
+        public async Task<HttpResponseMessage?> PostAsync<T>(string endpoint, T data)
         {
-            SetAuthorizationHeader();
+            try
+            {
+                SetAuthorizationHeader();
 
-            var content = new StringContent(
-                System.Text.Json.JsonSerializer.Serialize(data),
-                System.Text.Encoding.UTF8,
-                "application/json");
+                var content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(data),
+                    System.Text.Encoding.UTF8,
+                    "application/json");
 
-            return await _httpClient.PostAsync(endpoint, content);
+                return await _httpClient.PostAsync(endpoint, content);
+            }
+            catch (HttpRequestException)
+            {
+                // API unreachable
+                return null;
+            }
+            catch (TaskCanceledException)
+            {
+                // timeout
+                return null;
+            }
         }
 
-        public async Task<HttpResponseMessage> PutAsync<T>(string endpoint, T data)
+        public async Task<HttpResponseMessage?> PutAsync<T>(string endpoint, T data)
         {
-            SetAuthorizationHeader();
+            try
+            {
+                SetAuthorizationHeader();
 
-            var content = new StringContent(
-                System.Text.Json.JsonSerializer.Serialize(data),
-                System.Text.Encoding.UTF8,
-                "application/json");
+                var content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(data),
+                    System.Text.Encoding.UTF8,
+                    "application/json");
 
-            return await _httpClient.PutAsync(endpoint, content);
+                return await _httpClient.PutAsync(endpoint, content);
+            }
+            catch (HttpRequestException)
+            {
+                // API unreachable
+                return null;
+            }
+            catch (TaskCanceledException)
+            {
+                // timeout
+                return null;
+            }
         }
 
-        public async Task<HttpResponseMessage> DeleteAsync(string endpoint)
+        public async Task<HttpResponseMessage?> DeleteAsync(string endpoint)
         {
-            SetAuthorizationHeader();
-            return await _httpClient.DeleteAsync(endpoint);
+            try
+            {
+                SetAuthorizationHeader();
+                return await _httpClient.DeleteAsync(endpoint);
+            }
+            catch (HttpRequestException)
+            {
+                // API unreachable
+                return null;
+            }
+            catch (TaskCanceledException)
+            {
+                // timeout
+                return null;
+            }
         }
     }
 }
