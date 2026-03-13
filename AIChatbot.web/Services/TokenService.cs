@@ -1,6 +1,8 @@
+using AIChatbot.web.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
 namespace AIChatbot.web.Services
 {
-    public class TokenService
+    public class TokenService : ITokenService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -72,6 +74,44 @@ namespace AIChatbot.web.Services
 
             httpContext.Response.Cookies.Delete("accessToken");
             httpContext.Response.Cookies.Delete("refreshToken");
+        }
+
+        public bool HasAccessToken()
+        {
+            return !string.IsNullOrEmpty(GetAccessToken());
+        }
+
+        public bool HasRefreshToken()
+        {
+            return !string.IsNullOrEmpty(GetRefreshToken());
+        }
+
+        public bool IsAccessTokenExpired()
+        {
+            var token = GetAccessToken();
+
+            if (string.IsNullOrEmpty(token))
+                return true;
+
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jwt = handler.ReadJwtToken(token);
+
+                var expiry = jwt.ValidTo;
+
+                // small buffer to avoid edge cases
+                return expiry <= DateTime.UtcNow.AddSeconds(30);
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        public bool IsAuthenticated()
+        {
+            return HasAccessToken() && !IsAccessTokenExpired();
         }
     }
 }

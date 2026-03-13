@@ -23,7 +23,8 @@ builder.Services.AddScoped<IValidator<RegisterUser>, RegisterValidator>();
 builder.Services.AddScoped<IAuthService>(sp => sp.GetRequiredService<AuthService>());
 builder.Services.AddScoped<IRoleManagerService, RoleManagerService>();
 builder.Services.AddScoped<ChatApiService>();
-builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<ITokenService,TokenService>();
+builder.Services.AddScoped<TokenAuthorizationFilter>();
 
 
 // Auth filter (for protecting dashboard/chat)
