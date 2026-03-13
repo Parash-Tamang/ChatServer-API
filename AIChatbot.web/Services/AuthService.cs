@@ -16,25 +16,47 @@ namespace AIChatbot.web.Services
             _token = token;
         }
 
-        public async Task<AuthResponse> LoginAsync(LoginRequest req)
+        public async Task<AuthResponseDto> LoginAsync(LoginUserDto req)
         {
             var res = await _api.PostAsync(
                 "/api/auth/V1/Security-engine/login",
                 req);
 
+            var data = await res.Content.ReadFromJsonAsync<AuthResponseDto>();
+
+            // Transport error
             if (!res.IsSuccessStatusCode)
-                return new AuthResponse { Success = false };
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Error = data?.Error ?? "Login failed"
+                };
+            }
+            // Invalid API response
+            if (data == null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Error = "Invalid server response"
+                };
+            }
 
-            var data = await res.Content.ReadFromJsonAsync<AuthResponse>();
+            // Business logic error
+            if (!data.Success)
+            {
+                return data;
+            }
 
-            if (data == null || !data.Success)
-                return new AuthResponse { Success = false };
-
-            // ✅ Save both tokens - AccessToken for API calls, RefreshToken for renewal
-            _token.SaveTokens(
-                data.AccessToken ?? "",
-                data.RefreshToken ?? "",
-                data.ExpiresIn);
+            // Save tokens
+            if (data.AccessToken != null && data.RefreshToken != null)
+            {
+                _token.SaveTokens(
+                    data.AccessToken,
+                    data.RefreshToken,
+                    data.ExpiresIn);
+            }
 
             return data;
         }
@@ -129,6 +151,6 @@ namespace AIChatbot.web.Services
 
             return data;
         }
-      
+
     }
 }
