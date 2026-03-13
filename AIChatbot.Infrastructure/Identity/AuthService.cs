@@ -93,17 +93,30 @@ public class AuthService : IAuthService
     // ---------------- LOGIN ----------------
     public async Task<AuthResult> LoginAsync(string email, string password)
     {
-        var user = await _userManager.FindByEmailAsync(email)
-            ?? throw new UnauthorizedAccessException("Invalid email or password");
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user == null)
+        {
+            return new AuthResult
+            {
+                Success = false,
+                Error = "Invalid email or password"
+            };
+        }
 
         var validPassword = await _userManager.CheckPasswordAsync(user, password);
 
         if (!validPassword)
-            throw new UnauthorizedAccessException("Invalid email or password");
+        {
+            return new AuthResult
+            {
+                Success = false,
+                Error = "Invalid email or password"
+            };
+        }
 
         return await IssueAuthResultAsync(user);
     }
-
     // ---------------- REFRESH TOKEN ----------------
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
     {

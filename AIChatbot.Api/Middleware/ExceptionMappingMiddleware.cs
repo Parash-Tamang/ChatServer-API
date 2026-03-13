@@ -64,7 +64,9 @@ public class ExceptionMappingMiddleware
 
             await context.Response.WriteAsJsonAsync(new
             {
-                error = "Unauthorized"
+                error = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Unauthorized"
+                    : ex.Message
             });
         }
 
