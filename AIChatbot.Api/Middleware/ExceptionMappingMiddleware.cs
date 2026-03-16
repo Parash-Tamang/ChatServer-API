@@ -82,6 +82,40 @@ public class ExceptionMappingMiddleware
                 error = "User already Exist or Email Already registered with another user "
             });
         }
+       
+        // 🔴 MODEL TIMEOUT → 504
+        catch (TimeoutException ex)
+        {
+            _logger.LogError(ex, "AI model failed to respond");
+
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status504GatewayTimeout;
+
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    error = "The Model was unable to respond to the request"
+                });
+            }
+        }
+
+        // 🔴 SYSTEM FAILURE → 500 (custom message)
+        catch (ApplicationException ex)
+        {
+            _logger.LogError(ex, "System failure");
+
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    error = "System was unable to respond to the request"
+                });
+            }
+        }
 
         // 🔴 FALLBACK → 500
         catch (Exception ex)

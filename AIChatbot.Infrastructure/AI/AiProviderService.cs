@@ -29,44 +29,51 @@ public class AiProviderService : IAiProviderService
     public async Task<DatabaseSetupResult> PrepareDatabaseAsync(
         ConnectionString connection)
     {
-        var payload = new
+        try
         {
-            server = connection.ServerName.Replace("\\\\", "\\"),
-            database_name = connection.DatabaseName,
-            auth_mode = connection.AuthMode?.ToLower(),
-            username = connection.Username,
-            password = connection.PasswordEncrypted,
-            trust_certificate = connection.TrustCertificate,
-            connection_timeout = connection.ConnectionTimeout,
-            db_id = connection.Id.ToString(),
-            role = "admin"
-        };
-        var json = JsonSerializer.Serialize(payload);
+            var payload = new
+            {
+                server = connection.ServerName.Replace("\\\\", "\\"),
+                database_name = connection.DatabaseName,
+                auth_mode = connection.AuthMode?.ToLower(),
+                username = connection.Username,
+                password = connection.PasswordEncrypted,
+                trust_certificate = connection.TrustCertificate,
+                connection_timeout = connection.ConnectionTimeout,
+                db_id = connection.Id.ToString(),
+                role = "admin"
+            };
 
-        var response = await _http.PostAsJsonAsync(
-            "api/knowledgebase/setup",
-            json,
-            _jsonOptions);
+            var response = await _http.PostAsJsonAsync(
+                "api/knowledgebase/setup",
+                payload,
+                _jsonOptions);
 
-        if (!response.IsSuccessStatusCode)
-        {
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ApplicationException("System was unable to respond to the request");
+            }
+
+            var result = await response.Content
+                .ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+            if (result.ValueKind == JsonValueKind.Undefined)
+            {
+                throw new ApplicationException("System was unable to respond to the request");
+            }
+
+            var success = result.TryGetProperty("success", out var s) && s.GetBoolean();
+
             return new DatabaseSetupResult
             {
                 Id = connection.Id,
-                DbStatus = false
+                DbStatus = success
             };
         }
-
-        var result = await response.Content
-            .ReadFromJsonAsync<JsonElement>(_jsonOptions);
-
-        var success = result.TryGetProperty("success", out var s) && s.GetBoolean();
-
-        return new DatabaseSetupResult
+        catch (Exception)
         {
-            Id = connection.Id,
-            DbStatus = success
-        };
+            throw new ApplicationException("System was unable to respond to the request");
+        }
     }
 
     // -------------------------------------------------------
@@ -77,72 +84,97 @@ public class AiProviderService : IAiProviderService
         IEnumerable<Message> history,
         RoleAccessResult schema)
     {
-        var conversation = history?
-            .TakeLast(5)
-            .Select(m => new
+        try
+        {
+            var conversation = history?
+                .TakeLast(5)
+                .Select(m => new
+                {
+                    role = m.Role == "assistant" ? "bot" : m.Role,
+                    message = m.Content
+                })
+                .ToList();
+
+            var payload = new
             {
-                role = m.Role == "assistant" ? "bot" : m.Role,
-                message = m.Content
-            })
-            .ToList();
+                query = userQuery,
+                conversation_history = conversation,
+                save_results = true
+            };
 
-        var payload = new
+            var response = await _http.PostAsJsonAsync(
+                "api/query",
+                payload,
+                _jsonOptions);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ApplicationException("System was unable to respond to the request");
+            }
+
+            var result = await response.Content
+                .ReadFromJsonAsync<JsonElement>(_jsonOptions);
+
+            if (result.ValueKind == JsonValueKind.Undefined)
+            {
+                throw new ApplicationException("System was unable to respond to the request");
+            }
+
+            // 🔴 AI failed to generate response
+            if (!result.TryGetProperty("success", out var successProp) ||
+                !successProp.GetBoolean())
+            {
+                throw new TimeoutException("The Model was unable to respond to the request");
+            }
+
+            return new LlmResponse
+            {
+                Success = result.GetProperty("success").GetBoolean(),
+
+                Query = result.TryGetProperty("query", out var q)
+                    ? q.GetString() ?? ""
+                    : userQuery,
+
+                Message = result.TryGetProperty("message", out var m)
+                    ? m.GetString() ?? ""
+                    : "",
+
+                SqlGenerated = result.TryGetProperty("sql_generated", out var sql)
+                    ? sql.GetString()
+                    : null,
+
+                Columns = result.TryGetProperty("columns", out var cols)
+                    ? cols.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
+                    : Array.Empty<object>(),
+
+                Rows = result.TryGetProperty("rows", out var rows)
+                    ? rows.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
+                    : Array.Empty<object>(),
+
+                RowCount = result.TryGetProperty("row_count", out var rc)
+                    ? rc.GetInt32()
+                    : 0,
+
+                WasReconstructed = result.TryGetProperty("was_reconstructed", out var wr)
+                    && wr.GetBoolean(),
+
+                ClarificationNeeded = result.TryGetProperty("clarification_needed", out var cn)
+                    && cn.GetBoolean(),
+
+                TokenUsage = result.TryGetProperty("token_usage", out var tu)
+                    ? tu.Deserialize<object>(_jsonOptions) ?? new { }
+                    : new { }
+            };
+        }
+        catch (TimeoutException)
         {
-            query = userQuery,
-            conversation_history = conversation,
-            save_results = true
-        };
-
-        var response = await _http.PostAsJsonAsync(
-            "api/query",
-            payload,
-            _jsonOptions);
-
-        response.EnsureSuccessStatusCode();
-
-        var result = await response.Content
-            .ReadFromJsonAsync<JsonElement>(_jsonOptions);
-
-        if (result.ValueKind == JsonValueKind.Undefined)
-            throw new Exception("Invalid response from Python API");
-
-        return new LlmResponse
+            // handled by middleware → 504
+            throw;
+        }
+        catch (Exception)
         {
-            Success = result.GetProperty("success").GetBoolean(),
-
-            Query = result.TryGetProperty("query", out var q)
-                ? q.GetString() ?? ""
-                : userQuery,
-
-            Message = result.TryGetProperty("message", out var m)
-                ? m.GetString() ?? ""
-                : "",
-
-            SqlGenerated = result.TryGetProperty("sql_generated", out var sql)
-                ? sql.GetString()
-                : null,
-
-            Columns = result.TryGetProperty("columns", out var cols)
-                ? cols.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
-                : Array.Empty<object>(),
-
-            Rows = result.TryGetProperty("rows", out var rows)
-                ? rows.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
-                : Array.Empty<object>(),
-
-            RowCount = result.TryGetProperty("row_count", out var rc)
-                ? rc.GetInt32()
-                : 0,
-
-            WasReconstructed = result.TryGetProperty("was_reconstructed", out var wr)
-                && wr.GetBoolean(),
-
-            ClarificationNeeded = result.TryGetProperty("clarification_needed", out var cn)
-                && cn.GetBoolean(),
-
-            TokenUsage = result.TryGetProperty("token_usage", out var tu)
-                ? tu.Deserialize<object>(_jsonOptions) ?? new { }
-                : new { }
-        };
+            // system failure → 500
+            throw new ApplicationException("System was unable to respond to the request");
+        }
     }
 }

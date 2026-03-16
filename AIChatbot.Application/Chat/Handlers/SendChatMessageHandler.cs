@@ -125,16 +125,20 @@ public class SendChatMessageHandler
                 AssistantReply = llm.Message
             };
         }
-        catch (Exception ex)
+        catch (TimeoutException)
         {
-            Console.WriteLine("CHAT ERROR:");
-            Console.WriteLine(ex);
-
-            return new ChatExecutionResult
-            {
-                Status = ExecutionStatus.PartiallyExecuted,
-                ChatSessionId = sessionId
-            };
+            // AI timeout → middleware will return 504
+            throw;
+        }
+        catch (ApplicationException)
+        {
+            // System error → middleware will return 500
+            throw;
+        }
+        catch (Exception)
+        {
+            // unexpected failure
+            throw new ApplicationException("System was unable to respond to the request");
         }
     }
 }
