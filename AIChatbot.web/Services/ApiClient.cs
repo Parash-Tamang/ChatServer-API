@@ -12,20 +12,20 @@ namespace AIChatbot.web.Services
             _httpClient = httpClient;
             _configuration = configuration;
             _tokenService = tokenService;
-            
+
             // Set base address from configuration
             var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.0.104:5197";
             _httpClient.BaseAddress = new Uri(apiBaseUrl);
-            _httpClient.Timeout = TimeSpan.FromSeconds(3);
+            _httpClient.Timeout = TimeSpan.FromSeconds(120);
         }
 
         private void SetAuthorizationHeader()
         {
             var token = _tokenService.GetAccessToken();
-            
+
             if (!string.IsNullOrEmpty(token))
             {
-                _httpClient.DefaultRequestHeaders.Authorization = 
+                _httpClient.DefaultRequestHeaders.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
             else
@@ -122,6 +122,6 @@ namespace AIChatbot.web.Services
                 return null;
             }
         }
-    }
-}
 
+    }
+}    

@@ -9,7 +9,7 @@
         positionClass: "toast-top-right",
         timeOut: 4000
     };
-
+    git
     const { success, error, info, warning } = document.body.dataset;
 
     if (success?.trim()) toastr.success(success);

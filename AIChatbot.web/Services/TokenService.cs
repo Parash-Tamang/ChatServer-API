@@ -23,8 +23,8 @@ namespace AIChatbot.web.Services
             httpContext.Response.Cookies.Append("accessToken", accessToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
+                Secure = false,
+                SameSite = SameSiteMode.Lax,
                 Expires = DateTimeOffset.UtcNow.AddSeconds(expiresIn)
             });
 
@@ -32,8 +32,8 @@ namespace AIChatbot.web.Services
             httpContext.Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
+                Secure = false,
+                SameSite = SameSiteMode.Lax,
                 Expires = DateTimeOffset.UtcNow.AddDays(7)
             });
         }
