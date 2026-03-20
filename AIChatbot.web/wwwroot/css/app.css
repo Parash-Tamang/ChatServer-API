@@ -195,6 +195,38 @@ body {
     align-items: center;
     background: #fff;
 }
+/*for the new chat button inside the chatbar*/
+.new-chat-btn {
+    width: 100%;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+    .new-chat-btn:hover {
+        background: #f5f5f5;
+    }
+/* Chat sessions */
+.session-item {
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+    /* hover like ChatGPT */
+    .session-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    /* selected session (ChatGPT light style) */
+    .session-item.active {
+        background-color: #e8e8e8 !important;
+        color: #212529 !important;
+    }
+.session-title {
+    color: #212529 !important;
+}
+
 
 /* =========================================================
    CHAT AREA
@@ -241,11 +273,10 @@ body {
 }
 
     .msg.user {
-        background: #111;
-        color: white;
+        background: #f2f2f2;
+        color: #111;
         margin-left: auto;
     }
-
     .msg.bot {
         background: #f4f4f4;
         color: #111;

@@ -1,7 +1,7 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using System.Net.Http;
 using AIChatbot.web.Filters;
 using AIChatbot.web.Models.Chat;
 using AIChatbot.web.Services;
@@ -13,17 +13,12 @@ namespace AIChatbot.web.Controllers
     public class ChatController : Controller
     {
         private readonly ChatApiService _chat;
-    
 
         public ChatController(ChatApiService chat)
         {
             _chat = chat;
-         
         }
 
-        // ?????????????????????????????????????????????
-        // PAGE ENTRY POINT
-        // ?????????????????????????????????????????????
         [HttpGet]
         public IActionResult Index()
         {
@@ -36,9 +31,6 @@ namespace AIChatbot.web.Controllers
             return View(model);
         }
 
-        // ?????????????????????????????????????????????
-        // AJAX – GET all sessions
-        // ?????????????????????????????????????????????
         [HttpGet]
         public async Task<IActionResult> GetSessions()
         {
@@ -47,15 +39,12 @@ namespace AIChatbot.web.Controllers
                 var sessions = await _chat.GetSessionsAsync();
                 return Json(new { success = true, data = sessions });
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { success = false, message = "Oops! Could not load your chats. Please refresh the page." });
             }
         }
 
-        // ?????????????????????????????????????????????
-        // AJAX – GET messages for a session
-        // ?????????????????????????????????????????????
         [HttpGet]
         public async Task<IActionResult> GetMessages(Guid sessionId)
         {
@@ -64,21 +53,46 @@ namespace AIChatbot.web.Controllers
                 var messages = await _chat.GetMessagesAsync(sessionId);
                 return Json(new { success = true, data = messages });
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { success = false, message = "Oops! Could not load messages for this chat." });
             }
         }
 
-        // ?????????????????????????????????????????????
-        // AJAX – SEND message (no page reload)
-        // ?????????????????????????????????????????????
+        [HttpGet]
+        public async Task<IActionResult> PollReply(Guid sessionId, string afterUtc)
+        {
+            try
+            {
+                var messages = await _chat.GetMessagesAsync(sessionId);
+
+                DateTime after = DateTime.MinValue;
+                if (!string.IsNullOrWhiteSpace(afterUtc))
+                    DateTime.TryParse(afterUtc, null,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out after);
+
+                var reply = messages
+                    .Where(m => m.Role == "assistant" && m.CreatedAt > after)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault();
+
+                if (reply != null)
+                    return Json(new { success = true, found = true, data = reply });
+
+                return Json(new { success = true, found = false });
+            }
+            catch
+            {
+                return Json(new { success = false, message = "Oops! Something went wrong while waiting for a reply." });
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SendMessageAjax([FromBody] SendMessageRequest req)
         {
             if (req == null || string.IsNullOrWhiteSpace(req.Message))
-                return Json(new { success = false, message = "Empty message." });
+                return Json(new { success = false, message = "Please type a message before sending." });
 
             try
             {
@@ -86,17 +100,14 @@ namespace AIChatbot.web.Controllers
                 if (result != null)
                     return Json(new { success = true, data = result });
 
-                return Json(new { success = false, message = "No response from AI." });
+                return Json(new { success = false, message = "Oops! The AI service is currently unavailable. Please try again shortly." });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { success = false, message = $"DEBUG: {ex.Message}" });
             }
         }
 
-        // ?????????????????????????????????????????????
-        // AJAX – DELETE a session
-        // ?????????????????????????????????????????????
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSessionAjax([FromBody] DeleteSessionRequest req)
@@ -106,15 +117,12 @@ namespace AIChatbot.web.Controllers
                 await _chat.DeleteSessionAsync(req.SessionId);
                 return Json(new { success = true });
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { success = false, message = "Oops! Could not delete this chat. Please try again." });
             }
         }
 
-        // ?????????????????????????????????????????????
-        // AJAX – RETRY a message
-        // ?????????????????????????????????????????????
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RetryAjax([FromBody] RetryRequest req)
@@ -125,17 +133,14 @@ namespace AIChatbot.web.Controllers
                 if (result != null)
                     return Json(new { success = true, data = result });
 
-                return Json(new { success = false, message = "Retry failed." });
+                return Json(new { success = false, message = "Oops! Retry failed. The AI service may be unavailable." });
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { success = false, message = "Oops! Something went wrong during retry." });
             }
         }
 
-        // ?????????????????????????????????????????????
-        // MODAL – kept as-is from your original code
-        // ?????????????????????????????????????????????
         [HttpGet]
         public IActionResult LoadConnectionModal()
         {
@@ -149,15 +154,10 @@ namespace AIChatbot.web.Controllers
         {
             if (!ModelState.IsValid)
                 return RedirectToAction("Index");
-
             TempData["ConnectionSuccess"] = "Connected Successfully!";
             return RedirectToAction("Index");
         }
 
-        // ?????????????????????????????????????????????
-        // KEPT from your original – Dash, OpenSession,
-        // NewChat, SendMessage (old), DeleteSession, Retry
-        // ?????????????????????????????????????????????
         [HttpGet]
         public IActionResult Dash()
         {
@@ -176,26 +176,16 @@ namespace AIChatbot.web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> OpenSession(Guid sessionId)
-        {
-            return RedirectToAction("Index", new { sessionId });
-        }
+        public IActionResult OpenSession(Guid sessionId) =>
+            RedirectToAction("Index", new { sessionId });
 
         [HttpPost]
-        public async Task<IActionResult> NewChat()
-        {
-            return RedirectToAction("Index");
-        }
+        public IActionResult NewChat() => RedirectToAction("Index");
 
         [HttpPost]
         public async Task<IActionResult> DeleteSession(Guid sessionId)
         {
-            try
-            {
-                await _chat.DeleteSessionAsync(sessionId);
-            }
-            catch (Exception ex) { }
-
+            try { await _chat.DeleteSessionAsync(sessionId); } catch { }
             return RedirectToAction("Index");
         }
 
@@ -208,13 +198,11 @@ namespace AIChatbot.web.Controllers
                 if (result != null)
                     return RedirectToAction("Index", new { sessionId = chatSessionId });
             }
-            catch (Exception ex) { }
-
+            catch { }
             return RedirectToAction("Index", new { sessionId = chatSessionId });
         }
     }
 
-    // ?? Request DTOs for AJAX endpoints ??
     public class DeleteSessionRequest { public Guid SessionId { get; set; } }
     public class RetryRequest { public Guid SessionId { get; set; } public Guid MessageId { get; set; } }
 }
