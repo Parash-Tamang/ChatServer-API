@@ -2,6 +2,7 @@
 using AIChatbot.Application.Common;
 using AIChatbot.Application.RoleAccess.Models;
 using AIChatbot.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -11,10 +12,17 @@ public class AiProviderService : IAiProviderService
 {
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IConnectionRepository _connectionRepo;
+    private readonly ILogger<AiProviderService> _logger;
 
-    public AiProviderService(HttpClient http)
+    public AiProviderService(
+        HttpClient http,
+        IConnectionRepository connectionRepo,
+        ILogger<AiProviderService> logger)
     {
         _http = http;
+        _connectionRepo = connectionRepo;
+        _logger = logger;
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -41,7 +49,7 @@ public class AiProviderService : IAiProviderService
                 trust_certificate = connection.TrustCertificate,
                 connection_timeout = connection.ConnectionTimeout,
                 db_id = connection.Id.ToString(),
-                role = "admin"
+                // role = "admin"
             };
 
             var response = await _http.PostAsJsonAsync(
@@ -51,6 +59,8 @@ public class AiProviderService : IAiProviderService
 
             if (!response.IsSuccessStatusCode)
             {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Knowledgebase/setup failed with {StatusCode}: {Body}", response.StatusCode, body);
                 throw new ApplicationException("System was unable to respond to the request");
             }
 
@@ -70,8 +80,9 @@ public class AiProviderService : IAiProviderService
                 DbStatus = success
             };
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "PrepareDatabaseAsync failed");
             throw new ApplicationException("System was unable to respond to the request");
         }
     }
@@ -86,21 +97,73 @@ public class AiProviderService : IAiProviderService
     {
         try
         {
+            // Use strongly-typed dictionaries for predictable JSON serialization
             var conversation = history?
                 .TakeLast(5)
-                .Select(m => new
+                .Select(m => new Dictionary<string, string?>
                 {
-                    role = m.Role == "assistant" ? "bot" : m.Role,
-                    message = m.Content
+                    ["message"] = m.Content
                 })
-                .ToList();
+                .ToList() ?? new List<Dictionary<string, string?>>();
 
-            var payload = new
+            // Build payload as dictionary so we can conditionally add DB connection info
+            var payload = new Dictionary<string, object?>
             {
-                query = userQuery,
-                conversation_history = conversation,
-                save_results = true
+                ["query"] = userQuery,
+                ["conversation_history"] = conversation,
+                ["save_results"] = true
             };
+
+            // Determine a verified connection to send (schema first, then active verified)
+            ConnectionString? chosenConnection = null;
+
+            if (schema?.Databases?.Any() == true)
+            {
+                foreach (var dbId in schema.Databases)
+                {
+                    var conn = await _connectionRepo.GetByIdAsync(dbId);
+                    if (conn != null && conn.Verified)
+                    {
+                        chosenConnection = conn;
+                        break;
+                    }
+                }
+            }
+
+            if (chosenConnection == null)
+            {
+                // Fallback: look for an active verified connection
+                try
+                {
+                    var all = await _connectionRepo.GetAllAsync();
+                    chosenConnection = all.FirstOrDefault(c => c.IsActive && c.Verified);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Failed to get all connections for fallback selection");
+                }
+            }
+
+            if (chosenConnection != null)
+            {
+                var connection = chosenConnection;
+                payload["db_id"] = connection.Id.ToString();
+                payload["server"] = connection.ServerName.Replace("\\\\", "\\");
+                payload["database_name"] = connection.DatabaseName;
+                payload["auth_mode"] = connection.AuthMode?.ToLower();
+                payload["username"] = connection.Username;
+                payload["password"] = connection.PasswordEncrypted;
+                payload["trust_certificate"] = connection.TrustCertificate;
+                payload["connection_timeout"] = connection.ConnectionTimeout;
+            }
+            else
+            {
+                _logger.LogDebug("No verified connection chosen to include in payload");
+            }
+
+            // Log payload JSON for debugging
+            var payloadJson = JsonSerializer.Serialize(payload, _jsonOptions);
+            _logger.LogDebug("POST /api/query payload: {PayloadJson}", payloadJson);
 
             var response = await _http.PostAsJsonAsync(
                 "api/query",
@@ -109,7 +172,10 @@ public class AiProviderService : IAiProviderService
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new ApplicationException("System was unable to respond to the request");
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogError("AI provider /api/query returned {StatusCode}: {Body}", response.StatusCode, body);
+                // Surface the provider body in the exception for quicker diagnosis (you can remove this later)
+                throw new ApplicationException($"System was unable to respond to the request. Provider returned {(int)response.StatusCode}: {body}");
             }
 
             var result = await response.Content
@@ -117,6 +183,7 @@ public class AiProviderService : IAiProviderService
 
             if (result.ValueKind == JsonValueKind.Undefined)
             {
+                _logger.LogError("AI provider /api/query returned undefined JSON");
                 throw new ApplicationException("System was unable to respond to the request");
             }
 
@@ -171,8 +238,9 @@ public class AiProviderService : IAiProviderService
             // handled by middleware → 504
             throw;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "GetReplyAsync failed");
             // system failure → 500
             throw new ApplicationException("System was unable to respond to the request");
         }
