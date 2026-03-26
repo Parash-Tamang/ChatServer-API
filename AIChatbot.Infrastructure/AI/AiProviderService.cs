@@ -97,16 +97,14 @@ public class AiProviderService : IAiProviderService
     {
         try
         {
-            // Use strongly-typed dictionaries for predictable JSON serialization
             var conversation = history?
-                .TakeLast(5)
+                .TakeLast(10)
                 .Select(m => new Dictionary<string, string?>
                 {
                     ["message"] = m.Content
                 })
                 .ToList() ?? new List<Dictionary<string, string?>>();
 
-            // Build payload as dictionary so we can conditionally add DB connection info
             var payload = new Dictionary<string, object?>
             {
                 ["query"] = userQuery,
@@ -114,7 +112,7 @@ public class AiProviderService : IAiProviderService
                 ["save_results"] = true
             };
 
-            // Determine a verified connection to send (schema first, then active verified)
+            // Choose verified connection (existing logic)
             ConnectionString? chosenConnection = null;
 
             if (schema?.Databases?.Any() == true)
@@ -132,7 +130,6 @@ public class AiProviderService : IAiProviderService
 
             if (chosenConnection == null)
             {
-                // Fallback: look for an active verified connection
                 try
                 {
                     var all = await _connectionRepo.GetAllAsync();
@@ -174,7 +171,6 @@ public class AiProviderService : IAiProviderService
             {
                 var body = await response.Content.ReadAsStringAsync();
                 _logger.LogError("AI provider /api/query returned {StatusCode}: {Body}", response.StatusCode, body);
-                // Surface the provider body in the exception for quicker diagnosis (you can remove this later)
                 throw new ApplicationException($"System was unable to respond to the request. Provider returned {(int)response.StatusCode}: {body}");
             }
 
@@ -194,7 +190,27 @@ public class AiProviderService : IAiProviderService
                 throw new TimeoutException("The Model was unable to respond to the request");
             }
 
-            return new LlmResponse
+            // Parse optional connection string id from provider under several possible property names
+            Guid? parsedConnectionId = null;
+            if (result.TryGetProperty("connection_string_id", out var csidProp) && csidProp.ValueKind == JsonValueKind.String)
+            {
+                if (Guid.TryParse(csidProp.GetString(), out var g)) parsedConnectionId = g;
+            }
+            else if (result.TryGetProperty("connectionStringId", out var csidProp2) && csidProp2.ValueKind == JsonValueKind.String)
+            {
+                if (Guid.TryParse(csidProp2.GetString(), out var g)) parsedConnectionId = g;
+            }
+            else if (result.TryGetProperty("connectionstringid", out var csidProp3) && csidProp3.ValueKind == JsonValueKind.String)
+            {
+                if (Guid.TryParse(csidProp3.GetString(), out var g)) parsedConnectionId = g;
+            }
+            else if (result.TryGetProperty("db_id", out var dbidProp) && dbidProp.ValueKind == JsonValueKind.String)
+            {
+                // db_id may be sent back as string guid
+                if (Guid.TryParse(dbidProp.GetString(), out var g)) parsedConnectionId = g;
+            }
+
+            var llmResponse = new LlmResponse
             {
                 Success = result.GetProperty("success").GetBoolean(),
 
@@ -230,8 +246,12 @@ public class AiProviderService : IAiProviderService
 
                 TokenUsage = result.TryGetProperty("token_usage", out var tu)
                     ? tu.Deserialize<object>(_jsonOptions) ?? new { }
-                    : new { }
+                    : new { },
+
+                ConnectionStringId = parsedConnectionId
             };
+
+            return llmResponse;
         }
         catch (TimeoutException)
         {

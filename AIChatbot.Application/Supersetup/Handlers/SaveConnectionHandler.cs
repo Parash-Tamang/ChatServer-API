@@ -8,7 +8,7 @@ using Microsoft.Data.SqlClient;
 namespace AIChatbot.Application.Supersetup.Handlers;
 
 public class SaveConnectionHandler
-    : IRequestHandler<SaveConnectionCommand, List<ConnectionDto>>
+    : IRequestHandler<SaveConnectionCommand, SaveConnectionResult>
 {
     private readonly IConnectionRepository _repo;
     private readonly IAiProviderService _aiProvider;
@@ -21,14 +21,11 @@ public class SaveConnectionHandler
         _aiProvider = aiProvider;
     }
 
-    public async Task<List<ConnectionDto>> Handle(
+    public async Task<SaveConnectionResult> Handle(
         SaveConnectionCommand request,
         CancellationToken ct)
     {
         var connectionString = BuildConnectionString(request);
-
-        // 1️⃣ Optional: Verify SQL connection
-        // await TestConnectionAsync(connectionString);
 
         ConnectionString entity;
 
@@ -81,8 +78,11 @@ public class SaveConnectionHandler
         // 3️⃣ Enforce activation rule
         if (request.IsActive && !entity.Verified)
         {
-            throw new InvalidOperationException(
-                "Connection cannot be activated until it is verified.");
+            return new SaveConnectionResult
+            {
+                Success = false,
+                Message = "Connection cannot be activated until it is verified."
+            };
         }
 
         // 4️⃣ Activate connection if allowed
@@ -91,18 +91,21 @@ public class SaveConnectionHandler
             await _repo.SetActiveAsync(entity.Id);
         }
 
-        // 5️⃣ Return all connections
-        var connections = await _repo.GetAllAsync();
-
-        return connections.Select(x => new ConnectionDto
+        // 5️⃣ Return success message
+        if (setupResult.DbStatus)
         {
-            Id = x.Id,
-            ServerName = x.ServerName,
-            DatabaseName = x.DatabaseName,
-            AuthMode = x.AuthMode,
-            IsActive = x.IsActive,
-            Verified = x.Verified
-        }).ToList();
+            return new SaveConnectionResult
+            {
+                Success = true,
+                Message = "Database created successfully"
+            };
+        }
+
+        return new SaveConnectionResult
+        {
+            Success = false,
+            Message = "Database was not created, check details"
+        };
     }
 
     // -------------------------------------------------------

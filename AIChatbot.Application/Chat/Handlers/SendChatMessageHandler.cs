@@ -114,6 +114,7 @@ public class SendChatMessageHandler
                 RowCount = llm.RowCount,
                 WasReconstructed = llm.WasReconstructed,
                 ClarificationNeeded = llm.ClarificationNeeded,
+                ConnectionStringId = llm.ConnectionStringId,
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -122,7 +123,11 @@ public class SendChatMessageHandler
                 Status = ExecutionStatus.Success,
                 ChatSessionId = sessionId,
                 MessageId = assistantMessageId,
-                AssistantReply = llm.Message
+                AssistantReply = llm.Message,
+
+                // include table data if available
+                Columns = llm.Columns ?? Array.Empty<object>(),
+                Rows = llm.Rows ?? Array.Empty<object>()
             };
         }
         catch (TimeoutException)

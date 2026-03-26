@@ -36,7 +36,11 @@ namespace AIChatbot.Application.Supersetup.Handlers
                     DatabaseName = conn.DatabaseName,
                     AuthMode = conn.AuthMode,
                     IsActive = conn.IsActive,
-                    Verified = conn.Verified
+                    Verified = conn.Verified,
+                    ConnectionTimeout = conn.ConnectionTimeout,
+                    CreatedAt = conn.CreatedAt,
+                    Username = conn.Username,
+                    Password = conn.PasswordEncrypted
                 });
 
                 var functions = await _functionRepo.GetByConnectionIdAsync(conn.Id);
