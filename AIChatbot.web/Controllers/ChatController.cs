@@ -13,7 +13,7 @@ namespace AIChatbot.web.Controllers
     public class ChatController : Controller
     {
         private readonly ChatApiService _chat;
-
+        
         public ChatController(ChatApiService chat)
         {
             _chat = chat;

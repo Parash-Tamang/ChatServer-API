@@ -13,26 +13,65 @@ namespace AIChatbot.web.Services
             _apiClient = apiClient; // ← reuses your base url + token automatically
         }
 
-        public async Task<bool> ConnectAsync(SqlConnectionViewModel model)
+        public async Task<bool> SaveConnectionAsync(ConnectionRequestDto dto)
         {
-            // Map ViewModel → DTO
-            var dto = new ConnectionRequestDto
-            {
-                Id = Guid.NewGuid(),
-                ServerName = model.Server,
-                DatabaseName = model.Database,
-                AuthMode = model.AuthMode,
-                Username = model.Username,
-                Password = model.Password,
-                TrustCertificate = model.EncryptConnection,
-                ConnectionTimeout = model.Timeout,
-                IsActive = true
-            };
-
             var response = await _apiClient.PostAsync(
                 "api/supersetup/V1/setup-engine/connection", dto);
-
             return response.IsSuccessStatusCode;
         }
+
+        public async Task<List<ConnectionRequestDto>> GetAllConnectionsAsync()
+        {
+            var response = await _apiClient.GetAsync("api/supersetup/V1/setup-engine/all");
+            if (response == null || !response.IsSuccessStatusCode)
+                return new List<ConnectionRequestDto>();
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = System.Text.Json.JsonSerializer.Deserialize<ConnectionListResponse>(json, new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            return result?.Connections ?? new List<ConnectionRequestDto>();
+        }
+
+        public async Task<bool> UpdateConnectionAsync(ConnectionRequestDto dto)
+        {
+            var response = await _apiClient.PostAsync("api/supersetup/V1/setup-engine/connection", dto);
+            return response?.IsSuccessStatusCode ?? false;
+        }
+
+        public async Task<bool> SetActiveConnectionAsync(Guid id, List<ConnectionRequestDto> allConnections)
+        {
+            foreach (var conn in allConnections)
+            {
+                conn.IsActive = conn.Id == id;
+                var response = await _apiClient.PostAsync("api/supersetup/V1/setup-engine/connection", conn);
+                if (response == null || !response.IsSuccessStatusCode)
+                    return false;
+            }
+            return true;
+        }
+
+
+
+
+
+
+
+
+
+
+
+        public class ConnectionListResponse
+        {
+            public List<ConnectionRequestDto> Connections { get; set; } = new();
+            public object? Functions { get; set; }      // ← ignore but don't break
+            public object? GlobalPrompt { get; set; }   // ← ignore but don't break
+        }
+
+
+
+
     }
 }

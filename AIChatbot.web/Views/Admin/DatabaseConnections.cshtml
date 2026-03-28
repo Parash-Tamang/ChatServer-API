@@ -1,100 +1,219 @@
-﻿@{
+﻿@model List<AIChatbot.web.Dto.ConnectionRequestDto>
+@{
     Layout = "_AdminLayout";
 }
 
-<div class="container-fluid">
-
+<!-- Connection List -->
+<div class="container-fluid mb-4">
     <div class="row justify-content-center">
         <div class="col-12 col-xl-10">
-
             <div class="card shadow-sm">
-
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Database Connection Setup</h5>
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Database Connections</h5>
                 </div>
+                <div class="card-body p-0">
+                    @if (Model == null || !Model.Any())
+                    {
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-plug fs-1"></i>
+                            <p class="mt-2">No connections found. Add one below.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Server</th>
+                                    <th>Database</th>
+                                    <th>Auth Mode</th>
+                                    <th>Timeout</th>
+                                    <th>Verified</th>
+                                    <th>Active</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var conn in Model)
+                                {
+                                    <tr>
+                                        <td>@conn.ServerName</td>
+                                        <td>@conn.DatabaseName</td>
+                                        <td>@conn.AuthMode</td>
+                                        <td>@conn.ConnectionTimeout s</td>
+                                        <td>
+                                            @if (conn.Verified)
+                                            {
+                                                <span class="badge bg-success">Verified</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning text-dark">Unverified</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input active-switch"
+                                                       type="checkbox"
+                                                       data-id="@conn.Id"
+                                                       @(conn.IsActive ? "checked" : "") />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary edit-btn"
+                                                    data-id="@conn.Id"
+                                                    data-server="@conn.ServerName"
+                                                    data-database="@conn.DatabaseName"
+                                                    data-authmode="@conn.AuthMode"
+                                                    data-username="@conn.Username"
+                                                    data-password="@conn.Password"
+                                                    data-timeout="@conn.ConnectionTimeout"
+                                                    data-trust="@conn.TrustCertificate.ToString().ToLower()">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
+<!-- Add New Connection Form -->
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Add New Connection</h5>
+                </div>
                 <div class="card-body">
-
-                    <form asp-controller="Database" asp-action="SaveConnection" method="post">
-
-                        <!-- Server + Database -->
+                    <form asp-controller="Admin" asp-action="SaveConnection" method="post">
                         <div class="mb-3">
-
                             <div class="d-flex gap-3 mb-1">
                                 <label class="form-label fw-semibold flex-fill mb-0">Server Name</label>
                                 <label class="form-label fw-semibold flex-fill mb-0">Database Name</label>
                             </div>
-
                             <div class="d-flex gap-3">
                                 <input type="text" name="ServerName" class="form-control" required />
                                 <input type="text" name="DatabaseName" class="form-control" required />
                             </div>
-
                         </div>
-
-                        <!-- Authentication -->
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Authentication Type</label>
-
                             <div class="d-flex gap-3 mt-2">
                                 <div class="form-check">
-                                    <input class="form-check-input"
-                                           type="radio"
-                                           name="AuthType"
-                                           value="Sql"
-                                           id="sqlAuth"
-                                           checked />
+                                    <input class="form-check-input" type="radio" name="AuthMode" value="Sql" id="sqlAuth" checked />
                                     <label class="form-check-label">SQL Authentication</label>
                                 </div>
-
                                 <div class="form-check">
-                                    <input class="form-check-input"
-                                           type="radio"
-                                           name="AuthType"
-                                           value="Windows"
-                                           id="windowsAuth" />
+                                    <input class="form-check-input" type="radio" name="AuthMode" value="Windows" id="windowsAuth" />
                                     <label class="form-check-label">Windows Authentication</label>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- SQL Credentials (TOGGLE THIS) -->
                         <div id="sqlCredentials">
-
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Username</label>
                                 <input type="text" name="Username" class="form-control" placeholder="sa" />
                             </div>
-
-                            <div class="mb-4">
+                            <div class="mb-3">
                                 <label class="form-label fw-semibold">Password</label>
                                 <input type="password" name="Password" class="form-control" placeholder="Enter password" />
                             </div>
-
                         </div>
-
-                        <!-- Buttons -->
+                        <div class="d-flex gap-3 mb-4">
+                            <div class="flex-fill">
+                                <label class="form-label fw-semibold">Connection Timeout <span class="text-muted fw-normal">(seconds)</span></label>
+                                <input type="number" name="ConnectionTimeout" class="form-control" value="30" min="0" max="300" />
+                            </div>
+                            <div class="flex-fill d-flex flex-column justify-content-end pb-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="TrustCertificate" id="TrustCertificate" value="true" checked />
+                                    <label class="form-check-label fw-semibold" for="TrustCertificate">Trust Server Certificate</label>
+                                </div>
+                                <small class="text-muted">Recommended for local/dev servers</small>
+                            </div>
+                        </div>
+                        <input type="hidden" name="Id" value="" />
+                        <input type="hidden" name="IsActive" value="false" />
                         <div class="d-flex justify-content-end gap-2">
-
-                            <button type="button" id="testBtn" class="btn btn-outline-secondary">
-                                Test Connection
-                            </button>
-
-                            <button type="submit" class="btn btn-primary">
-                                Save Connection
-                            </button>
-
+                            <button type="button" id="testBtn" class="btn btn-outline-secondary">Test Connection</button>
+                            <button type="submit" class="btn btn-primary">Save Connection</button>
                         </div>
-
                     </form>
-
                 </div>
-
             </div>
-
         </div>
     </div>
+</div>
 
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Connection</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId" />
+                <div class="mb-3">
+                    <div class="d-flex gap-3 mb-1">
+                        <label class="form-label fw-semibold flex-fill mb-0">Server Name</label>
+                        <label class="form-label fw-semibold flex-fill mb-0">Database Name</label>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <input type="text" id="editServer" class="form-control" />
+                        <input type="text" id="editDatabase" class="form-control" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Authentication Type</label>
+                    <div class="d-flex gap-3 mt-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="editAuthMode" value="Sql" id="editSqlAuth" checked />
+                            <label class="form-check-label">SQL Authentication</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="editAuthMode" value="Windows" id="editWindowsAuth" />
+                            <label class="form-check-label">Windows Authentication</label>
+                        </div>
+                    </div>
+                </div>
+                <div id="editSqlCredentials">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Username</label>
+                        <input type="text" id="editUsername" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Password</label>
+                        <input type="password" id="editPassword" class="form-control" />
+                    </div>
+                </div>
+                <div class="d-flex gap-3">
+                    <div class="flex-fill">
+                        <label class="form-label fw-semibold">Timeout (seconds)</label>
+                        <input type="number" id="editTimeout" class="form-control" min="0" max="300" />
+                    </div>
+                    <div class="flex-fill d-flex flex-column justify-content-end pb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editTrust" />
+                            <label class="form-check-label fw-semibold">Trust Certificate</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="saveEditBtn" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {

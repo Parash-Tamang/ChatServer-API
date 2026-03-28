@@ -1,6 +1,7 @@
-﻿using System.Text.Json.Serialization;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Net.Http;
 
@@ -8,7 +9,6 @@ namespace AIChatbot.web.Models.Chat
 {
     /// <summary>
     /// Represents the result of a chat operation (send message, retry, etc.)
-    /// Matches ChatExecutionResult from backend
     /// </summary>
     public class ChatExecutionResult
     {
@@ -23,5 +23,20 @@ namespace AIChatbot.web.Models.Chat
 
         [JsonPropertyName("assistantReply")]
         public string? AssistantReply { get; set; }
+
+        [JsonPropertyName("columns")]
+        public List<ColumnDefinition>? Columns { get; set; }
+
+        [JsonPropertyName("rows")]
+        public List<List<JsonElement>>? Rows { get; set; }
+    }
+
+    public class ColumnDefinition
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = string.Empty;
     }
 }

@@ -61,9 +61,13 @@ namespace AIChatbot.web.Services
                 SetAuthorizationHeader();
 
                 var content = new StringContent(
-                    System.Text.Json.JsonSerializer.Serialize(data),
+                System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                }),
                     System.Text.Encoding.UTF8,
-                    "application/json");
+                        "application/json");
+
 
                 return await _httpClient.PostAsync(endpoint, content);
             }
