@@ -65,7 +65,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.DatabaseName).IsRequired().HasMaxLength(200);
             entity.Property(x => x.AuthMode).IsRequired().HasMaxLength(20);
             
-
+            
             entity.Property(x => x.UpdatedAt)
                   .HasDefaultValueSql("SYSUTCDATETIME()");
 

@@ -2,7 +2,9 @@
 using AIChatbot.Application.Common;
 using AIChatbot.Application.RoleAccess.Models;
 using AIChatbot.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -13,29 +15,30 @@ public class AiProviderService : IAiProviderService
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IConnectionRepository _connectionRepo;
+    private readonly IPromptFunctionRepository _promptRepo;
     private readonly ILogger<AiProviderService> _logger;
 
     public AiProviderService(
         HttpClient http,
         IConnectionRepository connectionRepo,
+        IPromptFunctionRepository promptRepo,
         ILogger<AiProviderService> logger)
     {
         _http = http;
         _connectionRepo = connectionRepo;
+        _promptRepo = promptRepo;
         _logger = logger;
 
         _jsonOptions = new JsonSerializerOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
     }
 
-    // -------------------------------------------------------
-    // DATABASE PREPARATION (Supersetup)
-    // -------------------------------------------------------
-    public async Task<DatabaseSetupResult> PrepareDatabaseAsync(
-        ConnectionString connection)
+    // ============================================================
+    // ✅ DATABASE SETUP
+    // ============================================================
+    public async Task<DatabaseSetupResult> PrepareDatabaseAsync(ConnectionString connection)
     {
         try
         {
@@ -49,7 +52,6 @@ public class AiProviderService : IAiProviderService
                 trust_certificate = connection.TrustCertificate,
                 connection_timeout = connection.ConnectionTimeout,
                 db_id = connection.Id.ToString(),
-                // role = "admin"
             };
 
             var response = await _http.PostAsJsonAsync(
@@ -59,18 +61,21 @@ public class AiProviderService : IAiProviderService
 
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Knowledgebase/setup failed with {StatusCode}: {Body}", response.StatusCode, body);
-                throw new ApplicationException("System was unable to respond to the request");
+                if (response.StatusCode == HttpStatusCode.UnsupportedMediaType)
+                {
+                    throw new BadHttpRequestException(
+                        "Unsupported media type from downstream service",
+                        StatusCodes.Status415UnsupportedMediaType);
+                }
+
+                throw new ApplicationException("Knowledgebase setup failed. Please verify connection.");
             }
 
             var result = await response.Content
                 .ReadFromJsonAsync<JsonElement>(_jsonOptions);
 
             if (result.ValueKind == JsonValueKind.Undefined)
-            {
-                throw new ApplicationException("System was unable to respond to the request");
-            }
+                throw new ApplicationException("Invalid response from knowledgebase service.");
 
             var success = result.TryGetProperty("success", out var s) && s.GetBoolean();
 
@@ -80,16 +85,18 @@ public class AiProviderService : IAiProviderService
                 DbStatus = success
             };
         }
+        catch (BadHttpRequestException) { throw; }
+        catch (TimeoutException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "PrepareDatabaseAsync failed");
-            throw new ApplicationException("System was unable to respond to the request");
+            throw new ApplicationException("System was unable to prepare the database.");
         }
     }
 
-    // -------------------------------------------------------
-    // QUERY EXECUTION (Chat)
-    // -------------------------------------------------------
+    // ============================================================
+    // ✅ CHAT / QUERY EXECUTION
+    // ============================================================
     public async Task<LlmResponse> GetReplyAsync(
         string userQuery,
         IEnumerable<Message> history,
@@ -97,22 +104,25 @@ public class AiProviderService : IAiProviderService
     {
         try
         {
-            var conversation = history?
-                .TakeLast(10)
-                .Select(m => new Dictionary<string, string?>
-                {
-                    ["message"] = m.Content
-                })
-                .ToList() ?? new List<Dictionary<string, string?>>();
+            // =============================
+            // 🔒 VALIDATION
+            // =============================
+            if (string.IsNullOrWhiteSpace(userQuery))
+                throw new BadHttpRequestException("Query cannot be empty.");
 
             var payload = new Dictionary<string, object?>
             {
                 ["query"] = userQuery,
-                ["conversation_history"] = conversation,
+                ["conversation_history"] = history?
+                    .TakeLast(10)
+                    .Select(m => new { message = m.Content })
+                    .ToList(),
                 ["save_results"] = true
             };
 
-            // Choose verified connection (existing logic)
+            // =============================
+            // 🔐 SELECT CONNECTION
+            // =============================
             ConnectionString? chosenConnection = null;
 
             if (schema?.Databases?.Any() == true)
@@ -120,6 +130,7 @@ public class AiProviderService : IAiProviderService
                 foreach (var dbId in schema.Databases)
                 {
                     var conn = await _connectionRepo.GetByIdAsync(dbId);
+
                     if (conn != null && conn.Verified)
                     {
                         chosenConnection = conn;
@@ -130,38 +141,72 @@ public class AiProviderService : IAiProviderService
 
             if (chosenConnection == null)
             {
-                try
-                {
-                    var all = await _connectionRepo.GetAllAsync();
-                    chosenConnection = all.FirstOrDefault(c => c.IsActive && c.Verified);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Failed to get all connections for fallback selection");
-                }
+                var all = await _connectionRepo.GetAllAsync();
+                chosenConnection = all.FirstOrDefault(c => c.IsActive && c.Verified);
             }
 
-            if (chosenConnection != null)
+            if (chosenConnection == null)
+                throw new KeyNotFoundException("No active database connection found.");
+
+            var connection = chosenConnection;
+
+            // ============================================================
+            // 🔥 PROMPT MODE LOGIC
+            // ============================================================
+            List<PromptFunction> selectedFunctions;
+
+            if (connection.PromptingMode == 1)
             {
-                var connection = chosenConnection;
-                payload["db_id"] = connection.Id.ToString();
-                payload["server"] = connection.ServerName.Replace("\\\\", "\\");
-                payload["database_name"] = connection.DatabaseName;
-                payload["auth_mode"] = connection.AuthMode?.ToLower();
-                payload["username"] = connection.Username;
-                payload["password"] = connection.PasswordEncrypted;
-                payload["trust_certificate"] = connection.TrustCertificate;
-                payload["connection_timeout"] = connection.ConnectionTimeout;
+                selectedFunctions = await _promptRepo.GetByConnectionIdAsync(connection.Id);
+
+                if (!selectedFunctions.Any())
+                    throw new KeyNotFoundException("No local functions configured.");
+            }
+            else if (connection.PromptingMode == 0)
+            {
+                selectedFunctions = await _promptRepo.GetGlobalFunctionsAsync();
+
+                if (!selectedFunctions.Any())
+                    throw new KeyNotFoundException("No global functions configured.");
             }
             else
             {
-                _logger.LogDebug("No verified connection chosen to include in payload");
+                throw new BadHttpRequestException("Invalid prompting mode configuration.");
             }
 
-            // Log payload JSON for debugging
-            var payloadJson = JsonSerializer.Serialize(payload, _jsonOptions);
-            _logger.LogDebug("POST /api/query payload: {PayloadJson}", payloadJson);
+            // ============================================================
+            // 🔥 PREPARE FUNCTION PAYLOAD (FIXED)
+            // ============================================================
+            var functionPayload = selectedFunctions.Select(f => new
+            {
+                functionName = f.FunctionName,
+                systemPrompt = f.SystemPrompt
+            }).ToList();
 
+            // ============================================================
+            // ⚠️ SAFE MODE (DO NOT SEND YET)
+            // ============================================================
+            // When Python is ready, UNCOMMENT:
+            //
+            // payload["functions"] = functionPayload;
+            //
+            // ============================================================
+
+            // =============================
+            // 🔗 CONNECTION DETAILS
+            // =============================
+            payload["db_id"] = connection.Id.ToString();
+            payload["server"] = connection.ServerName.Replace("\\\\", "\\");
+            payload["database_name"] = connection.DatabaseName;
+            payload["auth_mode"] = connection.AuthMode?.ToLower();
+            payload["username"] = connection.Username;
+            payload["password"] = connection.PasswordEncrypted;
+            payload["trust_certificate"] = connection.TrustCertificate;
+            payload["connection_timeout"] = connection.ConnectionTimeout;
+
+            // =============================
+            // 🚀 CALL PYTHON
+            // =============================
             var response = await _http.PostAsJsonAsync(
                 "api/query",
                 payload,
@@ -169,100 +214,52 @@ public class AiProviderService : IAiProviderService
 
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                _logger.LogError("AI provider /api/query returned {StatusCode}: {Body}", response.StatusCode, body);
-                throw new ApplicationException($"System was unable to respond to the request. Provider returned {(int)response.StatusCode}: {body}");
+                if (response.StatusCode == HttpStatusCode.UnsupportedMediaType)
+                {
+                    throw new BadHttpRequestException(
+                        "Unsupported media type from AI provider",
+                        StatusCodes.Status415UnsupportedMediaType);
+                }
+
+                throw new ApplicationException("AI service failed to process the request.");
             }
 
             var result = await response.Content
                 .ReadFromJsonAsync<JsonElement>(_jsonOptions);
 
-            if (result.ValueKind == JsonValueKind.Undefined)
-            {
-                _logger.LogError("AI provider /api/query returned undefined JSON");
-                throw new ApplicationException("System was unable to respond to the request");
-            }
+            if (!result.TryGetProperty("success", out var s) || !s.GetBoolean())
+                throw new TimeoutException("The model was unable to respond.");
 
-            // 🔴 AI failed to generate response
-            if (!result.TryGetProperty("success", out var successProp) ||
-                !successProp.GetBoolean())
+            // =============================
+            // ✅ RETURN RESPONSE
+            // =============================
+            return new LlmResponse
             {
-                throw new TimeoutException("The Model was unable to respond to the request");
-            }
-
-            // Parse optional connection string id from provider under several possible property names
-            Guid? parsedConnectionId = null;
-            if (result.TryGetProperty("connection_string_id", out var csidProp) && csidProp.ValueKind == JsonValueKind.String)
-            {
-                if (Guid.TryParse(csidProp.GetString(), out var g)) parsedConnectionId = g;
-            }
-            else if (result.TryGetProperty("connectionStringId", out var csidProp2) && csidProp2.ValueKind == JsonValueKind.String)
-            {
-                if (Guid.TryParse(csidProp2.GetString(), out var g)) parsedConnectionId = g;
-            }
-            else if (result.TryGetProperty("connectionstringid", out var csidProp3) && csidProp3.ValueKind == JsonValueKind.String)
-            {
-                if (Guid.TryParse(csidProp3.GetString(), out var g)) parsedConnectionId = g;
-            }
-            else if (result.TryGetProperty("db_id", out var dbidProp) && dbidProp.ValueKind == JsonValueKind.String)
-            {
-                // db_id may be sent back as string guid
-                if (Guid.TryParse(dbidProp.GetString(), out var g)) parsedConnectionId = g;
-            }
-
-            var llmResponse = new LlmResponse
-            {
-                Success = result.GetProperty("success").GetBoolean(),
-
-                Query = result.TryGetProperty("query", out var q)
-                    ? q.GetString() ?? ""
-                    : userQuery,
-
+                Success = true,
                 Message = result.TryGetProperty("message", out var m)
-                    ? m.GetString() ?? ""
+                    ? m.GetString()
                     : "",
-
                 SqlGenerated = result.TryGetProperty("sql_generated", out var sql)
                     ? sql.GetString()
                     : null,
-
-                Columns = result.TryGetProperty("columns", out var cols)
-                    ? cols.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
-                    : Array.Empty<object>(),
-
-                Rows = result.TryGetProperty("rows", out var rows)
-                    ? rows.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
-                    : Array.Empty<object>(),
-
                 RowCount = result.TryGetProperty("row_count", out var rc)
                     ? rc.GetInt32()
                     : 0,
-
-                WasReconstructed = result.TryGetProperty("was_reconstructed", out var wr)
-                    && wr.GetBoolean(),
-
-                ClarificationNeeded = result.TryGetProperty("clarification_needed", out var cn)
-                    && cn.GetBoolean(),
-
-                TokenUsage = result.TryGetProperty("token_usage", out var tu)
-                    ? tu.Deserialize<object>(_jsonOptions) ?? new { }
-                    : new { },
-
-                ConnectionStringId = parsedConnectionId
+                Columns = result.TryGetProperty("columns", out var cols)
+                    ? cols.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
+                    : Array.Empty<object>(),
+                Rows = result.TryGetProperty("rows", out var rows)
+                    ? rows.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
+                    : Array.Empty<object>()
             };
-
-            return llmResponse;
         }
-        catch (TimeoutException)
-        {
-            // handled by middleware → 504
-            throw;
-        }
+        catch (BadHttpRequestException) { throw; }
+        catch (KeyNotFoundException) { throw; }
+        catch (TimeoutException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "GetReplyAsync failed");
-            // system failure → 500
-            throw new ApplicationException("System was unable to respond to the request");
+            throw new ApplicationException("System was unable to respond to the request.");
         }
     }
 }

@@ -2,7 +2,7 @@
 using AIChatbot.Application.Auth.Commands;
 using AIChatbot.Application.Auth.Results;
 using MediatR;
-
+using Microsoft.AspNetCore.Http;
 namespace AIChatbot.Application.Auth.Handlers;
 
 public class RefreshTokenHandler
@@ -19,6 +19,14 @@ public class RefreshTokenHandler
         RefreshTokenCommand request,
         CancellationToken cancellationToken)
     {
-        return await _auth.RefreshTokenAsync(request.RefreshToken);
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            throw new BadHttpRequestException("Refresh token is required.");
+
+        var result = await _auth.RefreshTokenAsync(request.RefreshToken);
+
+        if (!result.Success)
+            throw new UnauthorizedAccessException("Invalid or expired refresh token.");
+
+        return result;
     }
 }

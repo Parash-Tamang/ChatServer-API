@@ -5,6 +5,7 @@ using AIChatbot.Application.Common;
 using AIChatbot.Application.RoleAccess.Services;
 using AIChatbot.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using System.Text.Json;
 
@@ -40,110 +41,59 @@ public class SendChatMessageHandler
         SendChatMessageCommand request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Message))
+            throw new BadHttpRequestException("Message cannot be empty.");
+
         var sessionId = request.ChatSessionId
             ?? await _repo.CreateChatSessionAsync(request.UserId);
 
-        bool isNewSession = request.ChatSessionId == null;
+        var user = await _userManager.FindByIdAsync(request.UserId)
+            ?? throw new KeyNotFoundException("User not found.");
 
-        try
+        var roles = await _userManager.GetRolesAsync(user);
+        var role = roles.FirstOrDefault()
+            ?? throw new BadHttpRequestException("User has no role assigned.");
+
+        var roleAccess = await _roleAccessService.GetAccessAsync(role);
+
+        var history = await _repo.GetLatestMessagesAsync(sessionId, 5);
+
+        var llm = await _ai.GetReplyAsync(
+            request.Message,
+            history,
+            roleAccess);
+
+        var userMessageId = await _repo.SaveMessageAsync(
+            sessionId,
+            "user",
+            request.Message);
+
+        var assistantMessageId = await _repo.SaveMessageAsync(
+            sessionId,
+            "assistant",
+            llm.Message ?? "");
+
+        await _metadataRepo.SaveAsync(new ResponseMetadata
         {
-            // 🔐 1. Validate user
-            var user = await _userManager.FindByIdAsync(request.UserId);
-            if (user == null)
-                throw new Exception("User not found.");
+            MessageId = assistantMessageId,
+            Success = llm.Success,
+            Query = request.Message,
+            InfoMessage = llm.Message,
+            SqlGenerated = llm.SqlGenerated,
+            LlmResponseJson = JsonSerializer.Serialize(llm),
+            RowCount = llm.RowCount,
+            ConnectionStringId = llm.ConnectionStringId,
+            CreatedAt = DateTime.UtcNow
+        });
 
-            // 🔐 2. Validate role
-            var roles = await _userManager.GetRolesAsync(user);
-            if (!roles.Any())
-                throw new Exception("User has no role assigned.");
-
-            var primaryRole = roles.First();
-
-            // 🔐 3. Get role access restrictions
-            var roleAccess = await _roleAccessService.GetAccessAsync(primaryRole);
-
-            // 🟢 4. Load history
-            var history = await _repo.GetLatestMessagesAsync(sessionId, 5);
-
-            // 🟢 5. Call AI
-            var llm = await _ai.GetReplyAsync(
-                request.Message,
-                history,
-                roleAccess
-            );
-
-            // 🟢 6. Save USER message
-            var userMessageId = await _repo.SaveMessageAsync(
-                sessionId,
-                "user",
-                request.Message
-            );
-
-            // 🟢 7. Auto topic generation
-            if (isNewSession)
-            {
-                var topic = string.Join(" ",
-                    request.Message
-                        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                        .TakeLast(4));
-
-                await _namingRepo.CreateAsync(new ChatSessionNaming
-                {
-                    ChatSessionId = sessionId,
-                    MessageId = userMessageId,
-                    TopicName = topic
-                });
-            }
-
-            // 🟢 8. Save assistant reply
-            var assistantMessageId = await _repo.SaveMessageAsync(
-                sessionId,
-                "assistant",
-                llm.Message ?? ""
-            );
-
-            // 🟢 9. Save metadata
-            await _metadataRepo.SaveAsync(new ResponseMetadata
-            {
-                MessageId = assistantMessageId,
-                Success = llm.Success,
-                Query = request.Message,
-                InfoMessage = llm.Message,
-                SqlGenerated = llm.SqlGenerated,
-                LlmResponseJson = JsonSerializer.Serialize(llm),
-                RowCount = llm.RowCount,
-                WasReconstructed = llm.WasReconstructed,
-                ClarificationNeeded = llm.ClarificationNeeded,
-                ConnectionStringId = llm.ConnectionStringId,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            return new ChatExecutionResult
-            {
-                Status = ExecutionStatus.Success,
-                ChatSessionId = sessionId,
-                MessageId = assistantMessageId,
-                AssistantReply = llm.Message,
-
-                // include table data if available
-                Columns = llm.Columns ?? Array.Empty<object>(),
-                Rows = llm.Rows ?? Array.Empty<object>()
-            };
-        }
-        catch (TimeoutException)
+        return new ChatExecutionResult
         {
-            // AI timeout → middleware will return 504
-            throw;
-        }
-        catch (ApplicationException)
-        {
-            // System error → middleware will return 500
-            throw;
-        }
-        catch (Exception)
-        {
-            // unexpected failure
-            throw new ApplicationException("System was unable to respond to the request");
-        }
+            Status = ExecutionStatus.Success,
+            ChatSessionId = sessionId,
+            MessageId = assistantMessageId,
+            AssistantReply = llm.Message,
+            Columns = llm.Columns ?? Array.Empty<object>(),
+            Rows = llm.Rows ?? Array.Empty<object>()
+        };
     }
 }

@@ -2,7 +2,7 @@
 using AIChatbot.Application.Auth.Commands;
 using AIChatbot.Application.Auth.Results;
 using MediatR;
-
+using Microsoft.AspNetCore.Http;
 namespace AIChatbot.Application.Auth.Handlers;
 
 public class LoginHandler
@@ -16,15 +16,21 @@ public class LoginHandler
     }
 
     public async Task<AuthResult> Handle(
-    LoginCommand request,
-    CancellationToken cancellationToken)
+        LoginCommand request,
+        CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Email))
+            throw new BadHttpRequestException("Email is required.");
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+            throw new BadHttpRequestException("Password is required.");
+
         var result = await _auth.LoginAsync(
             request.Email,
             request.Password);
 
         if (!result.Success)
-            throw new UnauthorizedAccessException(result.Error ?? "Invalid credentials");
+            throw new UnauthorizedAccessException("Invalid email or password.");
 
         return result;
     }

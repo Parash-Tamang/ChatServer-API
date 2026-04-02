@@ -13,8 +13,9 @@ public class ConnectionString
     public bool TrustCertificate { get; set; }
     public int ConnectionTimeout { get; set; }
 
-   
-
+    public int PromptingMode { get; set; } = 0;
+    // 0 = Global (default)
+    // 1 = Local
     public bool Verified { get; set; } = false;
 
     public bool IsActive { get; set; }

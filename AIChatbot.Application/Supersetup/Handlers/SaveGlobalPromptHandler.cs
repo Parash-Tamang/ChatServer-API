@@ -22,11 +22,18 @@ namespace AIChatbot.Application.Supersetup.Handlers
         {
             PromptFunction entity;
 
-            // EDIT existing global prompt
+            // =========================
+            // ✏️ UPDATE EXISTING PROMPT
+            // =========================
             if (request.FunctionId != null)
             {
-                entity = await _repo.GetByIdAsync(request.FunctionId.Value)
-                         ?? throw new Exception("Global prompt not found");
+                entity = await _repo.GetByIdAsync(request.FunctionId.Value);
+
+                if (entity == null)
+                {
+                    // ✅ Proper exception
+                    throw new KeyNotFoundException("Global prompt not found.");
+                }
 
                 entity.FunctionName = request.FunctionName;
                 entity.SystemPrompt = request.SystemPrompt;
@@ -34,13 +41,15 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 await _repo.UpdateAsync(entity);
             }
 
-            // CREATE new global prompt
+            // =========================
+            // ➕ CREATE NEW PROMPT
+            // =========================
             else
             {
                 entity = new PromptFunction
                 {
                     Id = Guid.NewGuid(),
-                    ConnectionStringId = null, // Important: global prompts have no connection
+                    ConnectionStringId = null, // Global prompt
                     FunctionName = request.FunctionName,
                     SystemPrompt = request.SystemPrompt,
                     IsDeleted = false
@@ -49,6 +58,9 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 await _repo.AddAsync(entity);
             }
 
+            // =========================
+            // ✅ RETURN RESPONSE
+            // =========================
             return new FunctionDto
             {
                 Id = entity.Id,

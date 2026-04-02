@@ -12,8 +12,9 @@ public class ConnectionDto
     // Added fields for listing
     public int ConnectionTimeout { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool TrustCertificate { get; set; } 
 
     // expose username/password for listing (careful with production secrets)
-    public string? Username { get; set; }
-    public string? Password { get; set; }
+
+    public int PromptingMode { get; set; } // 0 = Global, 1 = Local
 }

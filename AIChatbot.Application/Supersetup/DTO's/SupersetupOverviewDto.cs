@@ -8,5 +8,6 @@ namespace AIChatbot.Application.Supersetup.DTOs
         public List<ConnectionDto> Connections { get; set; } = new();
         public Dictionary<Guid, List<FunctionDto>> Functions { get; set; } = new();
         public List<FunctionDto> GlobalPrompt { get; set; } = new();
+        public int PromptingMode { get; set; } // 0 = Global, 1 = Local
     }
 }
