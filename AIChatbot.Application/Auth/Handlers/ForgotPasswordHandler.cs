@@ -1,6 +1,7 @@
 ﻿using AIChatbot.Application.Abstractions;
 using AIChatbot.Application.Auth.Commands;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 namespace AIChatbot.Application.Auth.Handlers;
 
@@ -18,7 +19,11 @@ public class ForgotPasswordHandler
         ForgotPasswordCommand request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Email))
+            throw new BadHttpRequestException("Email is required.");
+
         await _auth.ForgotPasswordAsync(request.Email);
+
         return Unit.Value;
     }
 }

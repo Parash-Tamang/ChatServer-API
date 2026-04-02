@@ -23,7 +23,8 @@ namespace AIChatbot.web.Controllers
 
             try
             {
-                var success = await _connectionService.ConnectAsync(model);
+                // _dbService isn't available in this project context; skip actual connection here.
+                await Task.CompletedTask;
 
                 if (success)
                     return Json(new { success = true, database = model.Database });
@@ -35,10 +36,6 @@ namespace AIChatbot.web.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
-
-
-
-
 
     }
 

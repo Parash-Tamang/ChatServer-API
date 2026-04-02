@@ -3,35 +3,72 @@ using AIChatbot.Application.Supersetup.Commands;
 using AIChatbot.Application.Supersetup.DTOs;
 using AIChatbot.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 
 namespace AIChatbot.Application.Supersetup.Handlers;
 
 public class SaveConnectionHandler
-    : IRequestHandler<SaveConnectionCommand, List<ConnectionDto>>
+    : IRequestHandler<SaveConnectionCommand, SaveConnectionResult>
 {
     private readonly IConnectionRepository _repo;
-    private readonly IAiProviderService _aiProvider;
 
-    public SaveConnectionHandler(
-        IConnectionRepository repo,
-        IAiProviderService aiProvider)
+    public SaveConnectionHandler(IConnectionRepository repo)
     {
         _repo = repo;
-        _aiProvider = aiProvider;
     }
 
-    public async Task<List<ConnectionDto>> Handle(
+    public async Task<SaveConnectionResult> Handle(
         SaveConnectionCommand request,
         CancellationToken ct)
     {
+        // =============================
+        // 🔒 VALIDATION
+        // =============================
+        if (string.IsNullOrWhiteSpace(request.ServerName))
+            throw new BadHttpRequestException("ServerName is required.");
+
+        if (string.IsNullOrWhiteSpace(request.DatabaseName))
+            throw new BadHttpRequestException("DatabaseName is required.");
+
+        if (string.IsNullOrWhiteSpace(request.AuthMode))
+            throw new BadHttpRequestException("AuthMode is required.");
+
         var connectionString = BuildConnectionString(request);
 
-        // 1️⃣ Optional: Verify SQL connection
-        // await TestConnectionAsync(connectionString);
+        // =============================
+        // ✅ TEST CONNECTION
+        // =============================
+        await TestConnectionAsync(connectionString);
+
+        // =============================
+        // 🔒 DUPLICATE CHECK (FIXED POSITION)
+        // =============================
+        var existing = await _repo.GetByUniqueKeyAsync(
+            request.ServerName,
+            request.DatabaseName,
+            request.AuthMode);
+
+        if (existing != null)
+        {
+            if (request.Id == null)
+            {
+                throw new BadHttpRequestException(
+                    "Connection already exists for this server and database.");
+            }
+
+            if (existing.Id != request.Id)
+            {
+                throw new BadHttpRequestException(
+                    "Another connection with same details already exists.");
+            }
+        }
 
         ConnectionString entity;
 
+        // =============================
+        // ✅ CREATE
+        // =============================
         if (request.Id == null)
         {
             entity = new ConnectionString
@@ -40,12 +77,16 @@ public class SaveConnectionHandler
                 ServerName = request.ServerName,
                 DatabaseName = request.DatabaseName,
                 AuthMode = request.AuthMode,
-                Username = request.Username,
-                PasswordEncrypted = request.Password,
-                TrustCertificate = request.TrustCertificate,
+                
+                Username = IsWindowsAuth(request) ? null : request.Username,
+                PasswordEncrypted = IsWindowsAuth(request) ? null : request.Password,
                 ConnectionTimeout = request.ConnectionTimeout,
+                TrustCertificate = request.TrustCertificate, 
+
                 IsActive = false,
                 Verified = false,
+                PromptingMode = 0,
+
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 IsDeleted = false
@@ -53,16 +94,27 @@ public class SaveConnectionHandler
 
             await _repo.AddAsync(entity);
         }
+        // =============================
+        // ✅ UPDATE
+        // =============================
         else
         {
             entity = await _repo.GetByIdAsync(request.Id.Value)
-                ?? throw new Exception("Connection not found");
+                ?? throw new KeyNotFoundException("Connection not found.");
 
             entity.ServerName = request.ServerName;
             entity.DatabaseName = request.DatabaseName;
             entity.AuthMode = request.AuthMode;
-            entity.Username = request.Username;
-            entity.PasswordEncrypted = request.Password;
+            if (IsWindowsAuth(request))
+            {
+                entity.Username = null;
+                entity.PasswordEncrypted = null;
+            }
+            else
+            {
+                entity.Username = request.Username;
+                entity.PasswordEncrypted = request.Password;
+            }
             entity.TrustCertificate = request.TrustCertificate;
             entity.ConnectionTimeout = request.ConnectionTimeout;
 
@@ -71,42 +123,17 @@ public class SaveConnectionHandler
             await _repo.UpdateAsync(entity);
         }
 
-        // 2️⃣ Ask AI Provider (Python) to verify & prepare DB
-        var setupResult = await _aiProvider.PrepareDatabaseAsync(entity);
-
-        entity.Verified = setupResult.DbStatus;
-
-        await _repo.UpdateAsync(entity);
-
-        // 3️⃣ Enforce activation rule
-        if (request.IsActive && !entity.Verified)
+        // =============================
+        // ✅ FINAL RESPONSE
+        // =============================
+        return new SaveConnectionResult
         {
-            throw new InvalidOperationException(
-                "Connection cannot be activated until it is verified.");
-        }
-
-        // 4️⃣ Activate connection if allowed
-        if (request.IsActive)
-        {
-            await _repo.SetActiveAsync(entity.Id);
-        }
-
-        // 5️⃣ Return all connections
-        var connections = await _repo.GetAllAsync();
-
-        return connections.Select(x => new ConnectionDto
-        {
-            Id = x.Id,
-            ServerName = x.ServerName,
-            DatabaseName = x.DatabaseName,
-            AuthMode = x.AuthMode,
-            IsActive = x.IsActive,
-            Verified = x.Verified
-        }).ToList();
+            Success = true,
+            Message = "Connection tested and saved successfully.",
+            ConnectionId = entity.Id
+        };
     }
 
-    // -------------------------------------------------------
-    // TEST DATABASE CONNECTION
     // -------------------------------------------------------
     private async Task TestConnectionAsync(string connectionString)
     {
@@ -116,14 +143,13 @@ public class SaveConnectionHandler
         {
             await conn.OpenAsync();
         }
-        catch (SqlException ex)
+        catch (SqlException)
         {
-            throw new Exception($"Database connection failed: {ex.Message}");
+            throw new BadHttpRequestException(
+                "Unable to connect to database. Check server, credentials or database name.");
         }
     }
 
-    // -------------------------------------------------------
-    // BUILD SQL CONNECTION STRING
     // -------------------------------------------------------
     private string BuildConnectionString(SaveConnectionCommand request)
     {
@@ -133,5 +159,9 @@ public class SaveConnectionHandler
         }
 
         return $"Server={request.ServerName};Database={request.DatabaseName};User Id={request.Username};Password={request.Password};TrustServerCertificate=True;";
+    }
+    private bool IsWindowsAuth(SaveConnectionCommand request)
+    {
+        return string.Equals(request.AuthMode, "windows", StringComparison.OrdinalIgnoreCase);
     }
 }

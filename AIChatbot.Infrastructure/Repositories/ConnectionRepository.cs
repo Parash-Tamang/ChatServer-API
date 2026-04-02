@@ -64,4 +64,17 @@ public class ConnectionRepository : IConnectionRepository
 
         await _context.SaveChangesAsync();
     }
+    public async Task<ConnectionString?> GetByUniqueKeyAsync(
+    string serverName,
+    string databaseName,
+    string authMode)
+    {
+        return await _context.ConnectionStrings
+            .Where(x =>
+                x.ServerName == serverName &&
+                x.DatabaseName == databaseName &&
+                x.AuthMode == authMode &&
+                !x.IsDeleted)
+            .FirstOrDefaultAsync();
+    }
 }

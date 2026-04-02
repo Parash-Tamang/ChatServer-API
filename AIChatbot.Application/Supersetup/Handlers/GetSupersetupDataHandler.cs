@@ -2,6 +2,8 @@
 using AIChatbot.Application.Supersetup.Commands;
 using AIChatbot.Application.Supersetup.DTOs;
 using MediatR;
+using System.Collections.Generic;
+using AIChatbot.Domain.Entities;
 
 namespace AIChatbot.Application.Supersetup.Handlers
 {
@@ -23,11 +25,32 @@ namespace AIChatbot.Application.Supersetup.Handlers
             GetSupersetupDataQuery request,
             CancellationToken ct)
         {
-            var connections = await _connectionRepo.GetAllAsync();
+            var connections = (await _connectionRepo.GetAllAsync())
+                .Where(x => !x.IsDeleted)
+                .ToList();
 
-            var result = new SupersetupOverviewDto();
+            var result = new SupersetupOverviewDto
+            {
+                Connections = new List<ConnectionDto>(),
+                Functions = new Dictionary<Guid, List<FunctionDto>>(),
+                GlobalPrompt = new List<FunctionDto>()
+            };
 
-            foreach (var conn in connections.Where(x => !x.IsDeleted))
+            // ============================================================
+            // 🔥 LOAD ALL FUNCTIONS ONCE (OPTIMIZATION)
+            // ============================================================
+            var allFunctions = new List<PromptFunction>();
+
+            foreach (var conn in connections)
+            {
+                var funcs = await _functionRepo.GetByConnectionIdAsync(conn.Id);
+                allFunctions.AddRange(funcs);
+            }
+
+            // ============================================================
+            // 🔹 CONNECTIONS + FUNCTIONS
+            // ============================================================
+            foreach (var conn in connections)
             {
                 result.Connections.Add(new ConnectionDto
                 {
@@ -36,10 +59,19 @@ namespace AIChatbot.Application.Supersetup.Handlers
                     DatabaseName = conn.DatabaseName,
                     AuthMode = conn.AuthMode,
                     IsActive = conn.IsActive,
-                    Verified = conn.Verified
+                    Verified = conn.Verified,
+                    ConnectionTimeout = conn.ConnectionTimeout,
+                    TrustCertificate = conn.TrustCertificate,
+                    CreatedAt = conn.CreatedAt,
+
+
+                    // ✅ ADDED (IMPORTANT)
+                    PromptingMode = conn.PromptingMode
                 });
 
-                var functions = await _functionRepo.GetByConnectionIdAsync(conn.Id);
+                var functions = allFunctions
+                    .Where(f => f.ConnectionStringId == conn.Id)
+                    .ToList();
 
                 result.Functions[conn.Id] = functions.Select(f => new FunctionDto
                 {
@@ -49,7 +81,9 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 }).ToList();
             }
 
-            // GLOBAL FUNCTIONS
+            // ============================================================
+            // 🌍 GLOBAL FUNCTIONS
+            // ============================================================
             var globalFunctions = await _functionRepo.GetGlobalFunctionsAsync();
 
             result.GlobalPrompt = globalFunctions.Select(f => new FunctionDto

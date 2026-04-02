@@ -5,4 +5,6 @@ namespace AIChatbot.Application.Abstractions;
 public interface IResponseMetadataRepository
 {
     Task SaveAsync(ResponseMetadata metadata);
+
+    Task<ResponseMetadata?> GetByMessageIdAsync(Guid messageId);
 }

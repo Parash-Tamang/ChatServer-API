@@ -38,13 +38,27 @@ public class AuthService : IAuthService
 
     // ---------------- REGISTER ----------------
     public async Task<AuthResult> RegisterAsync(
-        string firstName,
-        string lastName,
-        string email,
-        string phone,
-        string password,
-        string? role = null)
+      string firstName,
+      string lastName,
+      string email,
+      string phone,
+      string password,
+      string? role = null)
     {
+        // 🔴 Prevent registering as Admin/SuperAdmin
+        if (!string.IsNullOrWhiteSpace(role) &&
+            (role.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+             role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                "Unauthorized access to register with privileged role");
+        }
+
+        var existingUser = await _userManager.FindByEmailAsync(email);
+
+        if (existingUser != null)
+            throw new InvalidOperationException("User already exists");
+
         var user = new ApplicationUser
         {
             UserName = email,
@@ -65,28 +79,12 @@ public class AuthService : IAuthService
             };
         }
 
-        // Assign role safely
         if (!string.IsNullOrWhiteSpace(role))
         {
             if (!await _roleManager.RoleExistsAsync(role))
-            {
-                return new AuthResult
-                {
-                    Success = false,
-                    Error = "Role does not exist"
-                };
-            }
+                throw new KeyNotFoundException("Role does not exist");
 
-            var roleResult = await _userManager.AddToRoleAsync(user, role);
-
-            if (!roleResult.Succeeded)
-            {
-                return new AuthResult
-                {
-                    Success = false,
-                    Error = string.Join(", ", roleResult.Errors.Select(e => e.Description))
-                };
-            }
+            await _userManager.AddToRoleAsync(user, role);
         }
 
         return await IssueAuthResultAsync(user);
@@ -95,17 +93,30 @@ public class AuthService : IAuthService
     // ---------------- LOGIN ----------------
     public async Task<AuthResult> LoginAsync(string email, string password)
     {
-        var user = await _userManager.FindByEmailAsync(email)
-            ?? throw new UnauthorizedAccessException("Invalid email or password");
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user == null)
+        {
+            return new AuthResult
+            {
+                Success = false,
+                Error = "Invalid email or password"
+            };
+        }
 
         var validPassword = await _userManager.CheckPasswordAsync(user, password);
 
         if (!validPassword)
-            throw new UnauthorizedAccessException("Invalid email or password");
+        {
+            return new AuthResult
+            {
+                Success = false,
+                Error = "Invalid email or password"
+            };
+        }
 
         return await IssueAuthResultAsync(user);
     }
-
     // ---------------- REFRESH TOKEN ----------------
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
     {

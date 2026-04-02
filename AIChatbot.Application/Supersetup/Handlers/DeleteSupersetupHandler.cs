@@ -2,7 +2,7 @@
 using AIChatbot.Application.Supersetup.Commands;
 using AIChatbot.Domain.Entities;
 using MediatR;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 
 namespace AIChatbot.Application.Supersetup.Handlers
 {
@@ -11,29 +11,39 @@ namespace AIChatbot.Application.Supersetup.Handlers
     {
         private readonly IConnectionRepository _connectionRepo;
         private readonly IPromptFunctionRepository _functionRepo;
-        private readonly UserManager<ApplicationUser> _userManager;
 
         public DeleteSupersetupHandler(
             IConnectionRepository connectionRepo,
-            IPromptFunctionRepository functionRepo,
-            UserManager<ApplicationUser> userManager)
+            IPromptFunctionRepository functionRepo)
         {
             _connectionRepo = connectionRepo;
             _functionRepo = functionRepo;
-            _userManager = userManager;
         }
 
         public async Task<bool> Handle(
             DeleteSupersetupCommand request,
             CancellationToken ct)
         {
+            // =============================
+            // ❌ INVALID REQUEST
+            // =============================
+            if (!request.ConnectionId.HasValue && !request.FunctionId.HasValue)
+                throw new BadHttpRequestException(
+                    "Either ConnectionId or FunctionId must be provided.");
 
-
-            // 🗑 Delete Function
-            if (request.FunctionId != null )
+            // ============================================================
+            // ✅ CASE 1: DELETE FUNCTION (conn = id, func = id)
+            // ============================================================
+            if (request.ConnectionId.HasValue && request.FunctionId.HasValue)
             {
-                var function = await _functionRepo.GetByIdAsync(request.FunctionId.Value)
-                    ?? throw new Exception("Function not found");
+                var function = await _functionRepo.GetByIdAsync(request.FunctionId.Value);
+
+                if (function == null)
+                    throw new KeyNotFoundException("Function not found.");
+
+                if (function.ConnectionStringId != request.ConnectionId.Value)
+                    throw new BadHttpRequestException(
+                        "Function does not belong to the provided connection.");
 
                 function.IsDeleted = true;
                 await _functionRepo.UpdateAsync(function);
@@ -41,11 +51,35 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 return true;
             }
 
-            // 🗑 Delete Connection
-            if (request.ConnectionId != null)
+            // ============================================================
+            // ✅ CASE 3: DELETE GLOBAL FUNCTION (conn = null, func = id)
+            // ============================================================
+            if (!request.ConnectionId.HasValue && request.FunctionId.HasValue)
             {
-                var connection = await _connectionRepo.GetByIdAsync(request.ConnectionId.Value)
-                    ?? throw new Exception("Connection not found");
+                var function = await _functionRepo.GetByIdAsync(request.FunctionId.Value);
+
+                if (function == null)
+                    throw new KeyNotFoundException("Global function not found.");
+
+                if (function.ConnectionStringId != null)
+                    throw new BadHttpRequestException(
+                        "This function is not a global function.");
+
+                function.IsDeleted = true;
+                await _functionRepo.UpdateAsync(function);
+
+                return true;
+            }
+
+            // ============================================================
+            // ✅ CASE 2: DELETE CONNECTION (conn = id, func = null)
+            // ============================================================
+            if (request.ConnectionId.HasValue && !request.FunctionId.HasValue)
+            {
+                var connection = await _connectionRepo.GetByIdAsync(request.ConnectionId.Value);
+
+                if (connection == null)
+                    throw new KeyNotFoundException("Connection not found.");
 
                 connection.IsDeleted = true;
                 connection.IsActive = false;
@@ -55,7 +89,10 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 return true;
             }
 
-            throw new Exception("Invalid delete request");
+            // =============================
+            // ❌ FALLBACK (SHOULD NOT HIT)
+            // =============================
+            throw new BadHttpRequestException("Invalid delete request.");
         }
     }
 }

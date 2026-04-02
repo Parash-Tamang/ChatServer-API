@@ -21,6 +21,9 @@ namespace AIChatbot.Application.Common
         public bool ClarificationNeeded { get; set; }
 
         public object? TokenUsage { get; set; }
+
+        // provider-sent connection id for this response
+        public Guid? ConnectionStringId { get; set; }
     }
 
 }

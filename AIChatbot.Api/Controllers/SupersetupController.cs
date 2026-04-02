@@ -19,11 +19,44 @@ public class SupersetupController : ControllerBase
     }
 
     // ==========================================================
-    // 1️⃣ SAVE CONNECTION (Create / Update)
+    // 1️⃣ TEST + SAVE CONNECTION
     // ==========================================================
-    [HttpPost("connection")]
-    public async Task<IActionResult> SaveConnection(
+    [HttpPost("connection/test")]
+    public async Task<IActionResult> TestConnection(
         [FromBody] SaveConnectionCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    // ==========================================================
+    // 2️⃣ CREATE KNOWLEDGEBASE
+    // ==========================================================
+    [HttpPost("connection/create-kb")]
+    public async Task<IActionResult> CreateKnowledgebase(
+        [FromBody] CreateKnowledgebaseCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    // ==========================================================
+    // 3️⃣ ACTIVATE CONNECTION
+    // ==========================================================
+    [HttpPost("connection/activate")]
+    public async Task<IActionResult> ActivateConnection(
+        [FromBody] ActivateConnectionCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    // ==========================================================
+    // 4️⃣ UPDATE KNOWLEDGEBASE
+    // ==========================================================
+    [HttpPost("connection/update-kb")]
+    public async Task<IActionResult> UpdateKnowledgebase(
+        [FromBody] UpdateKnowledgebaseCommand command)
     {
         var result = await _mediator.Send(command);
         return Ok(result);
@@ -72,6 +105,16 @@ public class SupersetupController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var result = await _mediator.Send(new GetSupersetupDataQuery());
+        return Ok(result);
+    }
+
+    // prompting mode update // 0 = Global (default)
+    // 1 = Local
+    [HttpPost("connection/prompt-mode")]
+    public async Task<IActionResult> UpdatePromptMode(
+    [FromBody] UpdatePromptModeCommand command)
+    {
+        var result = await _mediator.Send(command);
         return Ok(result);
     }
 }

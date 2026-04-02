@@ -8,4 +8,13 @@ public class ConnectionDto
     public string AuthMode { get; set; } = default!;
     public bool IsActive { get; set; }
     public bool Verified { get; set; }
+
+    // Added fields for listing
+    public int ConnectionTimeout { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public bool TrustCertificate { get; set; } 
+
+    // expose username/password for listing (careful with production secrets)
+
+    public int PromptingMode { get; set; } // 0 = Global, 1 = Local
 }
