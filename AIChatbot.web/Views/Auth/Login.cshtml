@@ -1,4 +1,5 @@
-﻿@{
+﻿@model LoginUser;
+@{
     Layout = "_Layout";
     ViewData["FullPage"] = true;
 }
@@ -13,46 +14,29 @@
 
         <div class="auth-title">Welcome back</div>
 
-        @if (ViewData["ErrorMessage"] != null)
-        {
-            <div class="error" style="margin-bottom: 15px;">
-                @ViewData["ErrorMessage"]
-            </div>
-        }
-
         <form id="loginForm" method="post" asp-action="Login" asp-controller="Auth">
+            @Html.AntiForgeryToken()
             
             <!-- EMAIL -->
-            <input id="email"
+         
+            <input asp-for="Email"
                    name="email"
                    class="input"
                    type="email"
                    placeholder="Email"
                    autocomplete="username"
                    required />
-            @if (ViewData["EmailError"] != null)
-            {
-                <small class="error">@ViewData["EmailError"]</small>
-            }
+        
 
             <!-- PASSWORD -->
-            <input id="password"
+            <input asp-for="Password"
                    name="password"
                    class="input"
                    type="password"
                    placeholder="Password"
                    autocomplete="current-password"
                    required />
-            @if (ViewData["PasswordError"] != null)
-            {
-                <small class="error">@ViewData["PasswordError"]</small>
-            }
-
-            <!-- RETURN URL (Hidden) -->
-            @if (ViewData["ReturnUrl"] != null)
-            {
-                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
-            }
+          
 
             <!-- LOGIN BUTTON -->
             <button type="submit" class="auth-btn">

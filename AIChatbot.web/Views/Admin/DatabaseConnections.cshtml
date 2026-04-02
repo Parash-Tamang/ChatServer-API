@@ -1,0 +1,102 @@
+﻿@{
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+
+            <div class="card shadow-sm">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Database Connection Setup</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <form asp-controller="Database" asp-action="SaveConnection" method="post">
+
+                        <!-- Server + Database -->
+                        <div class="mb-3">
+
+                            <div class="d-flex gap-3 mb-1">
+                                <label class="form-label fw-semibold flex-fill mb-0">Server Name</label>
+                                <label class="form-label fw-semibold flex-fill mb-0">Database Name</label>
+                            </div>
+
+                            <div class="d-flex gap-3">
+                                <input type="text" name="ServerName" class="form-control" required />
+                                <input type="text" name="DatabaseName" class="form-control" required />
+                            </div>
+
+                        </div>
+
+                        <!-- Authentication -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Authentication Type</label>
+
+                            <div class="d-flex gap-3 mt-2">
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="radio"
+                                           name="AuthType"
+                                           value="Sql"
+                                           id="sqlAuth"
+                                           checked />
+                                    <label class="form-check-label">SQL Authentication</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="radio"
+                                           name="AuthType"
+                                           value="Windows"
+                                           id="windowsAuth" />
+                                    <label class="form-check-label">Windows Authentication</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SQL Credentials (TOGGLE THIS) -->
+                        <div id="sqlCredentials">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Username</label>
+                                <input type="text" name="Username" class="form-control" placeholder="sa" />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Password</label>
+                                <input type="password" name="Password" class="form-control" placeholder="Enter password" />
+                            </div>
+
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-end gap-2">
+
+                            <button type="button" id="testBtn" class="btn btn-outline-secondary">
+                                Test Connection
+                            </button>
+
+                            <button type="submit" class="btn btn-primary">
+                                Save Connection
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script src="~/js/database-connection.js"></script>
+}

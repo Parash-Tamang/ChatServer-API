@@ -1,0 +1,118 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Custom Admin Styles -->
+    <link href="~/css/admin.css" rel="stylesheet" />
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+
+<body class="m-0 p-0">
+
+    <div class="admin-container">
+
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="#" class="sidebar-logo">
+                    <span>Admin Panel</span>
+                </a>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="sidebar-nav-item">
+                        <a asp-controller="Admin" asp-action="Dashboard" class="nav-link">
+                            <i class="bi bi-house-door"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-nav-item">
+                        <a asp-controller="Admin" asp-action="DatabaseConnections" class="nav-link">
+                            <i class="bi bi-plug"></i>
+                            <span>Database Connections</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-nav-item">
+                        <a asp-controller="Database" asp-action="ConfigureDatabases" class="nav-link">
+                            <i class="bi bi-gear"></i>
+                            <span>Configure Databases</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-nav-item">
+                        <a asp-controller="KnowledgeBase" asp-action="Index" class="nav-link">
+                            <i class="bi bi-book"></i>
+                            <span>Knowledge Bases</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-nav-item">
+                        <a asp-controller="Admin" asp-action="Settings" class="nav-link">
+                            <i class="bi bi-sliders"></i>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <a href="#" class="sidebar-footer-link">
+                    <i class="bi bi-question-circle"></i>
+                    <span>Help & Support</span>
+                </a>
+            </div>
+
+        </aside>
+
+        <!-- Main Content -->
+        <div class="admin-main">
+
+            <header class="admin-header">
+                <div class="admin-header-welcome">
+                    <h4 class="mb-0">
+                        Welcome, Admin
+                    </h4>
+                </div>
+                <div class="admin-header-actions">
+                    <button class="btn-admin btn-admin-secondary" title="User Profile">
+                        <i class="bi bi-person-circle"></i>
+                        <span>Profile</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content Area -->
+            <main class="admin-content" >
+                @RenderBody()
+            </main>
+
+        </div>
+
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+
+</body>
+
+</html>

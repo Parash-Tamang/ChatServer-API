@@ -1,0 +1,393 @@
+@{
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <!-- Header Section -->
+            <div class="mb-4">
+                <h2 class="fw-bold text-dark">
+                    <i class="bi bi-database me-2 text-primary"></i>Database Connection Setup
+                </h2>
+                <p class="text-muted">Configure your database connection settings below</p>
+            </div>
+
+            <!-- Main Card -->
+            <div class="card border-0 shadow-lg rounded-3">
+
+                <div class="card-body p-4">
+
+                    <form asp-controller="Database" asp-action="SaveConnection" method="post">
+
+                        <!-- Connection Details Section -->
+                        <div class="mb-4">
+                            <h6 class="text-uppercase fw-bold text-secondary mb-3">
+                                <i class="bi bi-gear me-2"></i>Connection Details
+                            </h6>
+
+                            <!-- Server Name -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="bi bi-server text-primary me-2"></i>Server Name
+                                </label>
+                                <input type="text"
+                                       name="ServerName"
+                                       class="form-control form-control-lg border-2"
+                                       placeholder="e.g., localhost, 192.168.1.1, or sql.example.com"
+                                       required />
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>The address or hostname of your database server
+                                </small>
+                            </div>
+
+                            <!-- Database Name -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">
+                                    <i class="bi bi-collection text-primary me-2"></i>Database Name
+                                </label>
+                                <input type="text"
+                                       name="DatabaseName"
+                                       class="form-control form-control-lg border-2"
+                                       placeholder="e.g., MyDatabase, ChatbotDB"
+                                       required />
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>The name of the database you want to connect to
+                                </small>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Authentication Section -->
+                        <div class="mb-4">
+                            <h6 class="text-uppercase fw-bold text-secondary mb-3">
+                                <i class="bi bi-shield-lock text-primary me-2"></i>Authentication Type
+                            </h6>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-check auth-option">
+                                        <input class="form-check-input auth-type-radio"
+                                               type="radio"
+                                               name="AuthType"
+                                               value="Sql"
+                                               id="authTypeSql"
+                                               checked />
+
+                                        <label class="form-check-label fw-semibold" for="authTypeSql">
+                                            <i class="bi bi-person-badge text-info"></i>
+                                            SQL Authentication
+                                        </label>
+                                        <small class="text-muted d-block ms-4">Username & password required</small>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-check auth-option">
+                                        <input class="form-check-input auth-type-radio"
+                                               type="radio"
+                                               name="AuthType"
+                                               value="Windows"
+                                               id="authTypeWindows" />
+
+                                        <label class="form-check-label fw-semibold" for="authTypeWindows">
+                                            <i class="bi bi-windows text-success"></i>
+                                            Windows Authentication
+                                        </label>
+                                        <small class="text-muted d-block ms-4">Uses system credentials</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- SQL Credentials Section (Collapsible) -->
+                        <details id="sqlAuthDetails" open class="mb-4">
+                            <summary class="fw-semibold text-dark cursor-pointer user-select-none py-2">
+                                <i class="bi bi-key text-primary me-2"></i>SQL Credentials
+                                <small class="text-muted">(Click to expand/collapse)</small>
+                            </summary>
+
+                            <div class="mt-3 pt-3 border-top">
+                                <!-- Username -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold text-dark">
+                                        <i class="bi bi-person text-primary me-2"></i>Username
+                                    </label>
+                                    <input type="text"
+                                           name="Username"
+                                           class="form-control form-control-lg border-2"
+                                           placeholder="e.g., sa, admin"
+                                           id="usernameInput" />
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bi bi-info-circle me-1"></i>SQL Server login username
+                                    </small>
+                                </div>
+
+                                <!-- Password -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold text-dark">
+                                        <i class="bi bi-lock text-primary me-2"></i>Password
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="password"
+                                               name="Password"
+                                               class="form-control form-control-lg border-2"
+                                               placeholder="Enter your password"
+                                               id="passwordInput" />
+                                        <button class="btn btn-outline-secondary" 
+                                                type="button" 
+                                                id="togglePasswordBtn"
+                                                title="Toggle password visibility">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bi bi-info-circle me-1"></i>Your SQL Server password (kept secure)
+                                    </small>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2 gap-md-3 d-md-flex mt-5 pt-3 border-top">
+
+                            <button type="button"
+                                    class="btn btn-outline-secondary btn-lg flex-md-grow-1"
+                                    id="testConnectionBtn">
+                                <i class="bi bi-arrow-repeat me-2"></i>Test Connection
+                            </button>
+
+                            <button type="submit"
+                                    class="btn btn-primary btn-lg flex-md-grow-1">
+                                <i class="bi bi-check-circle me-2"></i>Save Connection
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            <!-- Info Alert -->
+            <div class="alert alert-info border-0 rounded-3 mt-4" role="alert">
+                <i class="bi bi-lightbulb me-2"></i>
+                <strong>Tip:</strong> Test your connection before saving to ensure all credentials are correct.
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, .form-control-lg {
+        border-color: #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-control-lg:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+
+    .form-control.border-2 {
+        border-width: 2px;
+    }
+
+    .auth-option {
+        padding: 1rem;
+        border: 2px solid #dee2e6;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .auth-option:hover {
+        border-color: #0d6efd;
+        background-color: #f8f9ff;
+    }
+
+    .auth-option .form-check-input {
+        cursor: pointer;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.15rem;
+    }
+
+    .auth-option .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    details {
+        border: 2px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+
+    details[open] {
+        background-color: #ffffff;
+        border-color: #0d6efd;
+    }
+
+    summary {
+        cursor: pointer;
+        user-select: none;
+        padding: 0.5rem;
+        margin: -0.5rem -1rem;
+        outline: none;
+    }
+
+    summary:hover {
+        background-color: #e7f1ff;
+        border-radius: 0.3rem;
+    }
+
+    details[open] > summary {
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .input-group .btn {
+        border-width: 2px;
+    }
+
+    .card {
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        border: none;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1.5rem rgba(13, 110, 253, 0.4);
+    }
+
+    .btn-outline-secondary {
+        border-width: 2px;
+    }
+
+    .btn-outline-secondary:hover {
+        transform: translateY(-2px);
+    }
+
+    h2 {
+        font-size: 2rem;
+        letter-spacing: -0.5px;
+    }
+
+    .text-uppercase {
+        letter-spacing: 0.5px;
+        font-size: 0.875rem;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .user-select-none {
+        user-select: none;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .btn-lg {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+        }
+
+        .form-control-lg {
+            font-size: 1rem;
+            padding: 0.6rem 0.8rem;
+        }
+    }
+</style>
+
+<script>
+    // Initialize on DOMContentLoaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeForm);
+    } else {
+        initializeForm();
+    }
+
+    function initializeForm() {
+        const authTypeRadios = document.querySelectorAll('.auth-type-radio');
+        const sqlAuthDetails = document.getElementById('sqlAuthDetails');
+        const passwordInput = document.getElementById('passwordInput');
+        const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+
+        // Toggle SQL Credentials section based on auth type
+        function toggleAuthFields() {
+            const selectedAuthType = document.querySelector('.auth-type-radio:checked').value;
+
+            if (selectedAuthType === 'Sql') {
+                sqlAuthDetails.open = true;
+            } else if (selectedAuthType === 'Windows') {
+                sqlAuthDetails.open = false;
+            }
+        }
+
+        // Event listeners for radio buttons
+        authTypeRadios.forEach(radio => {
+            radio.addEventListener('change', toggleAuthFields);
+        });
+
+        // Initialize on page load
+        toggleAuthFields();
+
+        // Toggle password visibility
+        if (togglePasswordBtn) {
+            togglePasswordBtn.addEventListener('click', function () {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+
+                // Update button icon
+                const icon = this.querySelector('i');
+                if (type === 'password') {
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                } else {
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                }
+            });
+        }
+
+        // Test Connection button handler
+        const testBtn = document.getElementById('testConnectionBtn');
+        if (testBtn) {
+            testBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                const serverName = document.querySelector('input[name="ServerName"]').value;
+                const dbName = document.querySelector('input[name="DatabaseName"]').value;
+
+                if (!serverName || !dbName) {
+                    alert('Please fill in Server Name and Database Name first!');
+                    return;
+                }
+
+                alert(`Testing connection to ${serverName}\\${dbName}...\n\nTest Connection feature coming soon!`);
+            });
+        }
+    }
+</script>

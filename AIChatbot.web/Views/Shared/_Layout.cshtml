@@ -22,10 +22,7 @@
 
 </head>
 
-<body data-success="@TempData["Success"]"
-      data-error="@TempData["Error"]"
-      data-info="@TempData["Info"]"
-      data-warning="@TempData["Warning"]">
+<body>
 
     <!-- HEADER -->
     <header class="app-header">
@@ -40,10 +37,7 @@
 
             <span>AI Chatbot</span>
 
-            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
-            {
-                <a href="/RoleManager" class="ms-3">⚙️ Role Manager</a>
-            }
+  
 
         </div>
     </header>
@@ -63,8 +57,8 @@
     <!-- Toastr -->
     <script src="~/lib/toastr/toastr.min.js"></script>
 
-    <!-- Global Notifications -->
-    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    <!-- Toastr Notifications Partial -->
+    <partial name="_ToastrNotifications" />
 
     @RenderSection("Scripts", required: false)
 

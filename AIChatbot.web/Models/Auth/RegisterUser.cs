@@ -1,4 +1,4 @@
-﻿namespace AIChatbot.Web.Models.Auth
+﻿namespace AIChatbot.web.Models.Auth
 {
     public class RegisterUser
     {
@@ -16,6 +16,6 @@
 
         public string SelectedRole { get; set; }
 
-        public List<string> Roles { get; set; }
+        public List<string> Roles { get; set; } = new();
     }
 }

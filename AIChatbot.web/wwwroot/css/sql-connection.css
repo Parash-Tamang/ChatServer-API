@@ -90,7 +90,7 @@
     padding: 6px 12px;
     font-weight: 600;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 12px
     flex: 1;
 }
 
@@ -103,4 +103,26 @@
     border-radius: 6px;
     font-size: 12px;
     flex: 1;
+}
+.db-connection-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #ECFDF3;
+    color: #027A48;
+    border: 1px solid #ABEFC6;
+    border-radius: 16px;
+    padding: 3px 10px 3px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.db-flag-close {
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    color: #027A48;
+    cursor: pointer;
+    font-size: 14px;
 }

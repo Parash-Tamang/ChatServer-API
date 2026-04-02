@@ -218,6 +218,13 @@ app.MapGet("/List all roles", (RoleManager<IdentityRole> roleManager) =>
     });
 });
 
+    return Results.Ok(new
+    {
+        success = true,
+        roles = roles
+    });
+});
+
 // ==========================================================
 // Seed Roles + SuperAdmin
 // ==========================================================

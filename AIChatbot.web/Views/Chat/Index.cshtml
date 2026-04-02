@@ -4,51 +4,51 @@
     Layout = "_Layout";
 }
 
-@section Styles {
-    <link rel="stylesheet" href="~/css/sql-connection.css" />
-    <style>
-        /* ── typing indicator ── */
-        .typing-indicator {
-            display: flex;
-            gap: 5px;
-            padding: 12px 16px;
-            align-items: center;
-        }
-
-            .typing-indicator span {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: #aaa;
-                display: inline-block;
-                animation: bounce 1.2s infinite ease-in-out;
+    @section Styles {
+        <link rel="stylesheet" href="~/css/sql-connection.css" />
+        <style>
+            /* ── typing indicator ── */
+            .typing-indicator {
+                display: flex;
+                gap: 5px;
+                padding: 12px 16px;
+                align-items: center;
             }
 
-                .typing-indicator span:nth-child(2) {
-                    animation-delay: 0.2s;
+                .typing-indicator span {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #aaa;
+                    display: inline-block;
+                    animation: bounce 1.2s infinite ease-in-out;
                 }
 
-                .typing-indicator span:nth-child(3) {
-                    animation-delay: 0.4s;
+                    .typing-indicator span:nth-child(2) {
+                        animation-delay: 0.2s;
+                    }
+
+                    .typing-indicator span:nth-child(3) {
+                        animation-delay: 0.4s;
+                    }
+
+            @@keyframes bounce {
+                0%, 80%, 100% {
+                    transform: scale(0.7);
+                    opacity: 0.5;
                 }
 
-        @@keyframes bounce {
-            0%, 80%, 100% {
-                transform: scale(0.7);
-                opacity: 0.5;
+                40% {
+                    transform: scale(1.1);
+                    opacity: 1;
+                }
             }
 
-            40% {
-                transform: scale(1.1);
-                opacity: 1;
+            /* ── session active state ── */
+            .session-item.active {
+                background: rgba(255,255,255,0.12);
+                border-radius: 8px;
             }
-        }
-
-        /* ── session active state ── */
-        .session-item.active {
-            background: rgba(255,255,255,0.12);
-            border-radius: 8px;
-        }
 
         /* ── send button spinner ── */
         .btn-send-loading {
@@ -64,7 +64,7 @@
     <div class="sidebar">
 
         <div class="sidebar-top">
-            <button id="btnNewChat" class="btn btn-dark new-chat-btn">+ New Chat</button>
+            <button id="btnNewChat" class="btn btn-light new-chat-btn">+ New Chat</button>
         </div>
 
         <div class="sidebar-top">Chats</div>
@@ -82,10 +82,10 @@
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="/Settings/Index">Settings</a></li>
 
-                     <li>
+                    @*  <li>
                         <button type="button" class="dropdown-item" onclick="loadRoleManagerModal()"> </button>
                    
-                    </li>
+                    </li> *@
 
 
                     <li>
@@ -152,18 +152,31 @@
     </button>
 </span>
 
-@section Scripts {
-    <script>
+@* @section Scripts {
+    @* <script> 
         // ═══════════════════════════════════════════════════════
-        //  STATE
+        //  HELPERS
         // ═══════════════════════════════════════════════════════
         function getAntiForgeryToken() {
             const el = document.querySelector('input[name="__RequestVerificationToken"]');
             return el ? el.value : '';
         }
 
+        function escHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  STATE
+        // ═══════════════════════════════════════════════════════
         let currentSessionId = null;
-        let sessions = [];
+        let sessions         = [];
+        let pollTimer        = null;
+        let sentMessageTime  = null;
 
         // ═══════════════════════════════════════════════════════
         //  BOOT
@@ -192,14 +205,29 @@
         async function loadSessions() {
             try {
                 const res  = await fetch('/Chat/GetSessions');
+
+                // HTTP-level failure (500, 401, etc.)
+                if (!res.ok) {
+                    showSidebarError('Oops! Could not load your chats.');
+                    return;
+                }
+
                 const json = await res.json();
                 if (json.success) {
                     sessions = json.data ?? [];
                     renderSessionList();
+                } else {
+                    showSidebarError(json.message ?? 'Oops! Could not load your chats.');
                 }
-            } catch (err) {
-                console.error('loadSessions error:', err);
+            } catch {
+                // Fetch itself failed — server completely unreachable
+                showSidebarError('Oops! Could not reach the server.');
             }
+        }
+
+        function showSidebarError(msg) {
+            document.getElementById('sessionList').innerHTML =
+                `<div class="text-danger p-2 text-center small">${escHtml(msg)}</div>`;
         }
 
         function renderSessionList() {
@@ -217,9 +245,9 @@
                 div.className = 'session-item d-flex justify-content-between align-items-center' +
                                 (s.id === currentSessionId ? ' active' : '');
                 div.dataset.id = s.id;
-                div.innerHTML = `
+                div.innerHTML  = `
                     <button class="btn btn-link session-title"
-                            style="color:inherit;text-decoration:none;text-align:left;padding:8px;flex:1;"
+                            style="color:inherit;text-decoration:none;text-align:left;padding:8px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                             onclick="openSession('${s.id}')">
                         ${escHtml(title)}
                     </button>
@@ -240,6 +268,7 @@
         //  OPEN SESSION
         // ═══════════════════════════════════════════════════════
         async function openSession(sessionId) {
+            stopPolling();
             currentSessionId = sessionId;
             renderSessionList();
             clearMessages();
@@ -247,18 +276,27 @@
 
             try {
                 const res  = await fetch(`/Chat/GetMessages?sessionId=${sessionId}`);
+
+                if (!res.ok) {
+                    removeTypingIndicator();
+                    appendErrorBubble('Oops! Could not load this chat. Please try again.');
+                    return;
+                }
+
                 const json = await res.json();
                 removeTypingIndicator();
 
                 if (json.success && json.data?.length > 0) {
                     hideEmptyState();
                     json.data.forEach(m => appendMessage(m.role, m.content, m.createdAt));
+                } else if (!json.success) {
+                    appendErrorBubble(json.message ?? 'Oops! Could not load messages.');
                 } else {
                     showEmptyState();
                 }
-            } catch (err) {
+            } catch {
                 removeTypingIndicator();
-                console.error('openSession error:', err);
+                appendErrorBubble('Oops! Could not reach the server. Please check your connection.');
             }
 
             scrollToBottom();
@@ -268,6 +306,7 @@
         //  NEW CHAT
         // ═══════════════════════════════════════════════════════
         function startNewChat() {
+            stopPolling();
             currentSessionId = null;
             clearMessages();
             showEmptyState();
@@ -283,8 +322,10 @@
             const message = input.value.trim();
             if (!message) return;
 
+            sentMessageTime = new Date().toISOString();
+
             hideEmptyState();
-            appendMessage('user', message, new Date().toISOString());
+            appendMessage('user', message, sentMessageTime);
             input.value = '';
             autoResizeTextarea(input);
             setSendLoading(true);
@@ -292,7 +333,7 @@
             scrollToBottom();
 
             try {
-                const res  = await fetch('/Chat/SendMessageAjax', {
+                const res = await fetch('/Chat/SendMessageAjax', {
                     method:  'POST',
                     headers: {
                         'Content-Type':             'application/json',
@@ -301,46 +342,102 @@
                     body: JSON.stringify({ message, chatSessionId: currentSessionId })
                 });
 
-                const json = await res.json();
-                removeTypingIndicator();
-
-                if (json.success && json.data) {
-                    const result = json.data;
-
-                    // ✅ FIX 1: new session created → set ID
-                    const isNewSession = result.chatSessionId && result.chatSessionId !== currentSessionId;
-                    if (isNewSession) {
-                        currentSessionId = result.chatSessionId;
-
-                        // ✅ FIX 2: first 40 chars of message as topic name
-                        const topic = message.length > 40
-                            ? message.substring(0, 40).trimEnd() + '…'
-                            : message;
-
-                        sessions.unshift({
-                            id:        currentSessionId,
-                            topicName: topic,
-                            createdAt: new Date().toISOString()
-                        });
-                        renderSessionList();
-                    }
-
-                    // ✅ FIX 3: correct field name is assistantReply
-                    if (result.assistantReply) {
-                        appendMessage('assistant', result.assistantReply, new Date().toISOString());
-                    }
-
-                } else {
-                    appendErrorBubble(json.message ?? 'Something went wrong.');
+                // HTTP-level failure
+                if (!res.ok) {
+                    removeTypingIndicator();
+                    setSendLoading(false);
+                    appendErrorBubble('Oops! The server returned an error. Please try again.');
+                    return;
                 }
-            } catch (err) {
-                removeTypingIndicator();
-                appendErrorBubble('Network error. Please try again.');
-                console.error('sendMessage error:', err);
-            }
 
-            setSendLoading(false);
-            scrollToBottom();
+                const json = await res.json();
+
+                if (!json.success) {
+                    removeTypingIndicator();
+                    setSendLoading(false);
+                    appendErrorBubble(json.message ?? 'Oops! Something went wrong. Please try again.');
+                    return;
+                }
+
+                const result = json.data;
+
+                // New session was created
+                if (result.chatSessionId && result.chatSessionId !== currentSessionId) {
+                    currentSessionId = result.chatSessionId;
+                    const topic = message.length > 40
+                        ? message.substring(0, 40).trimEnd() + '…'
+                        : message;
+                    sessions.unshift({ id: currentSessionId, topicName: topic, createdAt: sentMessageTime });
+                    renderSessionList();
+                }
+
+                // AI already replied inline
+                if (result.assistantReply) {
+                    removeTypingIndicator();
+                    setSendLoading(false);
+                    appendMessage('assistant', result.assistantReply, new Date().toISOString());
+                    scrollToBottom();
+                } else {
+                    // Reply is async — start polling
+                    startPolling(currentSessionId, sentMessageTime);
+                }
+
+            } catch {
+                removeTypingIndicator();
+                setSendLoading(false);
+                appendErrorBubble('Oops! Could not reach the server. Please check your connection.');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  POLLING — every 1.5s, max 60s
+        // ═══════════════════════════════════════════════════════
+        function startPolling(sessionId, afterUtc) {
+            stopPolling();
+            let attempts = 4;
+            const MAX    = 60;
+
+            pollTimer = setInterval(async () => {
+                attempts++;
+
+                try {
+                    const res  = await fetch(`/Chat/PollReply?sessionId=${sessionId}&afterUtc=${encodeURIComponent(afterUtc)}`);
+
+                    if (!res.ok) {
+                        // Don't stop polling on a single bad response — keep trying
+                        return;
+                    }
+
+                    const json = await res.json();
+
+                    if (json.success && json.found) {
+                        stopPolling();
+                        removeTypingIndicator();
+                        setSendLoading(false);
+                        appendMessage('assistant', json.data.content, json.data.createdAt);
+                        scrollToBottom();
+                        return;
+                    }
+
+                    // json.success false means server error — keep trying until timeout
+                } catch {
+                    // Network blip — keep trying until timeout
+                }
+
+                if (attempts >= MAX) {
+                    stopPolling();
+                    removeTypingIndicator();
+                    setSendLoading(false);
+                    appendErrorBubble('Oops! The AI is taking too long to respond. Please try sending your message again.');
+                }
+            }, 1500);
+        }
+
+        function stopPolling() {
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
         }
 
         // ═══════════════════════════════════════════════════════
@@ -359,15 +456,22 @@
                     },
                     body: JSON.stringify({ sessionId })
                 });
-                const json = await res.json();
 
+                if (!res.ok) {
+                    alert('Oops! Could not delete this chat. Please try again.');
+                    return;
+                }
+
+                const json = await res.json();
                 if (json.success) {
                     sessions = sessions.filter(s => s.id !== sessionId);
                     renderSessionList();
                     if (currentSessionId === sessionId) startNewChat();
+                } else {
+                    alert(json.message ?? 'Oops! Could not delete this chat.');
                 }
-            } catch (err) {
-                console.error('deleteSession error:', err);
+            } catch {
+                alert('Oops! Could not reach the server. Please check your connection.');
             }
         }
 
@@ -377,7 +481,9 @@
         function appendMessage(role, content, isoTime) {
             const container = document.getElementById('messagesContainer');
             const isUser    = role === 'user';
-            const time      = isoTime ? new Date(isoTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const time      = isoTime
+                ? new Date(isoTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : '';
             const wrap      = document.createElement('div');
             wrap.className  = `d-flex flex-column ${isUser ? 'align-items-end' : 'align-items-start'}`;
             wrap.innerHTML  = `
@@ -388,19 +494,22 @@
 
         function appendErrorBubble(text) {
             const container = document.getElementById('messagesContainer');
-            const wrap = document.createElement('div');
-            wrap.className = 'd-flex flex-column align-items-start';
-            wrap.innerHTML = `<div class="msg bot text-danger">${escHtml(text)}</div>`;
+            const wrap      = document.createElement('div');
+            wrap.className  = 'd-flex flex-column align-items-start';
+            wrap.innerHTML  = `
+                <div class="msg bot" style="border-left: 3px solid #dc3545; background: rgba(220,53,69,0.08);">
+                    <span style="color:#dc3545; font-size:13px;">⚠ ${escHtml(text)}</span>
+                </div>`;
             container.appendChild(wrap);
         }
 
         function showTypingIndicator() {
             removeTypingIndicator();
             const container = document.getElementById('messagesContainer');
-            const el = document.createElement('div');
-            el.id = 'typingIndicator';
-            el.className = 'd-flex flex-column align-items-start';
-            el.innerHTML = `
+            const el        = document.createElement('div');
+            el.id           = 'typingIndicator';
+            el.className    = 'd-flex flex-column align-items-start';
+            el.innerHTML    = `
                 <div class="msg bot p-0">
                     <div class="typing-indicator">
                         <span></span><span></span><span></span>
@@ -414,12 +523,13 @@
 
         function clearMessages() {
             document.getElementById('messagesContainer').innerHTML =
-                '<div class="text-center mt-5 text-muted" id="emptyState" style="display:none;"><h5>Start a conversation</h5><div>Ask anything. The AI is ready.</div></div>';
+                '<div class="text-center mt-5 text-muted" id="emptyState" style="display:none;">' +
+                '<h5>Start a conversation</h5><div>Ask anything. The AI is ready.</div></div>';
         }
 
-        function showEmptyState() { const el = document.getElementById('emptyState'); if (el) el.style.display = ''; }
-        function hideEmptyState() { const el = document.getElementById('emptyState'); if (el) el.style.display = 'none'; }
-        function scrollToBottom() { const c = document.getElementById('messagesContainer'); c.scrollTop = c.scrollHeight; }
+        function showEmptyState()  { const el = document.getElementById('emptyState'); if (el) el.style.display = ''; }
+        function hideEmptyState()  { const el = document.getElementById('emptyState'); if (el) el.style.display = 'none'; }
+        function scrollToBottom()  { const c  = document.getElementById('messagesContainer'); c.scrollTop = c.scrollHeight; }
 
         function setSendLoading(loading) {
             document.getElementById('sendBtn').classList.toggle('btn-send-loading', loading);
@@ -431,30 +541,39 @@
             el.style.height = Math.min(el.scrollHeight, 160) + 'px';
         }
 
-        function escHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-
         // ═══════════════════════════════════════════════════════
-        //  MANAGE DB MODAL
+        //  MODALS
         // ═══════════════════════════════════════════════════════
         async function loadDbModal() {
             try {
                 const response = await fetch('/Chat/LoadConnectionModal');
-                if (!response.ok) { alert('Access denied'); return; }
+                if (!response.ok) { alert('Access denied.'); return; }
                 document.getElementById('modalContainer').innerHTML = await response.text();
                 new bootstrap.Modal(document.getElementById('dbConnectModal')).show();
-            } catch (err) {
-                console.error('loadDbModal error:', err);
+            } catch {
+                alert('Oops! Could not load the database settings.');
             }
         }
-    </script>
 
-    <!-- Hidden antiforgery field so JS can grab the token -->
+        async function loadRoleManagerModal() {
+            try {
+                const response = await fetch('/RoleManager/LoadRoleManagerModal');
+                if (!response.ok) { alert('Access denied.'); return; }
+                document.getElementById('modalContainer').innerHTML = await response.text();
+                new bootstrap.Modal(document.getElementById('roleManagerModal')).show();
+            } catch {
+                alert('Oops! Could not load the role manager.');
+            }
+        }
+    </script> *
+    @* <script src="~/js/connection.js"></script>
+    <form id="__AjaxAntiForgery" style="display:none;">
+        @Html.AntiForgeryToken()
+    </form> *@ 
+
+@section Scripts {
+    <script src="~/js/chatmessage.js"></script>
+    <script src="~/js/connection.js"></script>
     <form id="__AjaxAntiForgery" style="display:none;">
         @Html.AntiForgeryToken()
     </form>

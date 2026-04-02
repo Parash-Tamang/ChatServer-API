@@ -11,10 +11,10 @@ namespace AIChatbot.web.Filters
     /// </summary>
     public class AuthFilter : IActionFilter
     {
-        private readonly TokenService _token;
+        private readonly ITokenService _token;
         private readonly IAuthService _authService;
 
-        public AuthFilter(TokenService token, IAuthService authService)
+        public AuthFilter(ITokenService token, IAuthService authService)
         {
             _token = token;
             _authService = authService;
@@ -38,7 +38,7 @@ namespace AIChatbot.web.Filters
             {
                 // Try to refresh token
                 var refreshToken = http.Request.Cookies["refreshToken"];
-                
+
                 if (!string.IsNullOrEmpty(refreshToken))
                 {
                     // Note: In a real application, you might want to refresh synchronously here
@@ -73,13 +73,13 @@ namespace AIChatbot.web.Filters
 
                 // Decode payload (it's base64url encoded)
                 var payload = parts[1];
-                
+
                 // Add padding if needed
                 var paddedPayload = payload.Length % 4 == 0 ? payload : payload + new string('=', 4 - payload.Length % 4);
-                
+
                 // Convert base64url to base64
                 var base64 = paddedPayload.Replace('-', '+').Replace('_', '/');
-                
+
                 var jsonBytes = Convert.FromBase64String(base64);
                 var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
 
@@ -92,7 +92,7 @@ namespace AIChatbot.web.Filters
                         expEnd = json.IndexOf('}', expStart);
 
                     var expStr = json.Substring(expStart, expEnd - expStart).Trim();
-                    
+
                     if (long.TryParse(expStr, out var expirationUnixTime))
                     {
                         var expirationDate = UnixTimeStampToDateTime(expirationUnixTime);
@@ -126,7 +126,7 @@ namespace AIChatbot.web.Filters
                 var payload = parts[1];
                 var paddedPayload = payload.Length % 4 == 0 ? payload : payload + new string('=', 4 - payload.Length % 4);
                 var base64 = paddedPayload.Replace('-', '+').Replace('_', '/');
-                
+
                 var jsonBytes = Convert.FromBase64String(base64);
                 var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
 

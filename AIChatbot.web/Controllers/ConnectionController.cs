@@ -1,10 +1,18 @@
-﻿using AIChatbot.web.Models.Chat;
+﻿using AIChatbot.web.Interfaces;
+using AIChatbot.web.Models.Chat;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AIChatbot.web.Controllers
 {
+
     public class ConnectionController : Controller
     {
+        private readonly IConnectionService _connectionService;
+
+        public ConnectionController(IConnectionService connectionService)
+        {
+            _connectionService = connectionService;
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -18,7 +26,10 @@ namespace AIChatbot.web.Controllers
                 // _dbService isn't available in this project context; skip actual connection here.
                 await Task.CompletedTask;
 
-                return Json(new { success = true, database = model.Database });
+                if (success)
+                    return Json(new { success = true, database = model.Database });
+
+                return Json(new { success = false, message = "Could not connect to database." });
             }
             catch (Exception ex)
             {
@@ -27,4 +38,6 @@ namespace AIChatbot.web.Controllers
         }
 
     }
+
+
 }
