@@ -14,7 +14,7 @@ namespace AIChatbot.web.Services
             _tokenService = tokenService;
 
             // Set base address from configuration
-            var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.0.104:5197";
+            var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.234:5197";
             _httpClient.BaseAddress = new Uri(apiBaseUrl);
             _httpClient.Timeout = TimeSpan.FromSeconds(120);
         }

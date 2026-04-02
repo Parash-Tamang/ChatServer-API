@@ -1,5 +1,6 @@
 ﻿using AIChatbot.web.Dto;
 using AIChatbot.web.Interfaces;
+using AIChatbot.web.Models.Admin;
 using AIChatbot.web.Models.Chat;
 
 namespace AIChatbot.web.Services
@@ -13,13 +14,21 @@ namespace AIChatbot.web.Services
             _apiClient = apiClient; // ← reuses your base url + token automatically
         }
 
-        public async Task<bool> SaveConnectionAsync(ConnectionRequestDto dto)
+        public async Task<ServiceResult> SaveConnectionAsync(ConnectionRequestDto dto)
         {
             var response = await _apiClient.PostAsync(
-                "api/supersetup/V1/setup-engine/connection", dto);
-            return response.IsSuccessStatusCode;
-        }
+                "api/supersetup/V1/setup-engine/connection/test", dto);
 
+            if (response == null)
+                return new ServiceResult { Success = false, Message = "Server unreachable. Please try again." };
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<ServiceResult>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return result ?? new ServiceResult { Success = false, Message = "Unexpected error occurred." };
+        }
         public async Task<List<ConnectionRequestDto>> GetAllConnectionsAsync()
         {
             var response = await _apiClient.GetAsync("api/supersetup/V1/setup-engine/all");
@@ -52,24 +61,33 @@ namespace AIChatbot.web.Services
             }
             return true;
         }
+        public async Task<ManagePromptsViewModel> GetManagePromptsAsync()
+        {
+            var response = await _apiClient.GetAsync("api/supersetup/V1/setup-engine/all");
+            if (response == null || !response.IsSuccessStatusCode)
+                return new ManagePromptsViewModel();
 
+            var json = await response.Content.ReadAsStringAsync();
+            var result = System.Text.Json.JsonSerializer.Deserialize<ConnectionListResponse>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
+            if (result == null) return new ManagePromptsViewModel();
 
+            return new ManagePromptsViewModel
+            {
+                Connections = result.Connections ?? new(),
+                GlobalPrompts = result.GlobalPrompt ?? new(),
+                LocalPrompts = result.Functions ?? new()
+            };
+        }
 
-
-
-
-
-
-
-
+        // Update ConnectionListResponse
         public class ConnectionListResponse
         {
             public List<ConnectionRequestDto> Connections { get; set; } = new();
-            public object? Functions { get; set; }      // ← ignore but don't break
-            public object? GlobalPrompt { get; set; }   // ← ignore but don't break
+            public List<GlobalPromptDto> GlobalPrompt { get; set; } = new();
+            public Dictionary<string, List<LocalPromptDto>> Functions { get; set; } = new();
         }
-
 
 
 

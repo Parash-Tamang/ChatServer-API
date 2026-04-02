@@ -2,7 +2,7 @@
 {
     public class ConnectionRequestDto
     {
-        public Guid Id { get; set; }
+        public Guid? Id { get; set; } = null;
         public string ServerName { get; set; }
         public string DatabaseName { get; set; }
         public string? AuthMode { get; set; }

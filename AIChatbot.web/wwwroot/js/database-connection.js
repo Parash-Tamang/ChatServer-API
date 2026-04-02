@@ -149,6 +149,7 @@
 
 })();
 
+
 // ✅ Safe init
 $(document).ready(function () {
     DatabaseConnection.init();

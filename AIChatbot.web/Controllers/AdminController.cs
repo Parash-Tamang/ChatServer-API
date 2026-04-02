@@ -1,6 +1,8 @@
 ﻿using AIChatbot.web.Dto;
 using AIChatbot.web.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using AIChatbot.web.Models.Admin;
+
 
 namespace AIChatbot.web.Controllers
 {
@@ -17,28 +19,35 @@ namespace AIChatbot.web.Controllers
         public IActionResult ConfigureDatabases() => View();
         public IActionResult KnowledgeBases() => View();
         public IActionResult Settings() => View();
+        public async Task<IActionResult> ManagePrompts()
+        {
+            var model = await _connectionService.GetManagePromptsAsync();
+            return View(model);
+        }
 
         public async Task<IActionResult> DatabaseConnections()
         {
             var connections = await _connectionService.GetAllConnectionsAsync();
             return View(connections);
         }
+
+
         [HttpPost]
         public async Task<IActionResult> SaveConnection(ConnectionRequestDto model)
         {
-            model.Id = Guid.Empty;
+            model.Id = null;
             model.IsActive = false;
 
-            var success = await _connectionService.SaveConnectionAsync(model);
+            var result = await _connectionService.SaveConnectionAsync(model);
 
-            if (success)
-                return RedirectToAction("DatabaseConnections");
+            if (result.Success)
+                TempData["Success"] = result.Message;
+            else
+                TempData["Error"] = result.Details ?? result.Message.ToString();
 
-            // reload the list and return view with list, not the dto
-            var connections = await _connectionService.GetAllConnectionsAsync();
-            ModelState.AddModelError("", "Failed to save connection.");
-            return View("DatabaseConnections", connections);
+            return RedirectToAction("DatabaseConnections");
         }
+
         [HttpPost]
         public async Task<IActionResult> UpdateConnection(ConnectionRequestDto model)
         {

@@ -68,6 +68,12 @@
                             <i class="bi bi-sliders"></i>
                             <span>Settings</span>
                         </a>
+
+                    <li class="sidebar-nav-item">
+                        <a asp-controller="Admin" asp-action="ManagePrompts" class="nav-link">
+                            <i class="bi bi-sliders"></i>
+                            <span>Manageprompts</span>
+                        </a>
                     </li>
                 </ul>
             </nav>
@@ -111,6 +117,16 @@
     <!-- Bootstrap Bundle JS -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- jQuery (required for toastr) -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+    <!-- Toastr -->
+    <script src="~/lib/toastr/toastr.min.js"></script>
+    <link rel="stylesheet" href="~/lib/toastr/toastr.min.css" />
+
+    <!-- Toastr Notifications Partial -->
+    <partial name="_ToastrNotifications" />
     @await RenderSectionAsync("Scripts", required: false)
 
 </body>
