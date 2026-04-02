@@ -11,6 +11,11 @@ public interface IConnectionRepository
 {
     Task<List<ConnectionString>> GetAllAsync();
     Task<ConnectionString?> GetByIdAsync(Guid id);
+    Task<ConnectionString?> GetByUniqueKeyAsync(
+    string serverName,
+    string databaseName,
+    string authMode);
+
     Task AddAsync(ConnectionString entity);
     Task UpdateAsync(ConnectionString entity);
     Task SetActiveAsync(Guid id);

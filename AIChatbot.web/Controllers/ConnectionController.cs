@@ -36,10 +36,6 @@ namespace AIChatbot.web.Controllers
         //    }
         //}
 
-
-
-
-
     }
 
 

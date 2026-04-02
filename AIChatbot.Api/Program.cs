@@ -166,7 +166,7 @@ builder.Services.AddScoped<IRoleAccessService, RoleAccessService>();
 /// ==== Python connect vai wifi hotspot, use this if Flask is running on a different machine =====
 builder.Services.AddHttpClient<IAiProviderService, AiProviderService>(client =>
 {
-    client.BaseAddress = new Uri("http://192.168.10.97:5000/");
+    client.BaseAddress = new Uri("http://192.168.40.120:5000/");
     client.Timeout = TimeSpan.FromMinutes(5);
 });
 // ===== TEST MODE (Uncomment if needed) =====
@@ -218,6 +218,12 @@ app.MapGet("/List all roles", (RoleManager<IdentityRole> roleManager) =>
     });
 });
 
+    return Results.Ok(new
+    {
+        success = true,
+        roles = roles
+    });
+});
 
 // ==========================================================
 // Seed Roles + SuperAdmin

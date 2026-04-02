@@ -2,7 +2,7 @@
 using AIChatbot.Application.Auth.Queries;
 using AIChatbot.Application.Auth.Results;
 using MediatR;
-
+using Microsoft.AspNetCore.Http;
 public class GetUserProfileHandler
     : IRequestHandler<GetUserProfileQuery, UserProfileResult>
 {
@@ -17,6 +17,11 @@ public class GetUserProfileHandler
         GetUserProfileQuery request,
         CancellationToken cancellationToken)
     {
-        return await _auth.GetProfileAsync(request.UserId);
+        var result = await _auth.GetProfileAsync(request.UserId);
+
+        if (result == null)
+            throw new KeyNotFoundException("User not found.");
+
+        return result;
     }
 }

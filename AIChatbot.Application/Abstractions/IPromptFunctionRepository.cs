@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using AIChatbot.Domain.Entities;
 
-namespace AIChatbot.Application.Abstractions;
-using AIChatbot.Domain.Entities;
-
-public interface IPromptFunctionRepository
+namespace AIChatbot.Application.Abstractions
 {
-    Task<List<PromptFunction>> GetByConnectionIdAsync(Guid connectionId);
-    Task<PromptFunction?> GetByIdAsync(Guid id);
-    Task AddAsync(PromptFunction entity);
-    Task UpdateAsync(PromptFunction entity);
-    Task<List<PromptFunction>> GetGlobalFunctionsAsync();
+    public interface IPromptFunctionRepository
+    {
+        Task AddAsync(PromptFunction entity);
+        Task UpdateAsync(PromptFunction entity);
+        Task<PromptFunction?> GetByIdAsync(Guid id);
+
+        Task<List<PromptFunction>> GetByConnectionIdAsync(Guid connectionId);
+        Task<List<PromptFunction>> GetGlobalFunctionsAsync();
+    }
 }

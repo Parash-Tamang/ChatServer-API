@@ -15,5 +15,5 @@ namespace AIChatbot.Application.Supersetup.Commands
         bool TrustCertificate,
         int ConnectionTimeout,
         bool IsActive
-    ) : IRequest<List<ConnectionDto>>;
+    ) : IRequest<SaveConnectionResult>;
 }

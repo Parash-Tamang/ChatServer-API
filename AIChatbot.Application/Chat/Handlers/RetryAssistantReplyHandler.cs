@@ -6,6 +6,7 @@ using AIChatbot.Application.RoleAccess.Services;
 using AIChatbot.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 
 namespace AIChatbot.Application.Chat.Handlers;
 
@@ -33,67 +34,44 @@ public class RetryAssistantReplyHandler
         RetryAssistantReplyCommand request,
         CancellationToken cancellationToken)
     {
-        // 🔒 ensure session belongs to user
         var owns = await _repo.ChatSessionBelongsToUser(
             request.ChatSessionId,
             request.UserId);
 
         if (!owns)
-            throw new UnauthorizedAccessException();
+            throw new UnauthorizedAccessException("You do not have access to this session.");
 
-        // 🔍 load original user message
         var msg = await _repo.GetMessageAsync(request.MessageId);
 
         if (msg == null || msg.Role != "user")
             throw new InvalidOperationException("Only user messages can be retried.");
 
-        try
+        var user = await _userManager.FindByIdAsync(request.UserId)
+            ?? throw new KeyNotFoundException("User not found.");
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var primaryRole = roles.FirstOrDefault()
+            ?? throw new BadHttpRequestException("User has no role assigned.");
+
+        var roleAccess = await _roleAccessService.GetAccessAsync(primaryRole);
+
+        var history = await _repo.GetLatestMessagesAsync(msg.ChatSessionId, 5);
+
+        var llm = await _ai.GetReplyAsync(
+            msg.Content,
+            history,
+            roleAccess);
+
+        await _repo.SaveMessageAsync(
+            msg.ChatSessionId,
+            "assistant",
+            llm.Message ?? "");
+
+        return new ChatCommandResult
         {
-            // 🔐 get user + role
-            var user = await _userManager.FindByIdAsync(request.UserId);
-            if (user == null)
-                throw new Exception("User not found");
-
-            var roles = await _userManager.GetRolesAsync(user);
-            var primaryRole = roles.FirstOrDefault();
-
-            if (primaryRole == null)
-                throw new Exception("User has no role assigned");
-
-            // 🔐 load role access schema
-            var roleAccess = await _roleAccessService.GetAccessAsync(primaryRole);
-
-            // 🟢 load history
-            var history = await _repo.GetLatestMessagesAsync(msg.ChatSessionId, 5);
-
-            // 🧠 call AI WITH role schema
-            var llm = await _ai.GetReplyAsync(
-                msg.Content,
-                history,
-                roleAccess
-            );
-
-            // 🟢 save assistant reply
-            await _repo.SaveMessageAsync(
-                msg.ChatSessionId,
-                "assistant",
-                llm.Message ?? ""
-            );
-
-            return new ChatCommandResult
-            {
-                Status = ExecutionStatus.Success,
-                ChatSessionId = msg.ChatSessionId,
-                AssistantReply = llm.Message
-            };
-        }
-        catch
-        {
-            return new ChatCommandResult
-            {
-                Status = ExecutionStatus.PartiallyExecuted,
-                ChatSessionId = msg.ChatSessionId
-            };
-        }
+            Status = ExecutionStatus.Success,
+            ChatSessionId = msg.ChatSessionId,
+            AssistantReply = llm.Message
+        };
     }
 }
