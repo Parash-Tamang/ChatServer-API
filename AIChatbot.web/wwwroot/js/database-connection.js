@@ -68,10 +68,10 @@
             trustServerCertificate: $('#TrustServerCertificate').is(':checked')
         };
 
-        if (!payload.serverName || !payload.databaseName) {
-            showToast('Server name and database name are required ❌', 'danger', true);
-            return;
-        }
+        //if (!payload.serverName || !payload.databaseName) {
+        //    showToast('Server name and database name are required ❌', 'danger', true);
+        //    return;
+        //}
 
         $('#saveConnectionBtn').prop('disabled', true).text('Saving...');
         showToast('Saving connection...', 'info', false);

@@ -42,7 +42,7 @@ namespace AIChatbot.web.Controllers
             if (!result.Success)
                 return Json(new { success = false, message = result.Message });
 
-            return PartialView("_ConnectionTableRow", model); // ⚠️ uses ORIGINAL model
+            return PartialView("_ConnectionTableRow", model); 
         }
 
 

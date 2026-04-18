@@ -15,20 +15,6 @@ namespace AIChatbot.web.Services
             _apiClient = apiClient; // ← reuses your base url + token automatically
         }
 
-
-
-        //// ConnectionService.cs
-        //public async Task<ServiceResult> SaveConnectionAsync(ConnectionRequestDto dto)
-        //{
-        //    var response = await _apiClient.PostAsync(
-        //        "api/supersetup/V1/setup-engine/connection/test", dto);
-
-        //    var json = await response?.Content.ReadAsStringAsync();
-        //    var result = JsonSerializer.Deserialize<ServiceResult>(json,
-        //        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        //    return result ?? new ServiceResult { Success = false, Message = "No response from API." };
-        //}
         public async Task<ServiceResult> SaveConnectionAsync(ConnectionRequestDto dto)
         {
             var response = await _apiClient.PostAsync(
