@@ -44,6 +44,7 @@ namespace AIChatbot.web.Controllers
         }
 
         [HttpPost]
+        [AutoValidateAntiforgeryToken]
         public async Task<IActionResult> Login(LoginUser loginUser)
         {
             // Run FluentValidation

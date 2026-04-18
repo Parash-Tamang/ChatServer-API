@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindEvents();
     const ta = document.getElementById('messageInput');
     ta.addEventListener('input', () => autoResizeTextarea(ta));
-
+    autoResizeTextarea(ta)//for the intilazing the 
     // auto-open session from URL on refresh
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('sessionId');
@@ -399,14 +399,20 @@ function showEmptyState() { const el = document.getElementById('emptyState'); if
 function hideEmptyState() { const el = document.getElementById('emptyState'); if (el) el.style.display = 'none'; }
 function scrollToBottom() { const c = document.getElementById('messagesContainer'); c.scrollTop = c.scrollHeight; }
 
+
 function setSendLoading(loading) {
-    document.getElementById('sendBtn').classList.toggle('btn-send-loading', loading);
-    document.getElementById('sendIcon').className = loading ? 'bi bi-hourglass-split' : 'bi bi-send';
+    const btn = document.getElementById('sendBtn');
+    btn.classList.toggle('btn-send-loading', loading);
+    btn.classList.toggle('active', !loading);
+    document.getElementById('sendIcon').style.opacity = loading ? '0.5' : '1';
 }
 
+    
 function autoResizeTextarea(el) {
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    const btn = document.getElementById('sendBtn');
+    btn.classList.toggle('active', el.value.trim().length > 0);
 }
 
 // ═══════════════════════════════════════════════════════

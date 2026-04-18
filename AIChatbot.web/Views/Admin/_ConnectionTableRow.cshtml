@@ -1,0 +1,53 @@
+﻿@model AIChatbot.web.Dto.ConnectionRequestDto
+<tr>
+    <td class="align-middle">@Model.ServerName</td>
+    <td class="align-middle">@Model.DatabaseName</td>
+    <td class="align-middle">@Model.AuthMode</td>
+    <td class="align-middle">@Model.ConnectionTimeout s</td>
+    <td class="align-middle">
+        @if (Model.Verified)
+        {
+            <span class="badge bg-success">True</span>
+        }
+        else
+        {
+            <span class="badge bg-warning text-dark">False</span>
+        }
+    </td>
+    <td class="align-middle">
+        <div class="form-check form-switch">
+            <input class="form-check-input active-switch"
+                   type="checkbox"
+                   data-id="@Model.Id"
+                   @(Model.IsActive ? "checked" : "")
+                   @(!Model.Verified ? "disabled" : "") />
+        </div>
+        @if (!Model.Verified)
+        {
+            <small class="text-muted">Create KB first</small>
+        }
+    </td>
+    <td class="align-middle">
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm @(Model.Verified ? "btn-outline-warning" : "btn-outline-success") kb-btn"
+                    data-id="@Model.Id"
+                    data-action="@(Model.Verified ? "update" : "create")">
+                <i class="bi bi-arrow-clockwise"></i> @(Model.Verified ? "Update KB" : "Create KB")
+            </button>
+            <button class="btn btn-sm btn-outline-primary edit-btn"
+                    data-id="@Model.Id"
+                    data-server="@Model.ServerName"
+                    data-database="@Model.DatabaseName"
+                    data-username="@Model.Username"
+                    data-timeout="@Model.ConnectionTimeout"
+                    data-trust="@Model.TrustCertificate.ToString().ToLower()"
+                    data-authmode="@Model.AuthMode">
+                <i class="bi bi-pencil"></i> Edit
+            </button>
+            <button class="btn btn-sm btn-outline-danger delete-btn"
+                    data-id="@Model.Id">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </div>
+    </td>
+</tr>

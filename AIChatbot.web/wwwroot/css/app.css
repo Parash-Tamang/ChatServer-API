@@ -1,455 +1,539 @@
-/* =========================================================
-   BASE
-========================================================= */
+    /* =========================================================
+       BASE
+    ========================================================= */
 
-body {
-    margin: 0;
-    font-family: "Segoe UI", sans-serif;
+    body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: #fff;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* =========================================================
+       HEADER
+    ========================================================= */
+
+    .app-header {
+        height: 60px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        font-weight: 600;
+        font-size: 18px;
+        background: #fff;
+    }
+
+    .logo-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .logo-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    /* =========================================================
+       MAIN LAYOUT
+    ========================================================= */
+
+    .app-main {
+        flex: 1;
+        display: flex;
+    }
+
+    /* =========================================================
+       AUTH PAGES
+    ========================================================= */
+
+    .auth-page {
+        width: 100%;
+        height: calc(100vh - 60px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f7f7f7;
+    }
+
+    .auth-card {
+        width: 420px;
+        background: white;
+        padding: 40px;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0,0,0,.06);
+        border: 1px solid #eee;
+    }
+
+    .auth-title {
+        font-size: 22px;
+        font-weight: 600;
+        margin-bottom: 18px;
+    }
+
+    .input {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+        margin-bottom: 6px;
+        font-size: 14px;
+    }
+
+        .input:focus {
+            outline: none;
+            border-color: black;
+        }
+
+    .auth-btn {
+        width: 100%;
+        background: black;
+        color: white;
+        padding: 12px;
+        border-radius: 12px;
+        margin-top: 14px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .auth-btn:hover {
+            background: #222;
+        }
+
+    .auth-link {
+        margin-top: 16px;
+        font-size: 14px;
+        text-align: center;
+    }
+
+    /* error text */
+
+    .error {
+        color: #d93025;
+        font-size: 12px;
+        min-height: 14px;
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    /* PHONE FIELD */
+
+    /* PHONE FIELD (LOCKED +91) */
+
+    .phone-field {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 6px;
+        background: white;
+    }
+
+    .phone-prefix {
+        padding: 12px 14px;
+        background: #f3f3f3;
+        border-right: 1px solid #ddd;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .phone-input {
+        flex: 1;
+        border: none;
+        padding: 12px 14px;
+        outline: none;
+        font-size: 14px;
+    }
+
+
+    /* =========================================================
+       CHAT LAYOUT
+    ========================================================= */
+
+    .app-body {
+        flex: 1;
+        display: flex;
+        height: calc(100vh - 60px);
+        overflow: hidden;
+    }
+
+    /* SIDEBAR */
+
+    .sidebar {
+        width: 260px;
+        border-right: 1px solid #eee;
+        display: flex;
+        flex-direction: column;
+        background: #fafafa;
+    }
+
+    .sidebar-top {
+        padding: 16px;
+    }
+
+    .new-chat-btn {
+        width: 100%;
+        border-radius: 10px;
+    }
+
+    .session-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+    }
+
+    .sidebar-bottom {
+        border-top: 1px solid #eee;
+        padding: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fff;
+    }
+    /*for the new chat button inside the chatbar*/
+    .new-chat-btn {
+        width: 100%;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        font-weight: 500;
+    }
+
+        .new-chat-btn:hover {
+            background: #f5f5f5;
+        }
+    /* Chat sessions */
+    .session-item {
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+        /* hover like ChatGPT */
+        .session-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* selected session (ChatGPT light style) */
+        .session-item.active {
+            background-color: #e8e8e8 !important;
+            color: #212529 !important;
+        }
+
+    .session-title {
+        color: #212529 !important;
+    }
+
+
+    /* =========================================================
+       CHAT AREA
+    ========================================================= */
+
+    .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+    }
+
+    /* MESSAGES */
+
+    .messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+ 
+
+/* INPUT BAR FIXED BOTTOM */
+.chat-input {
+    padding: 12px 16px 16px;
     background: #fff;
-    height: 100vh;
+    border-top: 0.5px solid #eee;
+}
+
+.chat-input-inner {
     display: flex;
-    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    background: #f4f4f4;
+    border: 0.5px solid #e0e0e0;
+    border-radius: 16px;
+    padding: 10px 12px;
+    transition: border-color 0.15s;
 }
 
-/* =========================================================
-   HEADER
-========================================================= */
+    .chat-input-inner:focus-within {
+        border-color: #aaa;
+    }
 
-.app-header {
-    height: 60px;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    font-weight: 600;
-    font-size: 18px;
-    background: #fff;
-}
+    .chat-input-inner textarea {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        resize: none;
+        font-size: 14px;
+        font-family: "Segoe UI", sans-serif;
+        color: #111;
+        line-height: 1.5;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 2px 0;
+        scrollbar-width: thin;
+    }
 
-.logo-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+        .chat-input-inner textarea::placeholder {
+            color: #aaa;
+        }
 
-.logo-icon {
-    width: 28px;
-    height: 28px;
-}
-
-/* =========================================================
-   MAIN LAYOUT
-========================================================= */
-
-.app-main {
-    flex: 1;
-    display: flex;
-}
-
-/* =========================================================
-   AUTH PAGES
-========================================================= */
-
-.auth-page {
-    width: 100%;
-    height: calc(100vh - 60px);
+.send-btn {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: #111;
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f7f7f7;
-}
-
-.auth-card {
-    width: 420px;
-    background: white;
-    padding: 40px;
-    border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.06);
-    border: 1px solid #eee;
-}
-
-.auth-title {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 18px;
-}
-
-.input {
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid #ddd;
-    margin-bottom: 6px;
-    font-size: 14px;
-}
-
-    .input:focus {
-        outline: none;
-        border-color: black;
-    }
-
-.auth-btn {
-    width: 100%;
-    background: black;
-    color: white;
-    padding: 12px;
-    border-radius: 12px;
-    margin-top: 14px;
-    border: none;
-    font-weight: 600;
     cursor: pointer;
+    opacity: 0.3;
+    transition: opacity 0.15s, transform 0.1s;
+    pointer-events: none;
 }
 
-    .auth-btn:hover {
-        background: #222;
+    .send-btn svg {
+        width: 16px;
+        height: 16px;
     }
 
-.auth-link {
-    margin-top: 16px;
-    font-size: 14px;
-    text-align: center;
-}
-
-/* error text */
-
-.error {
-    color: #d93025;
-    font-size: 12px;
-    min-height: 14px;
-    display: block;
-    margin-bottom: 8px;
-}
-
-/* PHONE FIELD */
-
-/* PHONE FIELD (LOCKED +91) */
-
-.phone-field {
-    display: flex;
-    align-items: center;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 6px;
-    background: white;
-}
-
-.phone-prefix {
-    padding: 12px 14px;
-    background: #f3f3f3;
-    border-right: 1px solid #ddd;
-    font-weight: 600;
-    color: #333;
-}
-
-.phone-input {
-    flex: 1;
-    border: none;
-    padding: 12px 14px;
-    outline: none;
-    font-size: 14px;
-}
-
-
-/* =========================================================
-   CHAT LAYOUT
-========================================================= */
-
-.app-body {
-    flex: 1;
-    display: flex;
-    height: calc(100vh - 60px);
-    overflow: hidden;
-}
-
-/* SIDEBAR */
-
-.sidebar {
-    width: 260px;
-    border-right: 1px solid #eee;
-    display: flex;
-    flex-direction: column;
-    background: #fafafa;
-}
-
-.sidebar-top {
-    padding: 16px;
-}
-
-.new-chat-btn {
-    width: 100%;
-    border-radius: 10px;
-}
-
-.session-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-}
-
-.sidebar-bottom {
-    border-top: 1px solid #eee;
-    padding: 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #fff;
-}
-/*for the new chat button inside the chatbar*/
-.new-chat-btn {
-    width: 100%;
-    border: 1px solid #e5e5e5;
-    border-radius: 10px;
-    font-weight: 500;
-}
-
-    .new-chat-btn:hover {
-        background: #f5f5f5;
-    }
-/* Chat sessions */
-.session-item {
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-    /* hover like ChatGPT */
-    .session-item:hover {
-        background-color: #f5f5f5;
-    }
-
-    /* selected session (ChatGPT light style) */
-    .session-item.active {
-        background-color: #e8e8e8 !important;
-        color: #212529 !important;
-    }
-.session-title {
-    color: #212529 !important;
-}
-
-
-/* =========================================================
-   CHAT AREA
-========================================================= */
-
-.chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-}
-
-/* MESSAGES */
-
-.messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-}
-
-/* INPUT BAR FIXED BOTTOM */
-
-.chat-input {
-    border-top: 1px solid #eee;
-    padding: 12px;
-    background: #fff;
-}
-
-/* =========================================================
-   MESSAGE BUBBLES
-========================================================= */
-
-.msg {
-    max-width: 70%;
-    padding: 12px 16px;
-    border-radius: 14px;
-    margin-bottom: 12px;
-    line-height: 1.5;
-    font-size: 14px;
-    white-space: pre-wrap;
-    animation: fadeIn 0.2s ease-in;
-}
-
-    .msg.user {
-        background: #f2f2f2;
-        color: #111;
-        margin-left: auto;
-    }
-    .msg.bot {
-        background: #f4f4f4;
-        color: #111;
-        margin-right: auto;
-    }
-
-/* time */
-
-.msg-time {
-    font-size: 11px;
-    opacity: 0.6;
-    margin-top: 4px;
-}
-
-/* typing */
-
-#typing {
-    font-style: italic;
-    opacity: 0.7;
-}
-
-/* retry */
-
-.retry-btn {
-    font-size: 12px;
-    margin-top: 4px;
-    background: none;
-    border: none;
-    color: #666;
-    cursor: pointer;
-}
-
-    .retry-btn:hover {
-        text-decoration: underline;
-    }
-
-/* animation */
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-
-    to {
+    .send-btn.active {
         opacity: 1;
-        transform: translateY(0);
-    }
-}
-/* ?? Markdown rendered inside bot bubble ?? */
-.markdown-body {
-    font-size: 14px;
-    line-height: 1.6;
-}
-
-    .markdown-body p {
-        margin-bottom: 8px;
+        pointer-events: auto;
     }
 
-        .markdown-body p:last-child {
-            margin-bottom: 0;
+    .send-btn:active {
+        transform: scale(0.92);
+    }
+
+    .send-btn.btn-send-loading {
+        opacity: 0.5;
+        pointer-events: none;
+        cursor: not-allowed;
+    }
+
+.chat-input-hint {
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 7px;
+}
+
+    /* =========================================================
+       MESSAGE BUBBLES
+    ========================================================= */
+
+    .msg {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 14px;
+        margin-bottom: 12px;
+        line-height: 1.5;
+        font-size: 14px;
+        white-space: pre-wrap;
+        animation: fadeIn 0.2s ease-in;
+    }
+
+        .msg.user {
+            background: #f2f2f2;
+            color: #111;
+            margin-left: auto;
         }
 
-    .markdown-body strong {
+        .msg.bot {
+            background: #f4f4f4;
+            color: #111;
+            margin-right: auto;
+        }
+
+    /* time */
+
+    .msg-time {
+        font-size: 11px;
+        opacity: 0.6;
+        margin-top: 4px;
+    }
+
+    /* typing */
+
+    #typing {
+        font-style: italic;
+        opacity: 0.7;
+    }
+
+    /* retry */
+
+    .retry-btn {
+        font-size: 12px;
+        margin-top: 4px;
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+    }
+
+        .retry-btn:hover {
+            text-decoration: underline;
+        }
+
+    /* animation */
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    /* ?? Markdown rendered inside bot bubble ?? */
+    .markdown-body {
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+        .markdown-body p {
+            margin-bottom: 8px;
+        }
+
+            .markdown-body p:last-child {
+                margin-bottom: 0;
+            }
+
+        .markdown-body strong {
+            font-weight: 600;
+        }
+
+        /* ?? Table styles ?? */
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 13px;
+            overflow-x: auto;
+            display: block;
+            white-space: nowrap;
+        }
+
+        .markdown-body thead tr {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            text-align: left;
+        }
+
+        .markdown-body th {
+            font-weight: 600;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .markdown-body tr:nth-child(even) td {
+            background: rgba(255,255,255,0.03);
+        }
+
+        /* ?? Lists ?? */
+        .markdown-body ul,
+        .markdown-body ol {
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+
+        .markdown-body li {
+            margin-bottom: 4px;
+        }
+
+
+    /* =========================================================
+       SESSION ITEMS
+    ========================================================= */
+
+    .session-item {
+        padding: 10px 12px;
+        border-radius: 10px;
+        margin-bottom: 6px;
+        cursor: pointer;
+        transition: 0.2s;
+        font-size: 14px;
+    }
+
+        .session-item:hover {
+            background: #eeeeee;
+        }
+
+        .session-item.active {
+            background: #111;
+            color: white;
+        }
+
+    /* =========================================================
+       SETTINGS
+    ========================================================= */
+
+    .settings-container {
+        padding: 40px;
+        max-width: 600px;
+        margin: auto;
+    }
+
+    .settings-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,.05);
+    }
+
+    .settings-title {
+        font-size: 18px;
         font-weight: 600;
+        margin-bottom: 12px;
     }
 
-    /* ?? Table styles ?? */
-    .markdown-body table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 12px 0;
-        font-size: 13px;
-        overflow-x: auto;
-        display: block;
-        white-space: nowrap;
+    /* =========================================================
+       MOBILE
+    ========================================================= */
+
+    @media (max-width: 768px) {
+        .sidebar {
+            display: none;
+        }
     }
 
-    .markdown-body thead tr {
-        background: rgba(255,255,255,0.1);
+    .session-title {
+        font-weight: 500;
     }
 
-    .markdown-body th,
-    .markdown-body td {
-        padding: 8px 12px;
-        border: 1px solid rgba(255,255,255,0.15);
-        text-align: left;
+    .session-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
-    .markdown-body th {
-        font-weight: 600;
-        background: rgba(255,255,255,0.08);
+    #emptyState {
+        animation: fadeIn 0.25s ease;
     }
-
-    .markdown-body tr:nth-child(even) td {
-        background: rgba(255,255,255,0.03);
-    }
-
-    /* ?? Lists ?? */
-    .markdown-body ul,
-    .markdown-body ol {
-        padding-left: 20px;
-        margin-bottom: 8px;
-    }
-
-    .markdown-body li {
-        margin-bottom: 4px;
-    }
-
-
-/* =========================================================
-   SESSION ITEMS
-========================================================= */
-
-.session-item {
-    padding: 10px 12px;
-    border-radius: 10px;
-    margin-bottom: 6px;
-    cursor: pointer;
-    transition: 0.2s;
-    font-size: 14px;
-}
-
-    .session-item:hover {
-        background: #eeeeee;
-    }
-
-    .session-item.active {
-        background: #111;
-        color: white;
-    }
-
-/* =========================================================
-   SETTINGS
-========================================================= */
-
-.settings-container {
-    padding: 40px;
-    max-width: 600px;
-    margin: auto;
-}
-
-.settings-card {
-    background: white;
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 5px 20px rgba(0,0,0,.05);
-}
-
-.settings-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 12px;
-}
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 768px) {
-    .sidebar {
-        display: none;
-    }
-}
-.session-title {
-    font-weight: 500;
-}
-
-.session-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-#emptyState {
-    animation: fadeIn 0.25s ease;
-}

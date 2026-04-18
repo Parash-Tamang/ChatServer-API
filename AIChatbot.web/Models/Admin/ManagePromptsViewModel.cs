@@ -23,3 +23,8 @@ namespace AIChatbot.web.Models.Admin
         public string SystemPrompt { get; set; }
     }
 }
+public class SetPromptingModeRequest
+{
+    public string ConnectionId { get; set; }
+    public int PromptingMode { get; set; }
+}

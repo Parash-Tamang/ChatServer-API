@@ -1,6 +1,7 @@
 ﻿@model AIChatbot.web.Models.Admin.ManagePromptsViewModel
 @{
     Layout = "_AdminLayout";
+    var globalPrompt = Model.GlobalPrompts.FirstOrDefault();
 }
 
 <div class="container-fluid">
@@ -29,6 +30,8 @@
                                     {
                                         <li class="list-group-item list-group-item-action db-item d-flex align-items-center gap-2"
                                             data-id="@conn.Id"
+                                            data-name="@conn.DatabaseName"
+                                            data-promptmode="@conn.PromptingMode"
                                             style="cursor:pointer;">
                                             <i class="bi bi-circle-fill small @(conn.IsActive ? "text-success" : "text-secondary")"></i>
                                             <div>
@@ -48,31 +51,33 @@
 
                     <!-- Global Prompts -->
                     <div class="card shadow-sm mb-3">
-                        <div class="card-header bg-white">
-                            <h6 class="mb-0"><i class="bi bi-globe me-2"></i>Global Prompts</h6>
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-globe me-2"></i>Global Prompt</h6>
                         </div>
                         <div class="card-body">
-                            @if (!Model.GlobalPrompts.Any())
+                            @if (globalPrompt == null)
                             {
                                 <div class="text-center text-muted py-3">
                                     <i class="bi bi-chat-square-dots fs-3"></i>
-                                    <p class="mt-2 small">No global prompts found</p>
+                                    <p class="mt-2 small">No global prompt found</p>
                                 </div>
                             }
                             else
                             {
-                                <div class="row g-2">
-                                    @foreach (var prompt in Model.GlobalPrompts)
-                                    {
-                                        <div class="col-12 col-md-6">
-                                            <div class="card border h-100">
-                                                <div class="card-body">
-                                                    <h6 class="card-title fw-semibold">@prompt.FunctionName</h6>
-                                                    <p class="card-text text-muted small">@prompt.SystemPrompt</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
+                                <div class="mb-2">
+                                    <label class="form-label fw-semibold">Function Name</label>
+                                    <input type="text" id="globalFunctionName" class="form-control"
+                                           value="@globalPrompt.FunctionName" readonly />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">System Prompt</label>
+                                    <textarea id="globalSystemPrompt" class="form-control" rows="6">@globalPrompt.SystemPrompt</textarea>
+                                </div>
+                                <input type="hidden" id="globalFunctionId" value="@globalPrompt.Id" />
+                                <div class="d-flex justify-content-end">
+                                    <button class="btn btn-primary btn-sm" id="saveGlobalBtn">
+                                        <i class="bi bi-save me-1"></i> Save Global Prompt
+                                    </button>
                                 </div>
                             }
                         </div>
@@ -83,14 +88,14 @@
                         <div class="card-header bg-white d-flex justify-content-between align-items-center">
                             <h6 class="mb-0">
                                 <i class="bi bi-database me-2"></i>
-                                Local Prompts
+                                Local Prompt
                                 <span id="selectedDbName" class="text-muted fw-normal small ms-1"></span>
                             </h6>
                         </div>
                         <div class="card-body" id="localPromptsPanel">
                             <div class="text-center text-muted py-3">
                                 <i class="bi bi-hand-index fs-3"></i>
-                                <p class="mt-2 small">Select a database to view local prompts</p>
+                                <p class="mt-2 small">Select a database to view local prompt</p>
                             </div>
                         </div>
                     </div>
@@ -103,46 +108,109 @@
 
 @section Scripts {
     <script>
-        // Embed local prompts data from server
-        const localPromptsData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LocalPrompts));
-        const connections = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Connections));
+        // Save Global Prompt
+        document.getElementById('saveGlobalBtn')?.addEventListener('click', async function () {
+            const payload = {
+                id: document.getElementById('globalFunctionId').value,
+                functionName: document.getElementById('globalFunctionName').value,
+                systemPrompt: document.getElementById('globalSystemPrompt').value
+            };
 
+            const res = await fetch('/Admin/SaveGlobalPrompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (data.success) toastr.success('Global prompt saved ✅');
+            else toastr.error('Failed to save global prompt ❌');
+        });
+
+        // Click DB — load local prompt
         document.querySelectorAll('.db-item').forEach(item => {
-            item.addEventListener('click', function () {
-                // Highlight selected
+            item.addEventListener('click', async function () {
                 document.querySelectorAll('.db-item').forEach(i => i.classList.remove('active'));
                 this.classList.add('active');
 
                 const id = this.dataset.id;
-                const conn = connections.find(c => c.id === id);
-                const prompts = localPromptsData[id] || [];
+                const name = this.dataset.name;
+                const promptingMode = parseInt(this.dataset.promptmode);
 
-                // Update header
-                document.getElementById('selectedDbName').textContent = `— ${conn?.databaseName ?? ''}`;
+                document.getElementById('selectedDbName').textContent = `— ${name}`;
 
-                // Render local prompts
                 const panel = document.getElementById('localPromptsPanel');
+                panel.innerHTML = `<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm"></div><p class="mt-2 small">Loading...</p></div>`;
 
-                if (prompts.length === 0) {
-                    panel.innerHTML = `
-                        <div class="text-center text-muted py-3">
-                            <i class="bi bi-inbox fs-3"></i>
-                            <p class="mt-2 small">No local prompts for this database</p>
-                        </div>`;
-                } else {
-                    panel.innerHTML = `
-                        <div class="row g-2">
-                            ${prompts.map(p => `
-                                <div class="col-12 col-md-6">
-                                    <div class="card border h-100">
-                                        <div class="card-body">
-                                            <h6 class="card-title fw-semibold">${p.functionName}</h6>
-                                            <p class="card-text text-muted small">${p.systemPrompt}</p>
-                                        </div>
-                                    </div>
-                                </div>`).join('')}
-                        </div>`;
+                const res = await fetch(`/Admin/GetLocalPrompt?connectionId=${id}`);
+                const data = await res.json();
+
+                if (!data.success) {
+                    panel.innerHTML = `<div class="text-center text-muted py-3"><i class="bi bi-inbox fs-3"></i><p class="mt-2 small">No local prompt found for this database</p></div>`;
+                    return;
                 }
+
+                const p = data.data;
+                panel.innerHTML = `
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Function Name</label>
+                        <input type="text" id="localFunctionName" class="form-control" value="${p.functionName}" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">System Prompt</label>
+                        <textarea id="localSystemPrompt" class="form-control" rows="6">${p.systemPrompt ?? ''}</textarea>
+                    </div>
+                    <input type="hidden" id="localFunctionId" value="${p.id}" />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold d-block">Prompting Mode</label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="promptMode" id="modeGlobal" value="0" ${promptingMode === 0 ? 'checked' : ''} />
+                            <label class="form-check-label" for="modeGlobal">Global</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="promptMode" id="modeLocal" value="1" ${promptingMode === 1 ? 'checked' : ''} />
+                            <label class="form-check-label" for="modeLocal">Local</label>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="savePromptModeBtn" data-id="${id}">
+                            <i class="bi bi-toggles me-1"></i> Save Mode
+                        </button>
+                        <button class="btn btn-primary btn-sm" id="saveLocalBtn">
+                            <i class="bi bi-save me-1"></i> Save Local Prompt
+                        </button>
+                    </div>`;
+
+                // Save local prompt
+                document.getElementById('saveLocalBtn').addEventListener('click', async function () {
+                    const payload = {
+                        id: document.getElementById('localFunctionId').value,
+                        functionName: document.getElementById('localFunctionName').value,
+                        systemPrompt: document.getElementById('localSystemPrompt').value
+                    };
+                    const r = await fetch('/Admin/SaveLocalPrompt', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const d = await r.json();
+                    if (d.success) toastr.success('Local prompt saved ✅');
+                    else toastr.error('Failed to save local prompt ❌');
+                });
+
+                // Save prompting mode
+                document.getElementById('savePromptModeBtn').addEventListener('click', async function () {
+                    const connectionId = this.dataset.id;
+                    const mode = parseInt(document.querySelector('input[name="promptMode"]:checked').value);
+                    const r = await fetch('/Admin/SetPromptingMode', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ connectionId, promptingMode: mode })
+                    });
+                    const d = await r.json();
+                    if (d.success) toastr.success('Prompting mode updated ✅');
+                    else toastr.error('Failed to update prompting mode ❌');
+                });
             });
         });
     </script>
