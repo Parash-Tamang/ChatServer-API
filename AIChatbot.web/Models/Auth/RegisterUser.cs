@@ -17,5 +17,6 @@
         public string SelectedRole { get; set; }
 
         public List<string> Roles { get; set; } = new();
+        public string Token { get; set; }
     }
 }

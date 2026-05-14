@@ -1,23 +1,22 @@
-﻿﻿@using AIChatbot.web.Models.Chat
+﻿@using AIChatbot.web.Models.Chat
 @model ChatPageModel
 @{
-    Layout = "_Layout";
+    Layout = "_ChatLayout";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/sql-connection.css" />
     <style>
-        /* ── typing indicator ── */
         .typing-indicator {
             display: flex;
             gap: 5px;
-            padding: 12px 16px;
+            padding: 10px 0;
             align-items: center;
         }
 
             .typing-indicator span {
-                width: 8px;
-                height: 8px;
+                width: 7px;
+                height: 7px;
                 border-radius: 50%;
                 background: #aaa;
                 display: inline-block;
@@ -44,57 +43,51 @@
             }
         }
 
-        /* ── session active state ── */
-        .session-item.active {
-            background: rgba(255,255,255,0.12);
-            border-radius: 8px;
-        }
-
-        /* ── send button spinner ── */
         .btn-send-loading {
-            opacity: 0.6;
-            pointer-events: none;
+            opacity: 0.5 !important;
+            pointer-events: none !important;
         }
     </style>
 }
-
 <div class="app-body">
 
-    <!-- ══════════════ SIDEBAR ══════════════ -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
 
+        <!-- Toggle + Logo row -->
+        <div class="sidebar-header-row">
+            <button class="sidebar-toggle" id="btnSidebarToggle" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+            </button>
+            <span class="sidebar-logo-text">TalkToDB</span>
+        </div>
+
+        <!-- New Chat -->
         <div class="sidebar-top">
-            <button id="btnNewChat" class="btn btn-light new-chat-btn">+ New Chat</button>
+            <button id="btnNewChat" class="new-chat-btn">
+                <i class="bi bi-pencil-square me-1"></i> New Chat
+            </button>
         </div>
 
-        <div class="sidebar-top">Chats</div>
+        <div class="sessions-label">Recent</div>
 
-        <!-- Sessions list – filled by JS -->
         <div class="session-list" id="sessionList">
-            <div class="text-muted p-2 text-center small" id="sessionsPlaceholder">Loading…</div>
+            <div class="text-muted p-2 small">Loading…</div>
         </div>
 
-        <!-- Bottom user -->
         <div class="sidebar-bottom">
             <div>@Model.UserName</div>
             <div class="dropdown">
                 <i class="bi bi-three-dots-vertical" data-bs-toggle="dropdown" style="cursor:pointer;"></i>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="/Settings/Index">Settings</a></li>
-
                     <li>
-                        <a class="dropdown-item" asp-controller="Admin" asp-action="DatabaseConnections">
-                            Admin Connection
-                        </a>
+                        <a class="dropdown-item" href="#" onclick="openUserProfileModal(); return false;">Settings</a>
                     </li>
-
                     <li>
-                        <button type="button" class="dropdown-item" onclick="loadRoleManagerModal()">Rolemanager</button>
-
-                    </li>
-
-                    <li>
-                        <button type="button" class="dropdown-item" onclick="loadDbModal()">ManageDB</button>
+                        <a class="dropdown-item" asp-controller="Admin" asp-action="DatabaseConnections">Admin Panel</a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
@@ -110,24 +103,30 @@
         </div>
     </div>
 
-    <!-- ══════════════ CHAT AREA ══════════════ -->
+    <!-- CHAT AREA -->
     <div class="chat-area">
 
-        <!-- Messages container -->
+        <!-- Reopen button — only shows when sidebar collapsed -->
+        <button class="chat-reopen-btn" id="btnReopenSidebar" title="Open sidebar">
+            <svg viewBox="0 0 24 24">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+        </button>
+
         <div class="messages" id="messagesContainer">
-            <div class="text-center mt-5 text-muted" id="emptyState">
-                <h5>Start a conversation</h5>
-                <div>Ask anything. The AI is ready.</div>
+            <div class="message-content-wrapper" id="messageFlow">
+                <div class="text-center mt-5 text-muted" id="emptyState">
+                    <h2 style="font-weight:600;color:#444;">Hello, @Model.UserName</h2>
+                    <div style="font-size:1.1rem;">How can I help you today?</div>
+                </div>
             </div>
         </div>
 
-        <!-- Input -->
         <div class="chat-input">
             <div class="chat-input-inner">
-                <textarea id="messageInput"
-                          rows="1"
-                          placeholder="Message AI…"
-                          autocomplete="off"></textarea>
+                <textarea id="messageInput" rows="1" placeholder="Message AI…" autocomplete="off"></textarea>
                 <button id="sendBtn" class="send-btn" title="Send">
                     <svg id="sendIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -139,30 +138,37 @@
             <div class="chat-input-hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
         </div>
 
-@*     <!-- Modal panel -->
-    <div id="manageDbPanel" class="manage-db-panel">
-        <div class="manage-db-content">
-            <div id="modalContainer"></div>
-        </div>
     </div>
 </div>
-<!--For showing erros /flag for connection string -->
-<span id="dbConnectionFlag" class="db-connection-flag d-none">
-    <i class="bi bi-database-fill"></i>
-    <span id="dbConnectionLabel"></span>
-    <button type="button" id="disconnectDb" class="db-flag-close" title="Disconnect">
-        <i class="bi bi-x"></i>
-    </button>
-</span> *@
 
-
+<partial name="~/Views/Settings/_UserProfileModal.cshtml" />
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="~/js/chatmessage.js"></script>
-    <script src="~/js/connection.js"></script>
+    <script src="~/js/chatmessage.js" asp-append-version="true"></script>
+    <script src="~/js/connection.js" asp-append-version="true"></script>
+    <script src="~/js/userprofile.js" asp-append-version="true"></script>
+
     <form id="__AjaxAntiForgery" style="display:none;">
         @Html.AntiForgeryToken()
     </form>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('collapsed');
+        }
+
+        document.getElementById('btnSidebarToggle').addEventListener('click', toggleSidebar);
+        document.getElementById('btnReopenSidebar').addEventListener('click', toggleSidebar);
+    </script>
 }
+
+
+
+
+
+
+

@@ -19,11 +19,11 @@ namespace AIChatbot.web.Interfaces
         Task<bool> DeleteFunctionAsync(Guid connectionId, string functionId);
 
         // afer these it is for the prompts
-        Task<GlobalPromptDto> GetGlobalPromptAsync();
-        Task<bool> SaveGlobalPromptAsync(GlobalPromptDto dto);
-        Task<LocalPromptDto> GetLocalPromptAsync(string functionId);
-        Task<LocalPromptDto> GetConnectionFunctionAsync(string connectionId);
-        Task<bool> SaveLocalPromptAsync(LocalPromptDto dto);
+        //Task<GlobalPromptDto> GetGlobalPromptAsync();
+        //Task<bool> SaveGlobalPromptAsync(GlobalPromptDto dto);
+        //Task<LocalPromptDto> GetLocalPromptAsync(string functionId);
+        //Task<LocalPromptDto> GetConnectionFunctionAsync(string connectionId);
+        //Task<bool> SaveLocalPromptAsync(LocalPromptDto dto);
         Task<bool> SetPromptingModeAsync(string connectionId, int promptingMode);
     }
 }

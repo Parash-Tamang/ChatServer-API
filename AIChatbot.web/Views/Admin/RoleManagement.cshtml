@@ -1,0 +1,162 @@
+﻿@{
+    ViewData["Title"] = "Role Management";
+    Layout = "_AdminLayout";
+}
+<link rel="stylesheet" href="~/css/role-management.css" asp-append-version="true" />
+
+<div class="rm-page">
+
+    <div class="rm-page-header">
+        <div>
+            <h2 class="rm-page-title">Role Management</h2>
+            <p class="rm-page-sub">Create and manage roles, and see who belongs to each one</p>
+        </div>
+    </div>
+
+    <!-- Action Cards -->
+    <div class="rm-action-cards">
+        <div class="rm-action-card active" id="card-create" onclick="switchPanel('create')">
+            <div class="rm-card-icon icon-purple">
+                <i class="bi bi-shield-plus"></i>
+            </div>
+            <div class="rm-card-text">
+                <h4>Create Role</h4>
+                <p>Add a new role to the system</p>
+            </div>
+        </div>
+
+        <div class="rm-action-card" id="card-list" onclick="switchPanel('list')">
+            <div class="rm-card-icon icon-teal">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="rm-card-text">
+                <h4>All Roles</h4>
+                <p id="roles-count-label">Loading roles...</p>
+            </div>
+        </div>
+
+        <div class="rm-action-card" id="card-members" onclick="switchPanel('list')">
+            <div class="rm-card-icon icon-coral">
+                <i class="bi bi-people"></i>
+            </div>
+            <div class="rm-card-text">
+                <h4>View Members</h4>
+                <p>Click a role to see its members</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ PANEL: CREATE ROLE ============ -->
+    <div class="rm-panel" id="panel-create">
+        <div class="rm-panel-header">
+            <i class="bi bi-shield-plus text-purple"></i>
+            <span>Create New Role</span>
+        </div>
+
+        <div id="create-alert" class="rm-alert" style="display:none;"></div>
+
+        <div class="rm-form-group">
+            <label class="rm-label">Role Name <span class="required">*</span></label>
+            <input type="text" id="input-role-name" class="rm-input" placeholder="e.g. Manager, Viewer, Editor..." maxlength="100" />
+        </div>
+
+        <div class="rm-form-group">
+            <label class="rm-label">Description <span class="optional">(optional)</span></label>
+            <input type="text" id="input-role-desc" class="rm-input" placeholder="What can this role do?" maxlength="200" />
+        </div>
+
+        <button class="rm-btn-primary" id="btn-create-role" onclick="createRole()">
+            <i class="bi bi-plus-lg"></i> Create Role
+        </button>
+    </div>
+
+    <!-- ============ PANEL: LIST ROLES ============ -->
+    <div class="rm-panel" id="panel-list" style="display:none;">
+        <div class="rm-panel-header">
+            <i class="bi bi-shield-check text-teal"></i>
+            <span>All Roles</span>
+            <span class="rm-count-badge" id="roles-count-badge">0</span>
+        </div>
+
+        <div id="roles-loading" class="rm-loading-state">
+            <div class="rm-spinner"></div>
+            <p>Loading roles...</p>
+        </div>
+
+        <div id="roles-empty" class="rm-empty-state" style="display:none;">
+            <i class="bi bi-shield-x"></i>
+            <p>No roles found. Create one above.</p>
+        </div>
+
+        <div class="rm-roles-grid" id="roles-grid" style="display:none;"></div>
+    </div>
+
+    <!-- ============ PANEL: USERS IN ROLE ============ -->
+    <div class="rm-panel" id="panel-users" style="display:none;">
+        <div class="rm-back-btn" onclick="switchPanel('list')">
+            <i class="bi bi-arrow-left"></i> Back to Roles
+        </div>
+
+        <div class="rm-users-header">
+            <div class="rm-panel-header" style="border:none; padding:0; margin:0;">
+                <i class="bi bi-shield-check text-purple"></i>
+                <span id="users-role-name">Role</span>
+                <span class="rm-count-badge" id="users-count-badge">0</span>
+            </div>
+            <div class="rm-search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="text" id="users-search" placeholder="Search members..." oninput="filterUsers()" />
+            </div>
+        </div>
+
+        <div id="users-loading" class="rm-loading-state">
+            <div class="rm-spinner"></div>
+            <p>Loading members...</p>
+        </div>
+
+        <div id="users-empty" class="rm-empty-state" style="display:none;">
+            <i class="bi bi-people"></i>
+            <p>No members found in this role.</p>
+        </div>
+
+        <div class="rm-users-list" id="users-list" style="display:none;"></div>
+    </div>
+
+</div>
+
+<!-- ============ DELETE ROLE MODAL ============ -->
+<div class="rm-overlay" id="modal-delete-role" style="display:none;">
+    <div class="rm-modal">
+        <div class="rm-modal-icon danger">
+            <i class="bi bi-shield-x"></i>
+        </div>
+        <h5 class="rm-modal-title">Delete Role</h5>
+        <p class="rm-modal-body">Are you sure you want to delete the role <strong id="modal-role-name"></strong>? This action cannot be undone.</p>
+        <div class="rm-modal-actions">
+            <button class="rm-btn-ghost" onclick="closeModal('modal-delete-role')">Cancel</button>
+            <button class="rm-btn-danger" id="btn-confirm-delete-role" onclick="confirmDeleteRole()">
+                <i class="bi bi-trash"></i> Delete Role
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ DELETE USER MODAL ============ -->
+<div class="rm-overlay" id="modal-delete-user" style="display:none;">
+    <div class="rm-modal">
+        <div class="rm-modal-icon danger">
+            <i class="bi bi-person-x"></i>
+        </div>
+        <h5 class="rm-modal-title">Delete User Account</h5>
+        <p class="rm-modal-body">Are you sure you want to permanently delete <strong id="modal-user-name"></strong>? This will delete the user's account and cannot be undone.</p>
+        <div class="rm-modal-actions">
+            <button class="rm-btn-ghost" onclick="closeModal('modal-delete-user')">Cancel</button>
+            <button class="rm-btn-danger" id="btn-confirm-delete-user" onclick="confirmDeleteUser()">
+                <i class="bi bi-trash"></i> Delete User
+            </button>
+        </div>
+    </div>
+</div>
+    <script src="~/js/role-management.js"></script>
+   
+

@@ -142,11 +142,6 @@ namespace AIChatbot.web.Services
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
 
-        public async Task<bool> SaveLocalPromptAsync(LocalPromptDto dto)
-        {
-            var response = await _apiClient.PostAsync("api/supersetup/V1/setup-engine/global", dto);
-            return response?.IsSuccessStatusCode ?? false;
-        }
 
         public async Task<bool> SetPromptingModeAsync(string connectionId, int promptingMode)
         {

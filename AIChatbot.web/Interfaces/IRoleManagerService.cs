@@ -1,17 +1,13 @@
-﻿using AIChatbot.web.Dto;
-using AIChatbot.web.Models.RoleManager;
+﻿using AIChatbot.Web.Dto;
 
-namespace AIChatbot.web.Interfaces
+namespace AIChatbot.Web.Interfaces
 {
-    public interface  IRoleManagerService
+    public interface IRoleManagerService
     {
-        Task<(bool Success, string Message)> CreateAdminAsync(CreateAdminRequest request);
-        Task<(bool Success, List<RoleDto> Roles, string Message)> ListRolesAsync();
-        Task<(bool Success, string Message)> CreateRoleAsync(CreateRoleRequest request);
-        Task<(bool Success, string Message)> DiscardRoleAsync(string roleId);
-        Task<(bool Success, List<UserDto> Users, string Message)> ListUsersAsync(string roleId);
-        Task<(bool Success, string Message)> DiscardUserAsync(string userId);
-
-        Task<RoleListDto> ListRoles();
+        Task<List<RoleDto>> GetAllRolesAsync();
+        Task<bool> CreateRoleAsync(string roleName);
+        Task<bool> DeleteRoleAsync(string roleId);
+        Task<List<RoleUserDto>> GetUsersInRoleAsync(string roleId);
+        Task<bool> DeleteUserAsync(string userId);
     }
 }

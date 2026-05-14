@@ -14,7 +14,7 @@ namespace AIChatbot.web.Services
             _tokenService = tokenService;
 
             // Set base address from configuration
-            var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.234:5197";
+            var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.71:5197";
             _httpClient.BaseAddress = new Uri(apiBaseUrl);
             _httpClient.Timeout = TimeSpan.FromSeconds(120);
         }
@@ -127,5 +127,28 @@ namespace AIChatbot.web.Services
             }
         }
 
+        // ?? NEW: DELETE with a JSON request body ??????????????????????????
+        // Required for endpoints like Discard_Role/{id} and Discard_user/{id}
+        // that expect the id repeated in the request body as well as the URL.
+        public async Task<HttpResponseMessage?> DeleteWithBodyAsync<T>(string endpoint, T data)
+        {
+            try
+            {
+                SetAuthorizationHeader();
+                var request = new HttpRequestMessage(HttpMethod.Delete, endpoint)
+                {
+                    Content = new StringContent(
+                        System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                        }),
+                        System.Text.Encoding.UTF8,
+                        "application/json")
+                };
+                return await _httpClient.SendAsync(request);
+            }
+            catch (HttpRequestException) { return null; }
+            catch (TaskCanceledException) { return null; }
+        }
     }
 }    

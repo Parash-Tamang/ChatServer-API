@@ -3,6 +3,7 @@ using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.Auth;
 using AIChatbot.web.Services;
 using AIChatbot.web.Validators;
+using AIChatbot.Web.Interfaces;
 using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,11 +22,15 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IValidator<LoginUser>,LoginValidator>();
 builder.Services.AddScoped<IValidator<RegisterUser>, RegisterValidator>();
 builder.Services.AddScoped<IAuthService>(sp => sp.GetRequiredService<AuthService>());
-builder.Services.AddScoped<IRoleManagerService, RoleManagerService>();
+
 builder.Services.AddScoped<ChatApiService>();
 builder.Services.AddScoped<ITokenService,TokenService>();
 builder.Services.AddScoped<TokenAuthorizationFilter>();
-
+builder.Services.AddScoped<SuperAdminFilter>();
+builder.Services.AddScoped<IAdminPromptService, AdminPromptService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
+builder.Services.AddScoped<IRegistrationService, RegistrationService>();
+builder.Services.AddScoped<IRoleManagerService, RoleManagerService>();
 
 // Auth filter (for protecting dashboard/chat)
 builder.Services.AddScoped<AuthFilter>();

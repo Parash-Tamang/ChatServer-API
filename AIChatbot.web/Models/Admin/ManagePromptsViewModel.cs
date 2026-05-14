@@ -28,3 +28,17 @@ public class SetPromptingModeRequest
     public string ConnectionId { get; set; }
     public int PromptingMode { get; set; }
 }
+public class SaveGlobalPromptRequest
+{
+    public string? FunctionId { get; set; }
+    public string FunctionName { get; set; } = string.Empty;
+    public string SystemPrompt { get; set; } = string.Empty;
+}
+
+public class SaveLocalPromptRequest
+{
+    public string ConnectionStringId { get; set; } = string.Empty;
+    public string? FunctionId { get; set; }
+    public string FunctionName { get; set; } = string.Empty;
+    public string SystemPrompt { get; set; } = string.Empty;
+}

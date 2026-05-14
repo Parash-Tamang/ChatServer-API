@@ -1,0 +1,78 @@
+﻿<!-- User Profile Modal -->
+<div class="modal fade" id="userProfileModal" tabindex="-1" aria-labelledby="userProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-3 overflow-hidden">
+
+            <div class="modal-header bg-light border-bottom">
+                <h5 class="modal-title fw-semibold" id="userProfileModalLabel">
+                    <i class="bi bi-person-circle me-2 text-primary"></i>My Profile
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+
+                <!-- Loading -->
+                <div id="profile-loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted small">Loading profile...</p>
+                </div>
+
+                <!-- Error -->
+                <div id="profile-error" class="alert alert-danger d-none" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span id="profile-error-msg">Something went wrong.</span>
+                </div>
+
+                <!-- Content -->
+                <div id="profile-content" class="d-none">
+                    <div class="text-center mb-4">
+                        <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width:72px;height:72px;font-size:1.6rem;font-weight:600;">
+                            <span id="profile-initials">--</span>
+                        </div>
+                        <h6 class="mb-1 fw-semibold" id="profile-fullname">--</h6>
+                        <span class="badge bg-primary" id="profile-role">--</span>
+                    </div>
+
+                    <hr />
+
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small">
+                                <i class="bi bi-person me-1"></i>First Name
+                            </label>
+                            <div class="form-control bg-light" id="profile-firstname">--</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small">
+                                <i class="bi bi-person me-1"></i>Last Name
+                            </label>
+                            <div class="form-control bg-light" id="profile-lastname">--</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small">
+                                <i class="bi bi-envelope me-1"></i>Email
+                            </label>
+                            <div class="form-control bg-light" id="profile-email">--</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small">
+                                <i class="bi bi-telephone me-1"></i>Phone
+                            </label>
+                            <div class="form-control bg-light" id="profile-phone">--</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer bg-light border-top">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>

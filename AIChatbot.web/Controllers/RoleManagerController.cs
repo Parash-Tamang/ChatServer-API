@@ -1,144 +1,144 @@
-﻿using AIChatbot.web.Interfaces;
-using AIChatbot.web.Models.RoleManager;
-using Microsoft.AspNetCore.Mvc;
+﻿//using AIChatbot.web.Interfaces;
+//using AIChatbot.web.Models.RoleManager;
+//using Microsoft.AspNetCore.Mvc;
 
 
-namespace AIChatbot.web.Controllers
-{
-    [Route("RoleManager")]
-    public class RoleManagerController : Controller
-    {
-        private readonly IRoleManagerService _roleManagerService;
+//namespace AIChatbot.web.Controllers
+//{
+//    [Route("RoleManager")]
+//    public class RoleManagerController : Controller
+//    {
+//        private readonly IRoleManagerService _roleManagerService;
 
-        public RoleManagerController(IRoleManagerService roleManagerService)
-        {
-            _roleManagerService = roleManagerService;
-        }
+//        public RoleManagerController(IRoleManagerService roleManagerService)
+//        {
+//            _roleManagerService = roleManagerService;
+//        }
 
-        private string GetUserRole() =>
-            User.FindFirst("role")?.Value
-            ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
-            ?? "User";
+//        private string GetUserRole() =>
+//            User.FindFirst("role")?.Value
+//            ?? User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+//            ?? "User";
 
-        [HttpGet("")]
-        [HttpGet("Dashboard")]
-        public async Task<IActionResult> Dashboard()
-        {
-            var userRole = GetUserRole();
-            var vm = new RoleManagerDashboardViewModel { UserRole = userRole };
+//        [HttpGet("")]
+//        [HttpGet("Dashboard")]
+//        public async Task<IActionResult> Dashboard()
+//        {
+//            var userRole = GetUserRole();
+//            var vm = new RoleManagerDashboardViewModel { UserRole = userRole };
 
-            if (userRole == "SuperAdmin")
-            {
-                var (success, roles, message) = await _roleManagerService.ListRolesAsync();
-                if (success) vm.Roles = roles;
-                else vm.ErrorMessage = message;
-            }
+//            if (userRole == "SuperAdmin")
+//            {
+//                var (success, roles, message) = await _roleManagerService.ListRolesAsync();
+//                if (success) vm.Roles = roles;
+//                else vm.ErrorMessage = message;
+//            }
 
-            return View(vm);
-        }
+//            return View(vm);
+//        }
 
-        [HttpGet("CreateAdmin")]
-        public IActionResult CreateAdmin()
-        {
-            var role = GetUserRole();
-            if (role != "SuperAdmin" && role != "Admin") return Forbid();
-            ViewBag.UserRole = role;
-            return View();
-        }
+//        [HttpGet("CreateAdmin")]
+//        public IActionResult CreateAdmin()
+//        {
+//            var role = GetUserRole();
+//            if (role != "SuperAdmin" && role != "Admin") return Forbid();
+//            ViewBag.UserRole = role;
+//            return View();
+//        }
 
-        [HttpPost("CreateAdmin")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateAdmin(CreateAdminRequest request)
-        {
-            var role = GetUserRole();
-            if (role != "SuperAdmin" && role != "Admin") return Forbid();
-            if (!ModelState.IsValid) { ViewBag.UserRole = role; return View(request); }
+//        [HttpPost("CreateAdmin")]
+//        [ValidateAntiForgeryToken]
+//        public async Task<IActionResult> CreateAdmin(CreateAdminRequest request)
+//        {
+//            var role = GetUserRole();
+//            if (role != "SuperAdmin" && role != "Admin") return Forbid();
+//            if (!ModelState.IsValid) { ViewBag.UserRole = role; return View(request); }
 
-            var (success, message) = await _roleManagerService.CreateAdminAsync(request);
-            if (success) TempData["SuccessMessage"] = message;
-            else TempData["ErrorMessage"] = message;
-            return RedirectToAction(nameof(Dashboard));
-        }
+//            var (success, message) = await _roleManagerService.CreateAdminAsync(request);
+//            if (success) TempData["SuccessMessage"] = message;
+//            else TempData["ErrorMessage"] = message;
+//            return RedirectToAction(nameof(Dashboard));
+//        }
 
-        [HttpGet("CreateRole")]
-        public IActionResult CreateRole()
-        {
-            var role = GetUserRole();
-            if (role != "SuperAdmin" && role != "Admin") return Forbid();
-            ViewBag.UserRole = role;
-            return View();
-        }
+//        [HttpGet("CreateRole")]
+//        public IActionResult CreateRole()
+//        {
+//            var role = GetUserRole();
+//            if (role != "SuperAdmin" && role != "Admin") return Forbid();
+//            ViewBag.UserRole = role;
+//            return View();
+//        }
 
-        [HttpPost("CreateRole")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateRole(CreateRoleRequest request)
-        {
-            var role = GetUserRole();
-            if (role != "SuperAdmin" && role != "Admin") return Forbid();
-            if (!ModelState.IsValid) { ViewBag.UserRole = role; return View(request); }
+//        [HttpPost("CreateRole")]
+//        [ValidateAntiForgeryToken]
+//        public async Task<IActionResult> CreateRole(CreateRoleRequest request)
+//        {
+//            var role = GetUserRole();
+//            if (role != "SuperAdmin" && role != "Admin") return Forbid();
+//            if (!ModelState.IsValid) { ViewBag.UserRole = role; return View(request); }
 
-            var (success, message) = await _roleManagerService.CreateRoleAsync(request);
-            if (success) TempData["SuccessMessage"] = message;
-            else TempData["ErrorMessage"] = message;
-            return RedirectToAction(nameof(Dashboard));
-        }
+//            var (success, message) = await _roleManagerService.CreateRoleAsync(request);
+//            if (success) TempData["SuccessMessage"] = message;
+//            else TempData["ErrorMessage"] = message;
+//            return RedirectToAction(nameof(Dashboard));
+//        }
 
-        [HttpPost("DeleteRole")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteRole(string roleId)
-        {
-            if (GetUserRole() != "SuperAdmin") return Forbid();
-            var (success, message) = await _roleManagerService.DiscardRoleAsync(roleId);
-            if (success) TempData["SuccessMessage"] = message;
-            else TempData["ErrorMessage"] = message;
-            return RedirectToAction(nameof(Dashboard));
-        }
+//        [HttpPost("DeleteRole")]
+//        [ValidateAntiForgeryToken]
+//        public async Task<IActionResult> DeleteRole(string roleId)
+//        {
+//            if (GetUserRole() != "SuperAdmin") return Forbid();
+//            var (success, message) = await _roleManagerService.DiscardRoleAsync(roleId);
+//            if (success) TempData["SuccessMessage"] = message;
+//            else TempData["ErrorMessage"] = message;
+//            return RedirectToAction(nameof(Dashboard));
+//        }
 
-        [HttpGet("Users/{roleId}")]
-        public async Task<IActionResult> Users(string roleId)
-        {
-            if (GetUserRole() != "SuperAdmin") return Forbid();
-            var (success, users, message) = await _roleManagerService.ListUsersAsync(roleId);
+//        [HttpGet("Users/{roleId}")]
+//        public async Task<IActionResult> Users(string roleId)
+//        {
+//            if (GetUserRole() != "SuperAdmin") return Forbid();
+//            var (success, users, message) = await _roleManagerService.ListUsersAsync(roleId);
             
-            // Get role name from first user or use roleId as fallback
-            var roleName = users.FirstOrDefault()?.RoleName ?? roleId;
+//            // Get role name from first user or use roleId as fallback
+//            var roleName = users.FirstOrDefault()?.RoleName ?? roleId;
             
-            return View(new RoleUsersViewModel
-            {
-                RoleId = roleId,
-                RoleName = roleName,
-                UserRole = GetUserRole(),
-                Users = users,
-                ErrorMessage = success ? null : message
-            });
-        }
+//            return View(new RoleUsersViewModel
+//            {
+//                RoleId = roleId,
+//                RoleName = roleName,
+//                UserRole = GetUserRole(),
+//                Users = users,
+//                ErrorMessage = success ? null : message
+//            });
+//        }
 
-        [HttpPost("DeleteUser")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteUser(string userId, string? returnRoleId)
-        {
-            var (success, message) = await _roleManagerService.DiscardUserAsync(userId);
-            if (success) TempData["SuccessMessage"] = message;
-            else TempData["ErrorMessage"] = message;
-            return !string.IsNullOrEmpty(returnRoleId)
-                ? RedirectToAction(nameof(Users), new { roleId = returnRoleId })
-                : RedirectToAction(nameof(Dashboard));
-        }
+//        [HttpPost("DeleteUser")]
+//        [ValidateAntiForgeryToken]
+//        public async Task<IActionResult> DeleteUser(string userId, string? returnRoleId)
+//        {
+//            var (success, message) = await _roleManagerService.DiscardUserAsync(userId);
+//            if (success) TempData["SuccessMessage"] = message;
+//            else TempData["ErrorMessage"] = message;
+//            return !string.IsNullOrEmpty(returnRoleId)
+//                ? RedirectToAction(nameof(Users), new { roleId = returnRoleId })
+//                : RedirectToAction(nameof(Dashboard));
+//        }
 
-        [HttpGet("AccessDenied")]
-        public IActionResult AccessDenied() => View();
+//        [HttpGet("AccessDenied")]
+//        public IActionResult AccessDenied() => View();
 
-        public IActionResult Index()
-        {
-            return PartialView("_RoleManagerModal");
-        //}
+//        public IActionResult Index()
+//        {
+//            return PartialView("_RoleManagerModal");
+//        //}
 
-        //// Sub-views for the modal content
-        //public IActionResult Dashboard() => PartialView("_Dashboard");
-        //public IActionResult CreateRole() => PartialView("_CreateRole");
-        //public IActionResult CreateAdmin() => PartialView("_CreateAdmin");
-        //public IActionResult Users() => PartialView("_Users");
+//        //// Sub-views for the modal content
+//        //public IActionResult Dashboard() => PartialView("_Dashboard");
+//        //public IActionResult CreateRole() => PartialView("_CreateRole");
+//        //public IActionResult CreateAdmin() => PartialView("_CreateAdmin");
+//        //public IActionResult Users() => PartialView("_Users");
 
 
-    }
-}   }
+//    }
+//}   }

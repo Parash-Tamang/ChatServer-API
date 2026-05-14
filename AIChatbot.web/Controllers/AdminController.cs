@@ -1,7 +1,10 @@
 ﻿using AIChatbot.web.Dto;
+using AIChatbot.web.Filters;    
 using AIChatbot.web.Interfaces;
-using Microsoft.AspNetCore.Mvc;
 using AIChatbot.web.Models.Admin;
+using AIChatbot.web.Services;
+using AIChatbot.Web.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 
 
 namespace AIChatbot.web.Controllers
@@ -9,11 +12,17 @@ namespace AIChatbot.web.Controllers
     public class AdminController : Controller
     {
         private readonly IConnectionService _connectionService;
-
-        public AdminController(IConnectionService connectionService)
+        private readonly IRoleManagerService _roleManagerService;
+        public AdminController(IConnectionService connectionService, IAdminPromptService adminPromptService, IRoleManagerService roleManagerService)
         {
             _connectionService = connectionService;
+            _adminPromptService = adminPromptService;
+            _roleManagerService = roleManagerService;
         }
+        private readonly IAdminPromptService _adminPromptService;
+
+       
+ 
 
         public IActionResult Dashboard() => View();
         public IActionResult ConfigureDatabases() => View();
@@ -25,12 +34,15 @@ namespace AIChatbot.web.Controllers
             return View(model);
         }
 
+
+        
+
+        //[ServiceFilter(typeof(SuperAdminFilter))]
         public async Task<IActionResult> DatabaseConnections()
         {
             var connections = await _connectionService.GetAllConnectionsAsync();
             return View(connections);
         }
-
 
 
         public async Task<IActionResult> SaveConnection([FromBody] ConnectionRequestDto model)
@@ -42,7 +54,7 @@ namespace AIChatbot.web.Controllers
             if (!result.Success)
                 return Json(new { success = false, message = result.Message });
 
-            return PartialView("_ConnectionTableRow", model); 
+            return PartialView("_ConnectionTableRow", model);
         }
 
 
@@ -52,7 +64,6 @@ namespace AIChatbot.web.Controllers
             var success = await _connectionService.UpdateConnectionAsync(model);
             return Json(new { success });
         }
-
 
         [HttpPost]
         public async Task<IActionResult> SetActive([FromBody] Guid connectionId)
@@ -69,33 +80,6 @@ namespace AIChatbot.web.Controllers
                 TempData["Success"] = "Knowledge base updated successfully";
             else
                 TempData["Error"] = "Failed to update knowledge base";
-            return Json(new { success });
-        }
-        [HttpGet]
-        public async Task<IActionResult> GetLocalPrompt(string connectionId)
-        {
-            var function = await _connectionService.GetConnectionFunctionAsync(connectionId);
-            if (function == null)
-                return Json(new { success = false });
-
-            var prompt = await _connectionService.GetLocalPromptAsync(function.Id);
-            if (prompt == null)
-                return Json(new { success = false });
-
-            return Json(new { success = true, data = prompt });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> SaveGlobalPrompt([FromBody] GlobalPromptDto dto)
-        {
-            var success = await _connectionService.SaveGlobalPromptAsync(dto);
-            return Json(new { success });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> SaveLocalPrompt([FromBody] LocalPromptDto dto)
-        {
-            var success = await _connectionService.SaveLocalPromptAsync(dto);
             return Json(new { success });
         }
 
@@ -121,7 +105,135 @@ namespace AIChatbot.web.Controllers
             var success = await _connectionService.DeleteFunctionAsync(request.ConnectionId, request.FunctionId);
             return Json(new { success });
         }
+        /// <summary>
+        /// prompts view 
+        /// </summary>
+      
+        [HttpGet]
+        public async Task<IActionResult> GetGlobalFunctions()
+        {
+            var functions = await _adminPromptService.GetGlobalFunctionsAsync();
+            return Json(functions);
+        }
 
+        [HttpGet]
+        public async Task<IActionResult> GetFunctionById(string functionId)
+        {
+            if (string.IsNullOrEmpty(functionId))
+                return BadRequest(new { message = "Function ID is required." });
 
+            var function = await _adminPromptService.GetFunctionByIdAsync(functionId);
+
+            if (function == null)
+                return NotFound(new { message = "Function not found." });
+
+            return Json(function);
+        }
+        [HttpPost]
+        public async Task<IActionResult> SaveGlobalPrompt([FromBody] SaveGlobalPromptRequest request)
+        {
+            if (string.IsNullOrEmpty(request.FunctionName))
+                return BadRequest(new { message = "Function name is required." });
+
+            var success = await _adminPromptService.SaveGlobalPromptAsync(request);
+            return success
+                ? Json(new { message = "Prompt saved successfully." })
+                : StatusCode(500, new { message = "Failed to save prompt." });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetConnectionFunctions(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+                return BadRequest(new { message = "Connection ID is required." });
+
+            var functions = await _adminPromptService.GetConnectionFunctionsAsync(connectionId);
+            return Json(functions);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveLocalPrompt([FromBody] SaveLocalPromptRequest request)
+        {
+            if (string.IsNullOrEmpty(request.FunctionName))
+                return BadRequest(new { message = "Function name is required." });
+
+            var success = await _adminPromptService.SaveLocalPromptAsync(request);
+            return success
+                ? Json(new { message = "Prompt saved successfully." })
+                : StatusCode(500, new { message = "Failed to save prompt." });
+        }
+
+        // the role part is below 
+        // GET: /Admin/RoleManagement
+        public async Task<IActionResult> RoleManagement()
+        {
+            return View();
+        }
+
+        // GET: /Admin/GetRoles  (AJAX)
+        [HttpGet]
+        public async Task<IActionResult> GetRoles()
+        {
+            var roles = await _roleManagerService.GetAllRolesAsync();
+            return Json(new { success = true, data = roles });
+        }
+
+        // POST: /Admin/CreateRole  (AJAX)
+        [HttpPost]
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.RoleName))
+                return Json(new { success = false, message = "Role name is required." });
+
+            var result = await _roleManagerService.CreateRoleAsync(request.RoleName.Trim());
+            return Json(result
+                ? new { success = true, message = $"Role '{request.RoleName}' created successfully." }
+                : new { success = false, message = "Failed to create role. Please try again." });
+        }
+
+        // DELETE: /Admin/DeleteRole  (AJAX)
+        [HttpDelete]
+        public async Task<IActionResult> DeleteRole([FromBody] DeleteRoleRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.RoleId))
+                return Json(new { success = false, message = "Role ID is required." });
+
+            var result = await _roleManagerService.DeleteRoleAsync(request.RoleId);
+            return Json(result
+                ? new { success = true, message = "Role deleted successfully." }
+                : new { success = false, message = "Failed to delete role. Please try again." });
+        }
+
+        // GET: /Admin/GetUsersInRole?roleId=xxx  (AJAX)
+        [HttpGet]
+        public async Task<IActionResult> GetUsersInRole(string roleId)
+        {
+            if (string.IsNullOrWhiteSpace(roleId))
+                return Json(new { success = false, message = "Role ID is required." });
+
+            var users = await _roleManagerService.GetUsersInRoleAsync(roleId);
+            return Json(new { success = true, data = users });
+        }
+
+        // DELETE: /Admin/DeleteUser  (AJAX)
+        [HttpDelete]
+        public async Task<IActionResult> DeleteUser([FromBody] DeleteUserRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.UserId))
+                return Json(new { success = false, message = "User ID is required." });
+
+            var result = await _roleManagerService.DeleteUserAsync(request.UserId);
+            return Json(result
+                ? new { success = true, message = "User deleted successfully." }
+                : new { success = false, message = "Failed to delete user. Please try again." });
+        }
     }
+
+    // Request models (add these inside the Controllers namespace or a separate file)
+    public class CreateRoleRequest { public string RoleName { get; set; } = string.Empty; }
+    public class DeleteRoleRequest { public string RoleId { get; set; } = string.Empty; }
+    public class DeleteUserRequest { public string UserId { get; set; } = string.Empty; }
 }
+
+
+

@@ -150,7 +150,50 @@ body {
     font-size: 14px;
 }
 
+/* =========================================================
+   REGISTER WIZARD
+========================================================= */
+.steps-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    gap: 0;
+}
 
+.step {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #eee;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+    .step.active {
+        background: #111;
+        color: #fff;
+    }
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: #eee;
+    max-width: 60px;
+}
+
+.wizard-step {
+    animation: fadeIn 0.25s ease;
+}
+
+.hidden {
+    display: none !important;
+}
 /* =========================================================
    CHAT LAYOUT
 ========================================================= */

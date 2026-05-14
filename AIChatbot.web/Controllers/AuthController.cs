@@ -12,22 +12,31 @@ namespace AIChatbot.web.Controllers
     {
         private readonly IAuthService _authService;
         private readonly ITokenService _tokenService;
-        private readonly IRoleManagerService _roleManagerService;
+       
         private readonly IValidator<RegisterUser> _registerValidator;
         private readonly IValidator<LoginUser> _loginValidator;
+        private readonly IPasswordResetService _passwordResetService;
+        private readonly IRegistrationService _registrationService;
+        private readonly ApiClient _api;
 
         public AuthController(
             IValidator<RegisterUser> registerValidator,
             ITokenService tokenService,
-            IRoleManagerService roleManagerService,
+           
             IAuthService authService,
-            IValidator<LoginUser> loginValidator)
+            IValidator<LoginUser> loginValidator,
+            IPasswordResetService passwordResetService,
+            IRegistrationService registrationService,
+            ApiClient api)
         {
             _registerValidator = registerValidator;
             _loginValidator = loginValidator;
             _tokenService = tokenService;
-            _roleManagerService = roleManagerService;
+           
             _authService = authService;
+            _passwordResetService = passwordResetService;
+            _registrationService = registrationService;
+            _api = api;
         }
 
         [HttpGet]
@@ -79,38 +88,19 @@ namespace AIChatbot.web.Controllers
             return RedirectToAction("Index", "Chat");
          }
 
+
         [HttpGet]
         public async Task<IActionResult> Register()
         {
             var accessToken = _tokenService.GetAccessToken();
-            
             if (!string.IsNullOrEmpty(accessToken))
-            {
                 return RedirectToAction("Index", "Chat");
-            }
 
-            var model = new RegisterUser();
-            RoleListDto roleList = await _roleManagerService.ListRoles();
-            model.Roles = roleList.roles;
-
-            return View(model);
+            return View(new RegisterUser());
         }
-
         [HttpPost]
         public async Task<IActionResult> Register(RegisterUser registerUser)
         {
-            try
-            {
-                // Roles needed for dropdown and validator
-                RoleListDto roleListDto = await _roleManagerService.ListRoles();
-                registerUser.Roles = roleListDto.roles;
-            }
-            catch
-            {
-                TempData["Error"] = "Unable to load roles. Please try again later.";
-                return RedirectToAction("Register");
-            }
-
             // Run FluentValidation
             var validationResult = await _registerValidator.ValidateAsync(registerUser);
 
@@ -131,6 +121,7 @@ namespace AIChatbot.web.Controllers
                 Email = registerUser.Email,
                 Phone = registerUser.Phone,
                 Password = registerUser.Password,
+                Token = registerUser.Token,
                 Role = registerUser.SelectedRole
             };
 
@@ -143,7 +134,6 @@ namespace AIChatbot.web.Controllers
             }
 
             TempData["Success"] = "Registration successful";
-
             return RedirectToAction("Index", "Chat");
         }
 
@@ -158,7 +148,112 @@ namespace AIChatbot.web.Controllers
             
             return RedirectToAction("Login");
         }
+        // ── FORGOT PASSWORD ──────────────────────────────────────
+        [HttpGet]
+        public IActionResult ForgotPassword() => View();
 
-      
+        [HttpPost]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordModel model)
+        {
+            var result = await _passwordResetService.SendOtpAsync(new ForgotPasswordDto
+            {
+                Email = model.Email
+            });
+
+            if (!result.Success)
+            {
+                TempData["Error"] = result.Error;
+                return RedirectToAction("ForgotPassword");
+            }
+
+            TempData["Success"] = "OTP sent to your email.";
+            return RedirectToAction("VerifyOtp", new { email = model.Email });
+        }
+
+        // ── VERIFY OTP ───────────────────────────────────────────
+        [HttpGet]
+        public IActionResult VerifyOtp(string email)
+            => View(new VerifyOtpModel { Email = email });
+
+        [HttpPost]
+        public async Task<IActionResult> VerifyOtp(VerifyOtpModel model)
+        {
+            var result = await _passwordResetService.VerifyOtpAsync(new VerifyOtpDto
+            {
+                Email = model.Email,
+                Otp = model.Otp
+            });
+
+            if (!result.Success)
+            {
+                TempData["Error"] = result.Error;
+                return RedirectToAction("VerifyOtp", new { email = model.Email });
+            }
+
+            // API sends reset link to email, just tell user to check email
+            TempData["Success"] = "OTP verified. Please check your email for the reset link.";
+            return RedirectToAction("Login");
+        }
+
+        // ── RESET PASSWORD ───────────────────────────────────────
+        // User lands here by clicking the link in their email
+        [HttpGet]
+        public IActionResult ResetPassword(string token)
+            => View(new ResetPasswordModel { Token = token });
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(ResetPasswordModel model)
+        {
+            if (model.NewPassword != model.ConfirmPassword)
+            {
+                TempData["Error"] = "Passwords do not match.";
+                return RedirectToAction("ResetPassword", new { token = model.Token });
+            }
+
+            var result = await _passwordResetService.ResetPasswordAsync(new ResetPasswordDto
+            {
+                ResetToken = model.Token,
+                NewPassword = model.NewPassword
+            });
+
+            if (!result.Success)
+            {
+                TempData["Error"] = result.Error;
+                return RedirectToAction("ResetPassword", new { token = model.Token });
+            }
+
+            TempData["Success"] = "Password reset successful. Please login.";
+            return RedirectToAction("Login");
+        }
+        // ── SEND REGISTER OTP ─────────────────────────────────────
+        [HttpPost]
+        public async Task<IActionResult> SendRegisterOtp([FromBody] SendRegisterOtpDto dto)
+        {
+            var result = await _registrationService.SendRegisterOtpAsync(dto);
+            return Json(new { success = result.Success, error = result.Error });
+        }
+
+     
+        // ── VERIFY REGISTER OTP ───────────────────────────────────
+        [HttpPost]
+        public async Task<IActionResult> VerifyRegisterOtp([FromBody] VerifyRegisterOtpDto dto)
+        {
+            var result = await _registrationService.VerifyRegisterOtpAsync(dto);
+            return Json(new { success = result.Success, error = result.Error, registerToken = result.RegisterToken });
+            //                                                                
+        }
+        // ── to  get roles by using token
+        [HttpGet]
+        public async Task<IActionResult> GetRoles([FromQuery] string token)
+        {
+            var res = await _api.GetAsync(
+                $"/api/auth/V1/Security-engine/roles?token={token}");
+
+            if (res == null || !res.IsSuccessStatusCode)
+                return Json(new List<string>());
+
+            var data = await res.Content.ReadFromJsonAsync<RoleListResponseDto>();
+            return Json(data?.Roles ?? new List<string>());
+        }
     }
 }

@@ -116,7 +116,7 @@ namespace AIChatbot.web.Filters
             return dateTime;
         }
 
-        private static string? ExtractRoleFromToken(string token)
+        internal static string? ExtractRoleFromToken(string token)
         {
             try
             {

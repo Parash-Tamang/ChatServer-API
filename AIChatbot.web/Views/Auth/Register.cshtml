@@ -1,102 +1,104 @@
 ﻿@model RegisterUser
-
 @{
     Layout = "_Layout";
     ViewData["FullPage"] = true;
 }
-
 <div class="auth-page">
-
     <div class="auth-card">
-
         <div class="auth-title">Create account</div>
 
-        <form method="post" asp-action="Register" asp-controller="Auth">
-           
-                @Html.AntiForgeryToken()
-            @* <div asp-validation-summary="ModelOnly" class="error"></div> *@
+        <form method="post" asp-action="Register" asp-controller="Auth" id="registerForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Token" id="hToken" />
 
             <!-- FIRST NAME -->
-            <input asp-for="FirstName"
-                   class="input"
-                   type="text"
-                   placeholder="First name" />
-
-            @* <span asp-validation-for="FirstName" class="error"></span> *@
-
+            <input asp-for="FirstName" class="input" type="text" placeholder="First name" />
 
             <!-- LAST NAME -->
-            <input asp-for="LastName"
-                   class="input"
-                   type="text"
-                   placeholder="Last name" />
-
-            @* <span asp-validation-for="LastName" class="error"></span> *@
-
+            <input asp-for="LastName" class="input" type="text" placeholder="Last name" />
 
             <!-- EMAIL -->
-            <input asp-for="Email"
-                   class="input"
-                   type="email"
-                   placeholder="Email" />
-
-            @* <span asp-validation-for="Email" class="error"></span> *@
-
-
-            <!-- PHONE -->
-            <div class="phone-field">
-
-                <span class="phone-prefix">+91</span>
-
-                <input asp-for="Phone"
-                       class="phone-input"
-                       type="tel"
-                       maxlength="10"
-                       placeholder="Phone number" />
-
+            <div style="position:relative;">
+                <input asp-for="Email"
+                       class="input"
+                       type="email"
+                       placeholder="Email"
+                       id="emailInput"
+                       oninput="onEmailInput()"
+                       style="margin-bottom:0;" />
+                <span id="verifiedIcon"
+                      style="display:none; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:#22c55e; font-size:18px;">
+                    ✓
+                </span>
             </div>
 
-            @* <span asp-validation-for="Phone" class="error"></span> *@
+            <!-- SEND OTP LINK — shows when email is valid -->
+            <div id="sendOtpRow" style="display:none; text-align:right; margin-top:4px;">
+                <a href="#" id="sendOtpLink" onclick="sendOtp(); return false;"
+                   style="font-size:13px; font-weight:500; color:#0066cc;">
+                    Send OTP
+                </a>
+            </div>
 
+            <!-- OTP ROW — shows after OTP sent -->
+            <div id="otpSection" style="display:none; margin-top:8px;">
+                <p style="font-size:13px; color:#666; margin-bottom:8px;">
+                    Enter the 6-digit code sent to <strong id="emailDisplay"></strong>
+                </p>
+                <div style="display:flex; gap:8px;">
+                    <input id="otpInput"
+                           class="input"
+                           type="text"
+                           maxlength="6"
+                           placeholder="Enter 6-digit OTP"
+                           style="flex:1; margin-bottom:0; text-align:center; letter-spacing:6px; font-weight:600;"
+                           oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+                    <button type="button"
+                            onclick="verifyOtp()"
+                            class="auth-btn"
+                            id="verifyBtn"
+                            style="width:auto; padding:11px 16px; margin-top:0; white-space:nowrap;">
+                        Verify
+                    </button>
+                </div>
+                <div style="text-align:right; margin-top:6px;">
+                    <a href="#" onclick="sendOtp(true); return false;"
+                       style="font-size:12px; color:#666;">
+                        Resend OTP
+                    </a>
+                </div>
+            </div>
 
-            <!-- ROLE -->
-            <select asp-for="SelectedRole" class="input">
-                <option value="">Select role</option>
+            <!-- PHONE -->
+            <div class="phone-field" style="margin-top:6px;">
+                <span class="phone-prefix">+91</span>
+                <input asp-for="Phone" class="phone-input" type="tel" maxlength="10" placeholder="Phone number" />
+            </div>
 
-                @if (Model.Roles != null)
-                {
-                    foreach (var role in Model.Roles)
-                    {
-                        <option value="@role">@role</option>
-                    }
-                }
-            </select>
-
-            @* <span asp-validation-for="SelectedRole" class="error"></span> *@
-
+            <!-- ROLE — locked until verified -->
+            <div style="position:relative;">
+                <select id="roleSelect"
+                        name="SelectedRole"
+                        class="input"
+                        disabled
+                        style="appearance:none; cursor:not-allowed; background:#f9f9f9; color:#aaa;">
+                    <option value="">Verify email to select role</option>
+                </select>
+                <div style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </div>
+            </div>
 
             <!-- PASSWORD -->
-            <input asp-for="Password"
-                   class="input"
-                   type="password"
-                   placeholder="Password" />
-
-            @* <span asp-validation-for="Password" class="error"></span> *@
-
+            <input asp-for="Password" class="input" type="password" placeholder="Password" />
 
             <!-- CONFIRM PASSWORD -->
-            <input asp-for="ConfirmPassword"
-                   class="input"
-                   type="password"
-                   placeholder="Confirm password" />
+            <input asp-for="ConfirmPassword" class="input" type="password" placeholder="Confirm password" />
 
-            @* <span asp-validation-for="ConfirmPassword" class="error"></span> *@
-
-
-            <!-- REGISTER BUTTON -->
-            <button type="submit" class="btn auth-btn">
-                Register
-            </button>
+            <!-- REGISTER -->
+            <button type="submit" class="auth-btn">Register</button>
 
         </form>
 
@@ -104,7 +106,8 @@
             Already have an account?
             <a asp-controller="Auth" asp-action="Login">Login</a>
         </div>
-
     </div>
-
 </div>
+
+
+<script src="~/js/register-otp.js?v=2"></script>

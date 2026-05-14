@@ -1,8 +1,8 @@
 ﻿using AIChatbot.web.Dto;
 using AIChatbot.web.Interfaces;
-using AIChatbot.web.Models.RoleManager;
+using AIChatbot.Web.Dto;
+using AIChatbot.Web.Interfaces;
 using System.Text.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AIChatbot.web.Services
 {
@@ -10,157 +10,112 @@ namespace AIChatbot.web.Services
     {
         private readonly ApiClient _apiClient;
         private readonly ILogger<RoleManagerService> _logger;
-        private const string BaseUrl = "/api/rolemanager/V1/role-engine";
 
         public RoleManagerService(ApiClient apiClient, ILogger<RoleManagerService> logger)
         {
             _apiClient = apiClient;
             _logger = logger;
         }
-        public async Task<RoleListDto> ListRoles()
+
+        public async Task<List<RoleDto>> GetAllRolesAsync()
         {
             try
             {
-                var response = await _apiClient.GetAsync("/List all roles");
-                if (response == null)
+                var response = await _apiClient.GetAsync("/api/rolemanager/V1/role-engine/LC1_listRoles");
+                if (response is { IsSuccessStatusCode: true })
                 {
-                    return new RoleListDto { success = false};
+                    var json = await response.Content.ReadAsStringAsync();
+                    var roles = JsonSerializer.Deserialize<List<RoleDto>>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                    return roles ?? new List<RoleDto>();
                 }
 
-                if (!response.IsSuccessStatusCode)
-                    throw new Exception("Role service returned an error");
-
-                var data = await response.Content.ReadFromJsonAsync<RoleListDto>();
-
-                if (data == null || !data.success)
-                    return new RoleListDto { success = false };
-
-                return data ?? new RoleListDto { success = false }; ;
-            }
-            catch (HttpRequestException ex)
-            {
-                throw new Exception("Unable to reach role service", ex);
-            }
-            catch (TaskCanceledException ex)
-            {
-                throw new Exception("Role service request timed out", ex);
-            }
-        }
-
-        public async Task<(bool Success, string Message)> CreateAdminAsync(CreateAdminRequest request)
-        {
-            try
-            {
-                var response = await _apiClient.PostAsync($"{BaseUrl}/HC2_gen", request);
-                if (response.IsSuccessStatusCode)
-                    return (true, "Admin created successfully.");
-                var error = await response.Content.ReadAsStringAsync();
-                return (false, $"Failed: {error}");
+                _logger.LogWarning("GetAllRoles failed. Status: {Status}", response?.StatusCode);
+                return new List<RoleDto>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error calling HC2_gen");
-                return (false, "An unexpected error occurred.");
+                _logger.LogError(ex, "Error fetching roles");
+                return new List<RoleDto>();
             }
         }
 
-        public async Task<(bool Success, List<RoleDto> Roles, string Message)> ListRolesAsync()
+        public async Task<bool> CreateRoleAsync(string roleName)
         {
             try
             {
-                var response = await _apiClient.GetAsync($"{BaseUrl}/LC1_listRoles");
-                if (response.IsSuccessStatusCode)
+                var response = await _apiClient.PostAsync(
+                    "/api/rolemanager/V1/role-engine/LC1_gen",
+                    new { roleName }
+                );
+                return response is { IsSuccessStatusCode: true };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating role: {RoleName}", roleName);
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteRoleAsync(string roleId)
+        {
+            try
+            {
+                var response = await _apiClient.DeleteWithBodyAsync(
+                    $"/api/rolemanager/V1/role-engine/Discard_Role/{roleId}",
+                    new { roleId }
+                );
+                return response is { IsSuccessStatusCode: true };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting role: {RoleId}", roleId);
+                return false;
+            }
+        }
+
+        public async Task<List<RoleUserDto>> GetUsersInRoleAsync(string roleId)
+        {
+            try
+            {
+                var response = await _apiClient.GetAsync(
+                    $"/api/rolemanager/V1/role-engine/LC1_listUser/{roleId}"
+                );
+                if (response is { IsSuccessStatusCode: true })
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    var roles = JsonSerializer.Deserialize<List<RoleDto>>(content,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
-                    return (true, roles, string.Empty);
+                    var json = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("GetUsersInRole response: {Json}", json);
+                    var users = JsonSerializer.Deserialize<List<RoleUserDto>>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                    return users ?? new List<RoleUserDto>();
                 }
-                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                    return (false, new(), "Access denied: SuperAdmin only.");
-                return (false, new(), "Failed to fetch roles.");
+                _logger.LogWarning("GetUsersInRole failed. Status: {Status}", response?.StatusCode);
+                return new List<RoleUserDto>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error calling LC1_listRoles");
-                return (false, new(), "An unexpected error occurred.");
+                _logger.LogError(ex, "Error fetching users for role: {RoleId}", roleId);
+                return new List<RoleUserDto>();
             }
         }
-
-        public async Task<(bool Success, string Message)> CreateRoleAsync(CreateRoleRequest request)
+        public async Task<bool> DeleteUserAsync(string userId)
         {
             try
             {
-                var response = await _apiClient.PostAsync($"{BaseUrl}/LC1_gen", request);
-                if (response.IsSuccessStatusCode)
-                    return (true, "Role created successfully.");
-                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                    return (false, "Access denied: SuperAdmin or Admin only.");
-                var error = await response.Content.ReadAsStringAsync();
-                return (false, $"Failed: {error}");
+                var response = await _apiClient.DeleteWithBodyAsync(
+                    $"/api/rolemanager/V1/role-engine/Discard_user/{userId}",
+                    new { userId }
+                );
+                return response is { IsSuccessStatusCode: true };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error calling LC1_gen");
-                return (false, "An unexpected error occurred.");
-            }
-        }
-
-        public async Task<(bool Success, string Message)> DiscardRoleAsync(string roleId)
-        {
-            try
-            {
-                var response = await _apiClient.DeleteAsync($"{BaseUrl}/Discard_Role/{roleId}");
-                if (response.IsSuccessStatusCode)
-                    return (true, "Role deleted successfully.");
-                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                    return (false, "Access denied: SuperAdmin only.");
-                return (false, "Failed to delete role.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error calling Discard_Role");
-                return (false, "An unexpected error occurred.");
-            }
-        }
-
-        public async Task<(bool Success, List<UserDto> Users, string Message)> ListUsersAsync(string roleId)
-        {
-            try
-            {
-                var response = await _apiClient.GetAsync($"{BaseUrl}/LC1_listUser/{roleId}");
-                if (response.IsSuccessStatusCode)
-                {
-                    var content = await response.Content.ReadAsStringAsync();
-                    var users = JsonSerializer.Deserialize<List<UserDto>>(content,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
-                    return (true, users, string.Empty);
-                }
-                if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                    return (false, new(), "Access denied: SuperAdmin only.");
-                return (false, new(), "Failed to fetch users.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error calling LC1_listUser");
-                return (false, new(), "An unexpected error occurred.");
-            }
-        }
-
-        public async Task<(bool Success, string Message)> DiscardUserAsync(string userId)
-        {
-            try
-            {
-                var response = await _apiClient.DeleteAsync($"{BaseUrl}/Discard_user/{userId}");
-                if (response.IsSuccessStatusCode)
-                    return (true, "User deleted successfully.");
-                var error = await response.Content.ReadAsStringAsync();
-                return (false, $"Failed: {error}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error calling Discard_user");
-                return (false, "An unexpected error occurred.");
+                _logger.LogError(ex, "Error deleting user: {UserId}", userId);
+                return false;
             }
         }
     }

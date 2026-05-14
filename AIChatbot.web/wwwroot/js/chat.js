@@ -57,6 +57,13 @@ async function loadSessions() {
         if (!res.ok) throw "fail";
         let data = await res.json();
 
+        // ✅ NEW: handle empty session list
+        if (!data || data.length === 0) {
+            document.getElementById("historyList").innerHTML =
+                "<div class='text-muted p-2'>No recent chats</div>";
+            return;
+        }
+
         let html = "";
         data.forEach(s => {
             let topic = s.topicName || "New Chat";
@@ -225,7 +232,6 @@ async function deleteSession(id) {
 // ================= UI HELPERS =================
 
 function appendMessage(role, text) {
-    // Switch to chatting mode — moves input to bottom
     setChatting();
 
     const wrap = document.createElement("div");
@@ -287,7 +293,6 @@ function showRetryButton() {
 // ================= DOM READY =================
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Set initial empty/centered state
     setChatEmpty();
 
     const messageInput = document.getElementById("messageInput");

@@ -1,30 +1,22 @@
 ﻿<script>
-
     var successMessage = '@TempData["Success"]';
     var errorMessage = '@TempData["Error"]';
-
     var validationErrors = @Html.Raw(
-                System.Text.Json.JsonSerializer.Serialize(
-                        TempData["ValidationErrors"] ?? new List<string>()
-                )
-        );
-
+                                System.Text.Json.JsonSerializer.Serialize(
+                                                TempData["ValidationErrors"] ?? new List<string>()
+                                )
+                );
     document.addEventListener("DOMContentLoaded", function () {
-
-        if (successMessage) {
+        if (successMessage && successMessage.trim() !== '') {
             toastr.success(successMessage);
         }
-
-        if (errorMessage) {
+        if (errorMessage && errorMessage.trim() !== '') {
             toastr.error(errorMessage);
         }
-
         if (validationErrors.length > 0) {
             validationErrors.forEach(function (err) {
                 toastr.error(err);
             });
         }
-
     });
-
 </script>

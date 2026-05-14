@@ -141,39 +141,39 @@ namespace AIChatbot.web.Controllers
             }
         }
 
-        [HttpGet]
-        public IActionResult LoadConnectionModal()
-        {
-            var model = new SqlConnectionViewModel();
-            return PartialView("~/Views/Settings/_SqlConnectionModal.cshtml", model);
-        }
+        //[HttpGet]
+        //public IActionResult LoadConnectionModal()
+        //{
+        //    var model = new SqlConnectionViewModel();
+        //    return PartialView("~/Views/Settings/_SqlConnectionModal.cshtml", model);
+        //}
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult ConnectDatabase(SqlConnectionViewModel connection)
-        {
-            if (!ModelState.IsValid)
-                return RedirectToAction("Index");
-            TempData["ConnectionSuccess"] = "Connected Successfully!";
-            return RedirectToAction("Index");
-        }
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public IActionResult ConnectDatabase(SqlConnectionViewModel connection)
+        //{
+        //    if (!ModelState.IsValid)
+        //        return RedirectToAction("Index");
+        //    TempData["ConnectionSuccess"] = "Connected Successfully!";
+        //    return RedirectToAction("Index");
+        //}
 
-        [HttpGet]
-        public IActionResult Dash()
-        {
-            var model = new ChatPageModel
-            {
-                UserName = User.Identity?.Name ?? "Guest",
-                Sessions = new List<ChatSessionDto>
-                {
-                    new ChatSessionDto { Id = Guid.NewGuid(), TopicName = "First Chat" },
-                    new ChatSessionDto { Id = Guid.NewGuid(), TopicName = "Second Chat" }
-                },
-                CurrentSessionId = null,
-                CurrentSessionMessages = new List<ChatMessageDto>()
-            };
-            return View("Dash", model);
-        }
+        //[HttpGet]
+        //public IActionResult Dash()
+        //{
+        //    var model = new ChatPageModel
+        //    {
+        //        UserName = User.Identity?.Name ?? "Guest",
+        //        Sessions = new List<ChatSessionDto>
+        //        {
+        //            new ChatSessionDto { Id = Guid.NewGuid(), TopicName = "First Chat" },
+        //            new ChatSessionDto { Id = Guid.NewGuid(), TopicName = "Second Chat" }
+        //        },
+        //        CurrentSessionId = null,
+        //        CurrentSessionMessages = new List<ChatMessageDto>()
+        //    };
+        //    return View("Dash", model);
+        //}
 
         [HttpPost]
         public IActionResult OpenSession(Guid sessionId) =>
@@ -202,7 +202,7 @@ namespace AIChatbot.web.Controllers
             return RedirectToAction("Index", new { sessionId = chatSessionId });
         }
     }
-
+    
     public class DeleteSessionRequest { public Guid SessionId { get; set; } }
     public class RetryRequest { public Guid SessionId { get; set; } public Guid MessageId { get; set; } }
 }

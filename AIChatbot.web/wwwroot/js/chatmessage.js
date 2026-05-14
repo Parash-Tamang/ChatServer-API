@@ -42,8 +42,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindEvents();
     const ta = document.getElementById('messageInput');
     ta.addEventListener('input', () => autoResizeTextarea(ta));
-    autoResizeTextarea(ta)//for the intilazing the 
-    // auto-open session from URL on refresh
+    autoResizeTextarea(ta);
+
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('sessionId');
     if (sessionId) await openSession(sessionId);
@@ -93,17 +93,16 @@ function renderSessionList() {
     sessions.forEach(s => {
         const title = s.topicName || 'New Chat';
         const div = document.createElement('div');
-        div.className = 'session-item d-flex justify-content-between align-items-center' +
-            (s.id === currentSessionId ? ' active' : '');
+        div.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
         div.dataset.id = s.id;
         div.innerHTML = `
             <button class="btn btn-link session-title"
-                    style="color:inherit;text-decoration:none;text-align:left;padding:8px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                    style="color:inherit;text-decoration:none;text-align:left;padding:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;"
                     onclick="openSession('${s.id}')">
                 ${escHtml(title)}
             </button>
-            <div class="dropdown">
-                <i class="bi bi-three-dots-vertical" data-bs-toggle="dropdown" style="cursor:pointer;"></i>
+            <div class="dropdown" onclick="event.stopPropagation()">
+                <i class="bi bi-three-dots-vertical" data-bs-toggle="dropdown" style="cursor:pointer;font-size:13px;color:#999;"></i>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><button class="dropdown-item text-danger" onclick="deleteSession('${s.id}', event)">Delete</button></li>
                 </ul>
@@ -126,6 +125,9 @@ async function openSession(sessionId) {
     renderSessionList();
     clearMessages();
     showTypingIndicator();
+
+    
+    }
 
     try {
         const res = await fetch(`/Chat/GetMessages?sessionId=${sessionId}`);
@@ -160,6 +162,7 @@ function startNewChat() {
     clearMessages();
     showEmptyState();
     renderSessionList();
+
     document.getElementById('messageInput').focus();
 }
 
@@ -203,7 +206,8 @@ async function sendMessage() {
             sessions.unshift({ id: currentSessionId, topicName: topic, createdAt: sentMessageTime });
             renderSessionList();
 
-            // update URL with new session
+         
+
             const url = new URL(window.location);
             url.searchParams.set('sessionId', currentSessionId);
             window.history.pushState({}, '', url);
@@ -289,7 +293,7 @@ async function deleteSession(sessionId, event) {
 }
 
 // ═══════════════════════════════════════════════════════
-//  APPEND MESSAGE — renders markdown + table + excel btn
+//  APPEND MESSAGE — centered layout with avatar
 // ═══════════════════════════════════════════════════════
 function appendMessage(role, content, isoTime, columns, rows) {
     const container = document.getElementById('messagesContainer');
@@ -298,28 +302,36 @@ function appendMessage(role, content, isoTime, columns, rows) {
         ? new Date(isoTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : '';
 
-    const wrap = document.createElement('div');
-    wrap.className = `d-flex flex-column ${isUser ? 'align-items-end' : 'align-items-start'}`;
+    // Outer row
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (isUser ? 'user' : 'bot');
 
+    if (!isUser) {
+        // Avatar for bot
+        const avatar = document.createElement('div');
+        avatar.className = 'msg-avatar';
+        avatar.textContent = 'AI';
+        row.appendChild(avatar);
+    }
+
+    // Column wrapper (bubble + time + excel btn)
+    const col = document.createElement('div');
+    col.style.cssText = `display:flex;flex-direction:column;${isUser ? 'align-items:flex-end;' : 'flex:1;min-width:0;'}`;
+
+    // Bubble
     const bubble = document.createElement('div');
-    bubble.className = `msg ${isUser ? 'user' : 'bot'}`;
+    bubble.className = 'msg ' + (isUser ? 'user' : 'bot');
 
     if (isUser) {
-        // user messages — plain escaped text
         bubble.textContent = content;
     } else {
-        // AI messages — render markdown
         bubble.classList.add('markdown-body');
         bubble.innerHTML = marked.parse(content || '');
     }
 
-    const timeEl = document.createElement('div');
-    timeEl.className = 'msg-time';
-    timeEl.textContent = time;
+    col.appendChild(bubble);
 
-    wrap.appendChild(bubble);
-
-    // Excel download button — only if structured data exists
+    // Excel download button
     if (!isUser && columns?.length > 0 && rows?.length > 0) {
         const btnWrap = document.createElement('div');
         btnWrap.className = 'mt-1';
@@ -328,11 +340,17 @@ function appendMessage(role, content, isoTime, columns, rows) {
         btn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Download Excel';
         btn.addEventListener('click', () => downloadExcel(columns, rows));
         btnWrap.appendChild(btn);
-        wrap.appendChild(btnWrap);
+        col.appendChild(btnWrap);
     }
 
-    wrap.appendChild(timeEl);
-    container.appendChild(wrap);
+    // Timestamp
+    const timeEl = document.createElement('div');
+    timeEl.className = 'msg-time';
+    timeEl.textContent = time;
+    col.appendChild(timeEl);
+
+    row.appendChild(col);
+    container.appendChild(row);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -340,31 +358,22 @@ function appendMessage(role, content, isoTime, columns, rows) {
 // ═══════════════════════════════════════════════════════
 function downloadExcel(columns, rows) {
     try {
-        // Build header row from column names
         const header = columns.map(c => c.name);
-
-        // Build data rows — convert each cell to a plain value
         const data = rows.map(row =>
             row.map(cell => {
                 if (cell === null || cell === undefined) return '';
-                // JsonElement comes as object from JSON — get its value
                 if (typeof cell === 'object' && cell.toString) {
                     const str = String(cell);
-                    // skip binary/gif data
                     if (str.length > 200) return '[binary data]';
                     return str;
                 }
                 return cell;
             })
         );
-
-        // Create worksheet
         const wsData = [header, ...data];
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Data');
-
-        // Download
         const fileName = `export_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
         showSuccess('Excel file downloaded.');
@@ -379,26 +388,49 @@ function downloadExcel(columns, rows) {
 function showTypingIndicator() {
     removeTypingIndicator();
     const container = document.getElementById('messagesContainer');
-    const el = document.createElement('div');
-    el.id = 'typingIndicator';
-    el.className = 'd-flex flex-column align-items-start';
-    el.innerHTML = `<div class="msg bot p-0"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
-    container.appendChild(el);
+    const row = document.createElement('div');
+    row.id = 'typingIndicator';
+    row.className = 'msg-row bot';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = 'AI';
+
+    const indicator = document.createElement('div');
+    indicator.className = 'typing-indicator';
+    indicator.innerHTML = '<span></span><span></span><span></span>';
+
+    row.appendChild(avatar);
+    row.appendChild(indicator);
+    container.appendChild(row);
     scrollToBottom();
 }
 
 function removeTypingIndicator() { document.getElementById('typingIndicator')?.remove(); }
 
 function clearMessages() {
-    document.getElementById('messagesContainer').innerHTML =
-        '<div class="text-center mt-5 text-muted" id="emptyState" style="display:none;">' +
-        '<h5>Start a conversation</h5><div>Ask anything. The AI is ready.</div></div>';
+    const container = document.getElementById('messagesContainer');
+    container.innerHTML =
+        `<div id="emptyState" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:8px;padding:80px 20px;text-align:center;">
+            <h5 style="font-size:22px;font-weight:500;color:#333;margin:0;">Start a conversation</h5>
+            <div style="font-size:14px;color:#999;">Ask anything. The AI is ready.</div>
+        </div>`;
 }
 
-function showEmptyState() { const el = document.getElementById('emptyState'); if (el) el.style.display = ''; }
-function hideEmptyState() { const el = document.getElementById('emptyState'); if (el) el.style.display = 'none'; }
-function scrollToBottom() { const c = document.getElementById('messagesContainer'); c.scrollTop = c.scrollHeight; }
+function showEmptyState() {
+    const el = document.getElementById('emptyState');
+    if (el) el.style.display = 'flex';
+}
 
+function hideEmptyState() {
+    const el = document.getElementById('emptyState');
+    if (el) el.style.display = 'none';
+}
+
+function scrollToBottom() {
+    const c = document.getElementById('messagesContainer');
+    c.scrollTop = c.scrollHeight;
+}
 
 function setSendLoading(loading) {
     const btn = document.getElementById('sendBtn');
@@ -407,7 +439,6 @@ function setSendLoading(loading) {
     document.getElementById('sendIcon').style.opacity = loading ? '0.5' : '1';
 }
 
-    
 function autoResizeTextarea(el) {
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
@@ -434,4 +465,4 @@ async function loadRoleManagerModal() {
         document.getElementById('modalContainer').innerHTML = await response.text();
         new bootstrap.Modal(document.getElementById('roleManagerModal')).show();
     } catch { showError('Oops! Could not load the role manager.'); }
-}
+}   

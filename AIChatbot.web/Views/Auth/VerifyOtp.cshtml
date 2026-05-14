@@ -1,0 +1,49 @@
+﻿@using AIChatbot.web.Models.Auth
+@model VerifyOtpModel
+@{
+    Layout = "_Layout";
+    ViewData["FullPage"] = true;
+}
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="text-center mb-3">
+            <i class="bi bi-shield-check" style="font-size:32px;"></i>
+        </div>
+        <div class="auth-title">Enter OTP</div>
+        <p class="auth-subtitle">
+            We sent a 6-digit code to <strong>@Model.Email</strong>. 
+            It expires in 10 minutes.
+        </p>
+
+        <form method="post" asp-action="VerifyOtp" asp-controller="Auth">
+            @Html.AntiForgeryToken()
+
+            <!-- carry email forward -->
+            <input type="hidden" asp-for="Email" name="email" />
+
+            <!-- OTP boxes -->
+            <div class="otp-group">
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            </div>
+            <!-- single hidden input that gets filled by JS before submit -->
+            <input type="hidden" name="otp" id="otpValue" asp-for="Otp" />
+            
+
+            <button type="submit" class="auth-btn" id="verifyBtn">Verify OTP</button>
+        </form>
+
+        <div class="auth-link">
+            Didn't receive it?
+            <a href="/Auth/ForgotPassword">Resend OTP</a>
+        </div>
+    </div>
+</div>
+
+
+<script src="~/js/otpverify.js" asp-append-version="true"></script>
