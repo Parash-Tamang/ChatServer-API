@@ -1,6 +1,7 @@
-﻿using AIChatbot.Web.Dto;
+﻿using AIChatbot.web.Dto;
 
-namespace AIChatbot.Web.Interfaces
+
+namespace AIChatbot.web.Interfaces
 {
     public interface IRoleManagerService
     {
@@ -9,5 +10,8 @@ namespace AIChatbot.Web.Interfaces
         Task<bool> DeleteRoleAsync(string roleId);
         Task<List<RoleUserDto>> GetUsersInRoleAsync(string roleId);
         Task<bool> DeleteUserAsync(string userId);
+        //for assignment of the db to roles 
+        Task<bool> AssignRoleToConnectionAsync(string roleId, Guid connectionId);
+        Task<List<RoleConnectionDto>> GetRoleConnectionsAsync(string roleId);
     }
 }

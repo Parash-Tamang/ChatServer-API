@@ -3,7 +3,7 @@ using AIChatbot.web.Filters;
 using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.Admin;
 using AIChatbot.web.Services;
-using AIChatbot.Web.Interfaces;
+ 
 using Microsoft.AspNetCore.Mvc;
 
 
@@ -21,8 +21,8 @@ namespace AIChatbot.web.Controllers
         }
         private readonly IAdminPromptService _adminPromptService;
 
-       
- 
+
+
 
         public IActionResult Dashboard() => View();
         public IActionResult ConfigureDatabases() => View();
@@ -35,7 +35,7 @@ namespace AIChatbot.web.Controllers
         }
 
 
-        
+
 
         //[ServiceFilter(typeof(SuperAdminFilter))]
         public async Task<IActionResult> DatabaseConnections()
@@ -108,7 +108,7 @@ namespace AIChatbot.web.Controllers
         /// <summary>
         /// prompts view 
         /// </summary>
-      
+
         [HttpGet]
         public async Task<IActionResult> GetGlobalFunctions()
         {
@@ -204,7 +204,7 @@ namespace AIChatbot.web.Controllers
                 : new { success = false, message = "Failed to delete role. Please try again." });
         }
 
-        // GET: /Admin/GetUsersInRole?roleId=xxx  (AJAX)
+        // GET: 
         [HttpGet]
         public async Task<IActionResult> GetUsersInRole(string roleId)
         {
@@ -227,13 +227,48 @@ namespace AIChatbot.web.Controllers
                 ? new { success = true, message = "User deleted successfully." }
                 : new { success = false, message = "Failed to delete user. Please try again." });
         }
+
+        // GET: /Admin/GetConnections  (AJAX — for assign DB to role dropdown)
+        [HttpGet]
+        public async Task<IActionResult> GetConnections()
+        {
+            var connections = await _connectionService.GetAllConnectionsAsync();
+            var mapped = connections.Select(c => new
+            {
+                id = c.Id,
+                name = $"{c.ServerName} / {c.DatabaseName}"
+            });
+            return Json(new { success = true, data = mapped });
+        }
+
+        // POST: /Admin/AssignRoleToConnection  (AJAX)
+        [HttpPost]
+        public async Task<IActionResult> AssignRoleToConnection([FromBody] AssignRoleConnectionDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.RoleId) || request.ConnectionId == Guid.Empty)
+                return Json(new { success = false, message = "Role and connection are required." });
+
+            var result = await _roleManagerService.AssignRoleToConnectionAsync(request.RoleId, request.ConnectionId);
+            return Json(result
+                ? new { success = true, message = "Role assigned to database successfully." }
+                : new { success = false, message = "Failed to assign role. Please try again." });
+        }
+        // GET: /Admin/GetRoleDbAccess?roleId=xxx  (AJAX)
+        [HttpGet]
+        public async Task<IActionResult> GetRoleDbAccess(string roleId)
+        {
+            if (string.IsNullOrWhiteSpace(roleId))
+                return Json(new { success = false, message = "Role ID ias required." });
+
+            var assignments = await _roleManagerService.GetRoleConnectionsAsync(roleId);
+            return Json(new { success = true, data = assignments });
+        }
+
+        // Request models (add these inside the Controllers namespace or a separate file)
+        public class CreateRoleRequest { public string RoleName { get; set; } = string.Empty; }
+        public class DeleteRoleRequest { public string RoleId { get; set; } = string.Empty; }
+        public class DeleteUserRequest { public string UserId { get; set; } = string.Empty; }
     }
-
-    // Request models (add these inside the Controllers namespace or a separate file)
-    public class CreateRoleRequest { public string RoleName { get; set; } = string.Empty; }
-    public class DeleteRoleRequest { public string RoleId { get; set; } = string.Empty; }
-    public class DeleteUserRequest { public string UserId { get; set; } = string.Empty; }
 }
-
 
 

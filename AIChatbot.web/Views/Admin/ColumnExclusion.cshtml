@@ -1,0 +1,178 @@
+﻿@model List<AIChatbot.web.Dto.ConnectionRequestDto>
+@{
+    ViewData["Title"] = "Column Exclusions";
+    Layout = "_AdminLayout";
+}
+<link rel="stylesheet" href="~/css/column-exclusion.css" asp-append-version="true" />
+
+<div class="ce-page">
+
+    <div class="ce-page-header">
+        <div>
+            <h2 class="ce-page-title">Column Exclusions</h2>
+            <p class="ce-page-sub">Manage which columns are hidden from the AI per database</p>
+        </div>
+        <button class="ce-btn-primary" id="btn-new-exclusion" onclick="openExclusionFlow()">
+            <i class="bi bi-eye-slash"></i> New Exclusion
+        </button>
+    </div>
+
+    <!-- Summary metric cards -->
+    <div class="ce-metrics" id="ce-metrics">
+        <div class="ce-metric-card">
+            <p class="ce-metric-value" id="metric-dbs">—</p>
+            <p class="ce-metric-label">databases with exclusions</p>
+        </div>
+        <div class="ce-metric-card">
+            <p class="ce-metric-value" id="metric-tables">—</p>
+            <p class="ce-metric-label">tables affected</p>
+        </div>
+        <div class="ce-metric-card">
+            <p class="ce-metric-value" id="metric-columns">—</p>
+            <p class="ce-metric-label">columns excluded</p>
+        </div>
+    </div>
+
+    <!-- Summary Table -->
+    <div class="ce-card" id="ce-summary-card">
+        <div class="ce-summary-header">
+            <div class="ce-col-db">Database</div>
+            <div class="ce-col-table">Table</div>
+            <div class="ce-col-cols">Excluded columns</div>
+            <div class="ce-col-action"></div>
+        </div>
+
+        <div id="summary-loading" class="ce-loading-state">
+            <div class="ce-spinner"></div>
+            <p>Loading exclusions...</p>
+        </div>
+
+        <div id="summary-empty" class="ce-empty-state" style="display:none;">
+            <i class="bi bi-eye-slash"></i>
+            <p>No exclusions configured yet. Click "New Exclusion" to get started.</p>
+        </div>
+
+        <div id="summary-list"></div>
+    </div>
+
+    <!-- ============ EXCLUSION FLOW PANEL ============ -->
+    <div class="ce-card" id="ce-flow-panel" style="display:none;">
+
+        <div class="ce-flow-header">
+            <button class="ce-back-btn" onclick="closeExclusionFlow()">
+                <i class="bi bi-arrow-left"></i> Back to summary
+            </button>
+            <div class="ce-steps">
+                <div class="ce-step active" id="step-indicator-1">
+                    <span class="ce-step-num">1</span>
+                    <span class="ce-step-label">Database</span>
+                </div>
+                <div class="ce-step-line"></div>
+                <div class="ce-step" id="step-indicator-2">
+                    <span class="ce-step-num">2</span>
+                    <span class="ce-step-label">Tables</span>
+                </div>
+                <div class="ce-step-line"></div>
+                <div class="ce-step" id="step-indicator-3">
+                    <span class="ce-step-num">3</span>
+                    <span class="ce-step-label">Columns</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1: Select DB -->
+        <div id="flow-step-1" class="ce-flow-step">
+            <p class="ce-step-title">Select a database</p>
+            <div class="ce-form-group">
+                <label class="ce-label">Database connection <span class="ce-required">*</span></label>
+                <select id="flow-conn-select" class="ce-input" style="max-width:420px;">
+                    <option value="">— select a connection —</option>
+                    @foreach (var c in Model)
+                    {
+                        <option value="@c.Id">@c.ServerName / @c.DatabaseName</option>
+                    }
+                </select>
+            </div>
+            <button class="ce-btn-primary" onclick="goToStep2()">
+                Next <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Step 2: Select Table -->
+        <div id="flow-step-2" class="ce-flow-step" style="display:none;">
+            <p class="ce-step-title">Select a table</p>
+            <p class="ce-step-sub" id="step2-sub">Click a table to configure its columns</p>
+
+            <div id="step2-loading" class="ce-loading-state">
+                <div class="ce-spinner"></div>
+                <p>Loading schema...</p>
+            </div>
+
+            <div id="step2-content" style="display:none;">
+                <div class="ce-schema-layout">
+                    <!-- schema/table tree -->
+                    <div class="ce-table-list" id="table-list"></div>
+                    <!-- columns panel -->
+                    <div class="ce-col-panel" id="col-panel" style="display:none;">
+                        <div class="ce-col-panel-header">
+                            <p class="ce-col-panel-title" id="col-panel-title">Columns</p>
+                            <label class="ce-check-all-wrap">
+                                <input type="checkbox" id="chk-select-all" onchange="toggleSelectAll(this)" />
+                                <span>Exclude whole table</span>
+                            </label>
+                        </div>
+                        <div class="ce-col-list" id="col-list"></div>
+                        <div class="ce-col-panel-footer">
+                            <button class="ce-btn-primary" onclick="saveCurrentTable()">
+                                <i class="bi bi-check-lg"></i> Apply to this table
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ce-flow-footer">
+                    <button class="ce-btn-ghost" onclick="goToStep1()">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                    <button class="ce-btn-primary" onclick="goToStep3()">
+                        Review & save <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Review & Save -->
+        <div id="flow-step-3" class="ce-flow-step" style="display:none;">
+            <p class="ce-step-title">Review exclusions</p>
+            <p class="ce-step-sub">These columns will be hidden from the AI for the selected database.</p>
+
+            <div id="step3-empty" class="ce-empty-state" style="display:none;">
+                <i class="bi bi-eye"></i>
+                <p>No columns selected for exclusion. Go back and select some.</p>
+            </div>
+
+            <div id="step3-list" class="ce-review-list"></div>
+
+            <div class="ce-flow-footer">
+                <button class="ce-btn-ghost" onclick="goToStep2()">
+                    <i class="bi bi-arrow-left"></i> Back
+                </button>
+                <button class="ce-btn-primary" id="btn-save-exclusions" onclick="saveAllExclusions()">
+                    <i class="bi bi-floppy"></i> Save exclusions
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- hidden connections data for JS -->
+<script id="connections-data" type="application/json">
+    @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Select(c => new {
+        id = c.Id,
+                name = c.ServerName + " / " + c.DatabaseName
+        })))
+</script>
+
+<script src="~/js/column-exclusion.js" asp-append-version="true"></script>

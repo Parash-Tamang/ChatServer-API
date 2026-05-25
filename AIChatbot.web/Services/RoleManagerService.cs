@@ -1,7 +1,6 @@
 ﻿using AIChatbot.web.Dto;
 using AIChatbot.web.Interfaces;
-using AIChatbot.Web.Dto;
-using AIChatbot.Web.Interfaces;
+
 using System.Text.Json;
 
 namespace AIChatbot.web.Services
@@ -118,5 +117,52 @@ namespace AIChatbot.web.Services
                 return false;
             }
         }
+
+        //for givingte acess to te roles
+        public async Task<bool> AssignRoleToConnectionAsync(string roleId, Guid connectionId)
+        {
+            try
+            {
+                var response = await _apiClient.PostAsync(
+                    "/api/access/V1/Data-Setup-engine/Role-and-DB/assign",
+                    new { roleId, connectionId }
+                );
+                return response is { IsSuccessStatusCode: true };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error assigning role {RoleId} to connection {ConnectionId}", roleId, connectionId);
+                return false;
+            }
+        }
+
+
+        // ✅ NEW
+        public async Task<List<RoleConnectionDto>> GetRoleConnectionsAsync(string roleId)
+        {
+            try
+            {
+                var response = await _apiClient.GetAsync(
+                    $"/api/access/V1/Data-Setup-engine/Role-and-DB/{roleId}"
+                );
+                if (response is { IsSuccessStatusCode: true })
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("GetRoleConnections response: {Json}", json);
+                    var result = JsonSerializer.Deserialize<List<RoleConnectionDto>>(json,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    return result ?? new List<RoleConnectionDto>();
+                }
+                _logger.LogWarning("GetRoleConnections failed. Status: {Status}", response?.StatusCode);
+                return new List<RoleConnectionDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching connections for role: {RoleId}", roleId);
+                return new List<RoleConnectionDto>();
+            }
+
+        }
+
     }
 }

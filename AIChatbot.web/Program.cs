@@ -3,7 +3,7 @@ using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.Auth;
 using AIChatbot.web.Services;
 using AIChatbot.web.Validators;
-using AIChatbot.Web.Interfaces;
+
 using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +31,7 @@ builder.Services.AddScoped<IAdminPromptService, AdminPromptService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IRoleManagerService, RoleManagerService>();
+builder.Services.AddScoped<IColumnExclusionService, ColumnExclusionService>();
 
 // Auth filter (for protecting dashboard/chat)
 builder.Services.AddScoped<AuthFilter>();

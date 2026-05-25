@@ -44,8 +44,29 @@
                 <p>Click a role to see its members</p>
             </div>
         </div>
-    </div>
 
+        <div class="rm-action-card" id="card-assign-db" onclick="switchPanel('assign-db')">
+            <div class="rm-card-icon icon-blue">
+                <i class="bi bi-database-lock"></i>
+            </div>
+            <div class="rm-card-text">
+                <h4>Assign DB to Role</h4>
+                <p>Grant a role database access</p>
+            </div>
+        </div>
+
+        <!-- ✅ FIXED: inside rm-action-cards -->
+        <div class="rm-action-card" id="card-view-access" onclick="switchPanel('view-access')">
+            <div class="rm-card-icon icon-green">
+                <i class="bi bi-database-gear"></i>
+            </div>
+            <div class="rm-card-text">
+                <h4>Role DB Access</h4>
+                <p>View &amp; edit assigned databases</p>
+            </div>
+        </div>
+
+    </div><!-- end rm-action-cards -->
     <!-- ============ PANEL: CREATE ROLE ============ -->
     <div class="rm-panel" id="panel-create">
         <div class="rm-panel-header">
@@ -57,12 +78,14 @@
 
         <div class="rm-form-group">
             <label class="rm-label">Role Name <span class="required">*</span></label>
-            <input type="text" id="input-role-name" class="rm-input" placeholder="e.g. Manager, Viewer, Editor..." maxlength="100" />
+            <input type="text" id="input-role-name" class="rm-input"
+                   placeholder="e.g. Manager, Viewer, Editor..." maxlength="100" />
         </div>
 
         <div class="rm-form-group">
             <label class="rm-label">Description <span class="optional">(optional)</span></label>
-            <input type="text" id="input-role-desc" class="rm-input" placeholder="What can this role do?" maxlength="200" />
+            <input type="text" id="input-role-desc" class="rm-input"
+                   placeholder="What can this role do?" maxlength="200" />
         </div>
 
         <button class="rm-btn-primary" id="btn-create-role" onclick="createRole()">
@@ -105,7 +128,8 @@
             </div>
             <div class="rm-search-wrap">
                 <i class="bi bi-search"></i>
-                <input type="text" id="users-search" placeholder="Search members..." oninput="filterUsers()" />
+                <input type="text" id="users-search" placeholder="Search members..."
+                       oninput="filterUsers()" />
             </div>
         </div>
 
@@ -122,8 +146,83 @@
         <div class="rm-users-list" id="users-list" style="display:none;"></div>
     </div>
 
-</div>
+    <!-- ============ PANEL: ASSIGN DB TO ROLE ============ -->
+    <div class="rm-panel" id="panel-assign-db" style="display:none;">
+        <div class="rm-panel-header">
+            <i class="bi bi-database-lock text-blue"></i>
+            <span>Assign Database to Role</span>
+        </div>
 
+        <p class="rm-page-sub" style="margin-bottom: 1.5rem;">
+            Select a role and the database connection you want to grant it access to.
+        </p>
+
+        <!-- Role dropdown -->
+        <div class="rm-form-group">
+            <label class="rm-label">Role <span class="required">*</span></label>
+            <select id="assign-role-select" class="rm-input" onchange="updateAssignPreview()">
+                <option value="">— loading roles —</option>
+            </select>
+        </div>
+
+        <!-- Connection dropdown -->
+        <div class="rm-form-group">
+            <label class="rm-label">Database Connection <span class="required">*</span></label>
+            <select id="assign-conn-select" class="rm-input" onchange="updateAssignPreview()">
+                <option value="">— loading connections —</option>
+            </select>
+        </div>
+
+        <!-- Live preview -->
+        <div id="assign-preview" class="rm-assign-preview" style="display:none;">
+            <i class="bi bi-arrow-right-circle-fill"></i>
+            <span id="assign-preview-text"></span>
+        </div>
+
+        <button class="rm-btn-primary" id="btn-assign-db" onclick="assignRoleToDb()">
+            <i class="bi bi-database-check"></i> Confirm Assignment
+        </button>
+    </div>
+
+    <!-- ============ PANEL: VIEW / EDIT ROLE DB ACCESS ============ -->
+    <!-- ✅ FIXED: sibling of other panels, NOT nested inside panel-assign-db -->
+    <div class="rm-panel" id="panel-view-access" style="display:none;">
+        <div class="rm-panel-header">
+            <i class="bi bi-database-gear text-green"></i>
+            <span>Role DB Access</span>
+        </div>
+
+        <p class="rm-page-sub" style="margin-bottom:1.25rem;">
+            Select a role to see its assigned database. You can reassign it using the dropdown.
+        </p>
+
+        <!-- Role picker -->
+        <div class="rm-form-group">
+            <label class="rm-label">Select Role <span class="required">*</span></label>
+            <select id="view-role-select" class="rm-input" onchange="loadRoleDbAccess()">
+                <option value="">— loading roles —</option>
+            </select>
+        </div>
+
+        <!-- Loading state -->
+        <div id="view-access-loading" class="rm-loading-state" style="display:none;">
+            <div class="rm-spinner"></div>
+            <p>Loading assignments...</p>
+        </div>
+
+        <!-- Empty state -->
+        <div id="view-access-empty" class="rm-empty-state" style="display:none;">
+            <i class="bi bi-database-x"></i>
+            <p>No database assigned to this role yet.</p>
+        </div>
+
+        <!-- Assignments list -->
+        <div id="view-access-list" style="display:none;">
+            <div class="rm-access-list" id="view-access-items"></div>
+        </div>
+    </div>
+
+</div><!-- end rm-page -->
 <!-- ============ DELETE ROLE MODAL ============ -->
 <div class="rm-overlay" id="modal-delete-role" style="display:none;">
     <div class="rm-modal">
@@ -131,7 +230,10 @@
             <i class="bi bi-shield-x"></i>
         </div>
         <h5 class="rm-modal-title">Delete Role</h5>
-        <p class="rm-modal-body">Are you sure you want to delete the role <strong id="modal-role-name"></strong>? This action cannot be undone.</p>
+        <p class="rm-modal-body">
+            Are you sure you want to delete the role
+            <strong id="modal-role-name"></strong>? This action cannot be undone.
+        </p>
         <div class="rm-modal-actions">
             <button class="rm-btn-ghost" onclick="closeModal('modal-delete-role')">Cancel</button>
             <button class="rm-btn-danger" id="btn-confirm-delete-role" onclick="confirmDeleteRole()">
@@ -148,7 +250,11 @@
             <i class="bi bi-person-x"></i>
         </div>
         <h5 class="rm-modal-title">Delete User Account</h5>
-        <p class="rm-modal-body">Are you sure you want to permanently delete <strong id="modal-user-name"></strong>? This will delete the user's account and cannot be undone.</p>
+        <p class="rm-modal-body">
+            Are you sure you want to permanently delete
+            <strong id="modal-user-name"></strong>?
+            This will delete the user's account and cannot be undone.
+        </p>
         <div class="rm-modal-actions">
             <button class="rm-btn-ghost" onclick="closeModal('modal-delete-user')">Cancel</button>
             <button class="rm-btn-danger" id="btn-confirm-delete-user" onclick="confirmDeleteUser()">
@@ -157,6 +263,5 @@
         </div>
     </div>
 </div>
-    <script src="~/js/role-management.js"></script>
-   
 
+<script src="~/js/role-management.js"></script>

@@ -1,154 +1,154 @@
-using AIChatbot.web.Interfaces;
-namespace AIChatbot.web.Services
-{
-    public class ApiClient
+    using AIChatbot.web.Interfaces;
+    namespace AIChatbot.web.Services
     {
-        private readonly HttpClient _httpClient;
-        private readonly IConfiguration _configuration;
-        private readonly ITokenService _tokenService;
-
-        public ApiClient(HttpClient httpClient, IConfiguration configuration, ITokenService tokenService)
+        public class ApiClient
         {
-            _httpClient = httpClient;
-            _configuration = configuration;
-            _tokenService = tokenService;
+            private readonly HttpClient _httpClient;
+            private readonly IConfiguration _configuration;
+            private readonly ITokenService _tokenService;
 
-            // Set base address from configuration
-            var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.71:5197";
-            _httpClient.BaseAddress = new Uri(apiBaseUrl);
-            _httpClient.Timeout = TimeSpan.FromSeconds(120);
-        }
-
-        private void SetAuthorizationHeader()
-        {
-            var token = _tokenService.GetAccessToken();
-
-            if (!string.IsNullOrEmpty(token))
+            public ApiClient(HttpClient httpClient, IConfiguration configuration, ITokenService tokenService)
             {
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                _httpClient = httpClient;
+                _configuration = configuration;
+                _tokenService = tokenService;
+
+                // Set base address from configuration
+                var apiBaseUrl = _configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.126:5197";
+                _httpClient.BaseAddress = new Uri(apiBaseUrl);
+                _httpClient.Timeout = TimeSpan.FromSeconds(120);
             }
-            else
-            {
-                // Clear authorization if no token
-                _httpClient.DefaultRequestHeaders.Authorization = null;
-            }
-        }
 
-        public async Task<HttpResponseMessage?> GetAsync(string endpoint)
-        {
-            try
+            private void SetAuthorizationHeader()
             {
-                SetAuthorizationHeader();
-                return await _httpClient.GetAsync(endpoint);
-            }
-            catch (HttpRequestException)
-            {
-                // API unreachable
-                return null;
-            }
-            catch (TaskCanceledException)
-            {
-                // timeout
-                return null;
-            }
-        }
+                var token = _tokenService.GetAccessToken();
 
-        public async Task<HttpResponseMessage?> PostAsync<T>(string endpoint, T data)
-        {
-            try
-            {
-                SetAuthorizationHeader();
-
-                var content = new StringContent(
-                System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions
+                if (!string.IsNullOrEmpty(token))
                 {
-                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
-                }),
-                    System.Text.Encoding.UTF8,
+                    _httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+                else
+                {
+                    // Clear authorization if no token
+                    _httpClient.DefaultRequestHeaders.Authorization = null;
+                }
+            }
+
+            public async Task<HttpResponseMessage?> GetAsync(string endpoint)
+            {
+                try
+                {
+                    SetAuthorizationHeader();
+                    return await _httpClient.GetAsync(endpoint);
+                }
+                catch (HttpRequestException)
+                {
+                    // API unreachable
+                    return null;
+                }
+                catch (TaskCanceledException)
+                {
+                    // timeout
+                    return null;
+                }
+            }
+
+            public async Task<HttpResponseMessage?> PostAsync<T>(string endpoint, T data)
+            {
+                try
+                {
+                    SetAuthorizationHeader();
+
+                    var content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                    }),
+                        System.Text.Encoding.UTF8,
+                            "application/json");
+
+
+                    return await _httpClient.PostAsync(endpoint, content);
+                }
+                catch (HttpRequestException)
+                {
+                    // API unreachable
+                    return null;
+                }
+                catch (TaskCanceledException)
+                {
+                    // timeout
+                    return null;
+                }
+            }
+
+            public async Task<HttpResponseMessage?> PutAsync<T>(string endpoint, T data)
+            {
+                try
+                {
+                    SetAuthorizationHeader();
+
+                    var content = new StringContent(
+                        System.Text.Json.JsonSerializer.Serialize(data),
+                        System.Text.Encoding.UTF8,
                         "application/json");
 
-
-                return await _httpClient.PostAsync(endpoint, content);
-            }
-            catch (HttpRequestException)
-            {
-                // API unreachable
-                return null;
-            }
-            catch (TaskCanceledException)
-            {
-                // timeout
-                return null;
-            }
-        }
-
-        public async Task<HttpResponseMessage?> PutAsync<T>(string endpoint, T data)
-        {
-            try
-            {
-                SetAuthorizationHeader();
-
-                var content = new StringContent(
-                    System.Text.Json.JsonSerializer.Serialize(data),
-                    System.Text.Encoding.UTF8,
-                    "application/json");
-
-                return await _httpClient.PutAsync(endpoint, content);
-            }
-            catch (HttpRequestException)
-            {
-                // API unreachable
-                return null;
-            }
-            catch (TaskCanceledException)
-            {
-                // timeout
-                return null;
-            }
-        }
-
-        public async Task<HttpResponseMessage?> DeleteAsync(string endpoint)
-        {
-            try
-            {
-                SetAuthorizationHeader();
-                return await _httpClient.DeleteAsync(endpoint);
-            }
-            catch (HttpRequestException)
-            {
-                // API unreachable
-                return null;
-            }
-            catch (TaskCanceledException)
-            {
-                // timeout
-                return null;
-            }
-        }
-
-        // ?? NEW: DELETE with a JSON request body ??????????????????????????
-        // Required for endpoints like Discard_Role/{id} and Discard_user/{id}
-        // that expect the id repeated in the request body as well as the URL.
-        public async Task<HttpResponseMessage?> DeleteWithBodyAsync<T>(string endpoint, T data)
-        {
-            try
-            {
-                SetAuthorizationHeader();
-                var request = new HttpRequestMessage(HttpMethod.Delete, endpoint)
+                    return await _httpClient.PutAsync(endpoint, content);
+                }
+                catch (HttpRequestException)
                 {
-                    Content = new StringContent(
-                        System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions
-                        {
-                            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
-                        }),
-                        System.Text.Encoding.UTF8,
-                        "application/json")
-                };
-                return await _httpClient.SendAsync(request);
+                    // API unreachable
+                    return null;
+                }
+                catch (TaskCanceledException)
+                {
+                    // timeout
+                    return null;
+                }
             }
-            catch (HttpRequestException) { return null; }
-            catch (TaskCanceledException) { return null; }
+
+            public async Task<HttpResponseMessage?> DeleteAsync(string endpoint)
+            {
+                try
+                {
+                    SetAuthorizationHeader();
+                    return await _httpClient.DeleteAsync(endpoint);
+                }
+                catch (HttpRequestException)
+                {
+                    // API unreachable
+                    return null;
+                }
+                catch (TaskCanceledException)
+                {
+                    // timeout
+                    return null;
+                }
+            }
+
+            // ?? NEW: DELETE with a JSON request body ??????????????????????????
+            // Required for endpoints like Discard_Role/{id} and Discard_user/{id}
+            // that expect the id repeated in the request body as well as the URL.
+            public async Task<HttpResponseMessage?> DeleteWithBodyAsync<T>(string endpoint, T data)
+            {
+                try
+                {
+                    SetAuthorizationHeader();
+                    var request = new HttpRequestMessage(HttpMethod.Delete, endpoint)
+                    {
+                        Content = new StringContent(
+                            System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                            }),
+                            System.Text.Encoding.UTF8,
+                            "application/json")
+                    };
+                    return await _httpClient.SendAsync(request);
+                }
+                catch (HttpRequestException) { return null; }
+                catch (TaskCanceledException) { return null; }
+            }
         }
-    }
-}    
+    }    

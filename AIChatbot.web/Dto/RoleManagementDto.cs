@@ -1,4 +1,4 @@
-﻿namespace AIChatbot.Web.Dto
+﻿namespace AIChatbot.web.Dto
 {
     public class RoleDto
     {

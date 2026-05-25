@@ -8,20 +8,30 @@ let allUsersCache = [];
 
 // ─── Panel Switching ───────────────────────────────────────────────────────
 
+// All panel/card IDs in one place — add new ones here only
+const ALL_PANELS = ['create', 'list', 'users', 'assign-db', 'view-access'];
+const PANEL_CARD_MAP = {
+    'create': 'card-create',
+    'list': 'card-list',
+    'users': 'card-members',
+    'assign-db': 'card-assign-db',
+    'view-access': 'card-view-access'
+};
 function switchPanel(name) {
-    ['create', 'list', 'users'].forEach(p => {
+    ALL_PANELS.forEach(p => {
         document.getElementById('panel-' + p).style.display = 'none';
-        document.getElementById('card-' + p)?.classList.remove('active');
+        const cardId = PANEL_CARD_MAP[p];
+        if (cardId) document.getElementById(cardId)?.classList.remove('active');
     });
 
     document.getElementById('panel-' + name).style.display = 'block';
 
-    if (name === 'create') document.getElementById('card-create').classList.add('active');
-    if (name === 'list') {
-        document.getElementById('card-list').classList.add('active');
-        loadRoles();
-    }
-    if (name === 'users') document.getElementById('card-members').classList.add('active');
+    const activeCard = PANEL_CARD_MAP[name];
+    if (activeCard) document.getElementById(activeCard)?.classList.add('active');
+
+    if (name === 'list') loadRoles();
+    if (name === 'assign-db') loadAssignPanel();
+    if (name === 'view-access') loadViewAccessPanel();
 }
 
 // ─── Load Roles ────────────────────────────────────────────────────────────
@@ -33,11 +43,8 @@ function loadRoles() {
         url: '/Admin/GetRoles',
         method: 'GET',
         success: function (res) {
-            if (res.success && res.data) {
-                renderRoles(res.data);
-            } else {
-                showRolesEmpty();
-            }
+            if (res.success && res.data) renderRoles(res.data);
+            else showRolesEmpty();
         },
         error: function () {
             showRolesEmpty();
@@ -54,13 +61,11 @@ function renderRoles(roles) {
     badge.textContent = roles.length;
     label.textContent = roles.length + ' role' + (roles.length !== 1 ? 's' : '') + ' configured';
 
-    if (roles.length === 0) {
-        showRolesEmpty();
-        return;
-    }
+    if (roles.length === 0) { showRolesEmpty(); return; }
 
     grid.innerHTML = roles.map(role => `
-        <div class="rm-role-card" onclick="openUsersPanel('${escHtml(role.roleId)}', '${escHtml(role.roleName)}')">
+        <div class="rm-role-card"
+             onclick="openUsersPanel('${escHtml(role.roleId)}', '${escHtml(role.roleName)}')">
             <div class="rm-role-card-top">
                 <span class="rm-role-name">${escHtml(role.roleName)}</span>
             </div>
@@ -69,11 +74,13 @@ function renderRoles(roles) {
             </div>
             <div class="rm-role-card-actions">
                 <button class="rm-btn-ghost"
-                    onclick="event.stopPropagation(); openUsersPanel('${escHtml(role.roleId)}', '${escHtml(role.roleName)}')">
+                    onclick="event.stopPropagation();
+                             openUsersPanel('${escHtml(role.roleId)}', '${escHtml(role.roleName)}')">
                     <i class="bi bi-people"></i> Members
                 </button>
                 <button class="rm-btn-danger"
-                    onclick="event.stopPropagation(); openDeleteRoleModal('${escHtml(role.roleId)}', '${escHtml(role.roleName)}')">
+                    onclick="event.stopPropagation();
+                             openDeleteRoleModal('${escHtml(role.roleId)}', '${escHtml(role.roleName)}')">
                     <i class="bi bi-trash"></i> Delete
                 </button>
             </div>
@@ -161,12 +168,8 @@ function confirmDeleteRole() {
         data: JSON.stringify({ roleId: pendingDeleteRoleId }),
         success: function (res) {
             closeModal('modal-delete-role');
-            if (res.success) {
-                toastr.success(res.message);
-                loadRoles();
-            } else {
-                toastr.error(res.message);
-            }
+            if (res.success) { toastr.success(res.message); loadRoles(); }
+            else toastr.error(res.message);
         },
         error: function () {
             closeModal('modal-delete-role');
@@ -194,15 +197,10 @@ function openUsersPanel(roleId, roleName) {
     $.ajax({
         url: '/Admin/GetUsersInRole',
         method: 'GET',
-        data: { roleId: roleId },
+        data: { roleId },
         success: function (res) {
-            if (res.success && res.data) {
-                allUsersCache = res.data;
-                renderUsers(res.data);
-            } else {
-                allUsersCache = [];
-                showUsersEmpty();
-            }
+            if (res.success && res.data) { allUsersCache = res.data; renderUsers(res.data); }
+            else { allUsersCache = []; showUsersEmpty(); }
         },
         error: function () {
             showUsersEmpty();
@@ -217,10 +215,7 @@ function renderUsers(users) {
 
     badge.textContent = users.length;
 
-    if (users.length === 0) {
-        showUsersEmpty();
-        return;
-    }
+    if (users.length === 0) { showUsersEmpty(); return; }
 
     list.innerHTML = users.map(u => {
         const initials = getInitials(u.firstName, u.lastName);
@@ -290,7 +285,6 @@ function confirmDeleteUser() {
         success: function (res) {
             closeModal('modal-delete-user');
             if (res.success) {
-                // Remove from cache and re-render
                 allUsersCache = allUsersCache.filter(u => u.userId !== pendingDeleteUserId);
                 renderUsers(allUsersCache);
                 toastr.success(res.message);
@@ -310,13 +304,118 @@ function confirmDeleteUser() {
     });
 }
 
+// ─── Assign DB to Role ─────────────────────────────────────────────────────
+
+function loadAssignPanel() {
+    const roleSelect = document.getElementById('assign-role-select');
+    const connSelect = document.getElementById('assign-conn-select');
+
+    // reset
+    roleSelect.innerHTML = '<option value="">— loading roles —</option>';
+    connSelect.innerHTML = '<option value="">— loading connections —</option>';
+    roleSelect.disabled = true;
+    connSelect.disabled = true;
+    document.getElementById('assign-preview').style.display = 'none';
+
+    // fetch roles and connections in parallel
+    Promise.all([
+        fetch('/Admin/GetRoles').then(r => r.json()),
+        fetch('/Admin/GetConnections').then(r => r.json())
+    ])
+        .then(([rolesRes, connsRes]) => {
+            // populate roles
+            if (rolesRes.success && rolesRes.data?.length) {
+                roleSelect.innerHTML = '<option value="">— select a role —</option>' +
+                    rolesRes.data.map(r =>
+                        `<option value="${escHtml(r.roleId)}">${escHtml(r.roleName)}</option>`
+                    ).join('');
+            } else {
+                roleSelect.innerHTML = '<option value="">— no roles found —</option>';
+            }
+
+            // populate connections
+            if (connsRes.success && connsRes.data?.length) {
+                connSelect.innerHTML = '<option value="">— select a connection —</option>' +
+                    connsRes.data.map(c =>
+                        `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`
+                    ).join('');
+            } else {
+                connSelect.innerHTML = '<option value="">— no connections found —</option>';
+            }
+        })
+        .catch(() => {
+            roleSelect.innerHTML = '<option value="">— failed to load —</option>';
+            connSelect.innerHTML = '<option value="">— failed to load —</option>';
+            toastr.error('Could not load data. Please try again.');
+        })
+        .finally(() => {
+            roleSelect.disabled = false;
+            connSelect.disabled = false;
+        });
+}
+
+function updateAssignPreview() {
+    const roleSelect = document.getElementById('assign-role-select');
+    const connSelect = document.getElementById('assign-conn-select');
+    const preview = document.getElementById('assign-preview');
+    const previewTxt = document.getElementById('assign-preview-text');
+
+    if (roleSelect.value && connSelect.value) {
+        const roleName = roleSelect.options[roleSelect.selectedIndex].text;
+        const connName = connSelect.options[connSelect.selectedIndex].text;
+        previewTxt.innerHTML =
+            `<strong>${escHtml(roleName)}</strong> will get access to <strong>${escHtml(connName)}</strong>`;
+        preview.style.display = 'flex';
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+function assignRoleToDb() {
+    const roleId = document.getElementById('assign-role-select').value;
+    const connectionId = document.getElementById('assign-conn-select').value;
+
+    if (!roleId || !connectionId) {
+        toastr.warning('Please select both a role and a database connection.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-assign-db');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="rm-spinner" style="width:16px;height:16px;border-width:2px;margin:0 4px 0 0;"></span> Assigning...';
+
+    $.ajax({
+        url: '/Admin/AssignRoleToConnection',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ roleId, connectionId }),
+        success: function (res) {
+            if (res.success) {
+                toastr.success(res.message);
+                // reset form
+                document.getElementById('assign-role-select').value = '';
+                document.getElementById('assign-conn-select').value = '';
+                document.getElementById('assign-preview').style.display = 'none';
+            } else {
+                toastr.error(res.message);
+            }
+        },
+        error: function () {
+            toastr.error('Something went wrong. Please try again.');
+        },
+        complete: function () {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-database-check"></i> Confirm Assignment';
+        }
+    });
+}
+
 // ─── Modal ─────────────────────────────────────────────────────────────────
 
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }
 
-// Close modal on overlay click
 document.addEventListener('click', function (e) {
     ['modal-delete-role', 'modal-delete-user'].forEach(id => {
         const el = document.getElementById(id);
@@ -332,14 +431,10 @@ function showAlert(el, type, html) {
     el.style.display = 'flex';
 }
 
-function hideAlert(el) {
-    el.style.display = 'none';
-}
+function hideAlert(el) { el.style.display = 'none'; }
 
 function getInitials(first, last) {
-    const f = first ? first[0] : '';
-    const l = last ? last[0] : '';
-    return (f + l).toUpperCase() || '?';
+    return ((first ? first[0] : '') + (last ? last[0] : '')).toUpperCase() || '?';
 }
 
 function escHtml(str) {
@@ -352,9 +447,157 @@ function escHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// ─── View / Edit Role DB Access ────────────────────────────────────────────
+
+function loadViewAccessPanel() {
+    const roleSelect = document.getElementById('view-role-select');
+    roleSelect.innerHTML = '<option value="">— loading roles —</option>';
+    roleSelect.disabled = true;
+
+    document.getElementById('view-access-loading').style.display = 'none';
+    document.getElementById('view-access-empty').style.display = 'none';
+    document.getElementById('view-access-list').style.display = 'none';
+
+    fetch('/Admin/GetRoles')
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data?.length) {
+                roleSelect.innerHTML = '<option value="">— select a role —</option>' +
+                    res.data.map(r =>
+                        `<option value="${escHtml(r.roleId)}">${escHtml(r.roleName)}</option>`
+                    ).join('');
+            } else {
+                roleSelect.innerHTML = '<option value="">— no roles found —</option>';
+            }
+        })
+        .catch(() => {
+            roleSelect.innerHTML = '<option value="">— failed to load —</option>';
+            toastr.error('Could not load roles. Please try again.');
+        })
+        .finally(() => { roleSelect.disabled = false; });
+}
+
+function loadRoleDbAccess() {
+    const roleId = document.getElementById('view-role-select').value;
+
+    document.getElementById('view-access-loading').style.display = 'none';
+    document.getElementById('view-access-empty').style.display = 'none';
+    document.getElementById('view-access-list').style.display = 'none';
+
+    if (!roleId) return;
+
+    document.getElementById('view-access-loading').style.display = 'block';
+
+    fetch(`/Admin/GetRoleDbAccess?roleId=${encodeURIComponent(roleId)}`)
+        .then(r => r.json())
+        .then(res => {
+            document.getElementById('view-access-loading').style.display = 'none';
+            if (res.success && res.data?.length) {
+                renderAccessItems(res.data);
+            } else {
+                document.getElementById('view-access-empty').style.display = 'block';
+            }
+        })
+        .catch(() => {
+            document.getElementById('view-access-loading').style.display = 'none';
+            toastr.error('Could not load assignments. Please try again.');
+        });
+}
+
+function renderAccessItems(items) {
+    const container = document.getElementById('view-access-items');
+
+    container.innerHTML = items.map(item => {
+        const serverName = item.connection?.serverName || 'Unknown';
+        const dbName = item.connection?.databaseName || 'Unknown';
+        const connId = item.connectionId;
+        const roleId = item.roleId;
+
+        return `
+        <div class="rm-access-row" id="access-row-${escHtml(item.id)}">
+            <div class="rm-access-info">
+                <div class="rm-access-db-icon">
+                    <i class="bi bi-database"></i>
+                </div>
+                <div>
+                    <div class="rm-access-db-name">${escHtml(serverName)} / ${escHtml(dbName)}</div>
+                    <div class="rm-access-db-sub">Assigned connection</div>
+                </div>
+            </div>
+            <div class="rm-access-edit">
+                <select class="rm-input rm-access-select"
+                        id="access-conn-select-${escHtml(item.id)}"
+                        data-role-id="${escHtml(roleId)}"
+                        data-row-id="${escHtml(item.id)}">
+                    <option value="">— loading connections —</option>
+                </select>
+                <button class="rm-btn-primary rm-access-save-btn"
+                        id="access-save-btn-${escHtml(item.id)}"
+                        onclick="saveAccessChange('${escHtml(roleId)}', '${escHtml(item.id)}')">
+                    <i class="bi bi-check-lg"></i> Save
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('view-access-list').style.display = 'block';
+
+    // populate each connection dropdown
+    fetch('/Admin/GetConnections')
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success || !res.data?.length) return;
+
+            items.forEach(item => {
+                const sel = document.getElementById(`access-conn-select-${item.id}`);
+                if (!sel) return;
+                sel.innerHTML = res.data.map(c =>
+                    `<option value="${escHtml(c.id)}"
+                        ${c.id === item.connectionId ? 'selected' : ''}>
+                        ${escHtml(c.name)}
+                    </option>`
+                ).join('');
+            });
+        })
+        .catch(() => toastr.error('Could not load connections.'));
+}
+
+function saveAccessChange(roleId, rowId) {
+    const sel = document.getElementById(`access-conn-select-${rowId}`);
+    const btn = document.getElementById(`access-save-btn-${rowId}`);
+    const connectionId = sel?.value;
+
+    if (!connectionId) {
+        toastr.warning('Please select a connection first.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="rm-spinner" style="width:14px;height:14px;border-width:2px;margin:0 4px 0 0;"></span> Saving...';
+
+    $.ajax({
+        url: '/Admin/AssignRoleToConnection',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ roleId, connectionId }),
+        success: function (res) {
+            if (res.success) {
+                toastr.success('Database assignment updated successfully.');
+            } else {
+                toastr.error(res.message);
+            }
+        },
+        error: function () {
+            toastr.error('Something went wrong. Please try again.');
+        },
+        complete: function () {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Save';
+        }
+    });
+}
 // ─── Init ──────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Default to list panel and load roles
     switchPanel('list');
 });

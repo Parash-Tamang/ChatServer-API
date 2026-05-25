@@ -16,19 +16,21 @@ namespace AIChatbot.web.Services
         {
             _httpClient = httpClientFactory.CreateClient();
             _tokenService = tokenService;
-            _baseUrl = configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.71:5197";
+            _baseUrl = configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.126:5197";
 
 
             if (string.IsNullOrEmpty(_baseUrl))
                 throw new InvalidOperationException("ApiSettings:BaseUrl is missing from configuration.");
         }
-            
+
         private void AttachToken()
         {
-            var token = _tokenService.GetAccessToken();
-            if (!string.IsNullOrEmpty(token))
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", token);
+            {
+                var token = _tokenService.GetAccessToken();
+                if (!string.IsNullOrEmpty(token))
+                    _httpClient.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", token);
+            }
         }
 
         private StringContent ToJson(object obj) =>
