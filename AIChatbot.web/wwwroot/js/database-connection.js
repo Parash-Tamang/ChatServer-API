@@ -65,7 +65,7 @@
             username: authMode === 'Sql' ? $('#Username').val().trim() : null,
             password: authMode === 'Sql' && password !== '' ? password : null,
             connectionTimeout: parseInt($('#ConnectionTimeout').val()) || 30,
-            trustServerCertificate: $('#TrustServerCertificate').is(':checked')
+            trustCertificate: $('#TrustServerCertificate').is(':checked')
         };
 
         //if (!payload.serverName || !payload.databaseName) {
@@ -224,7 +224,7 @@
             authMode: $('input[name="editAuthMode"]:checked').val(),
             username: $('#editUsername').val().trim(),
             connectionTimeout: parseInt($('#editTimeout').val()) || 30,
-            trustServerCertificate: $('#editTrust').is(':checked'),
+            trustCertificate: $('#editTrust').is(':checked'),
             isActive: false
         };
 

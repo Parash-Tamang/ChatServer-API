@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AIChatbot.web.Controllers
 {
+    [ServiceFilter(typeof(TokenAuthorizationFilter))]
     public class AdminController : Controller
     {
         private readonly IConnectionService _connectionService;

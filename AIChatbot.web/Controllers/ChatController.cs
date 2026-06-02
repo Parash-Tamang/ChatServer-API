@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AIChatbot.web.Controllers
 {
-    //[ServiceFilter(typeof(TokenAuthorizationFilter))]
+    [ServiceFilter(typeof(TokenAuthorizationFilter))]
     public class ChatController : Controller
     {
         private readonly ChatApiService _chat;
