@@ -6,6 +6,7 @@ using AIChatbot.web.Filters;
 using AIChatbot.web.Models.Chat;
 using AIChatbot.web.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace AIChatbot.web.Controllers
 {
@@ -13,22 +14,53 @@ namespace AIChatbot.web.Controllers
     public class ChatController : Controller
     {
         private readonly ChatApiService _chat;
+        private readonly AuthService _authService;
+        private readonly ILogger<ChatController> _logger;
         
-        public ChatController(ChatApiService chat)
+        public ChatController(ChatApiService chat, AuthService authService, ILogger<ChatController> logger)
         {
             _chat = chat;
+            _authService = authService;
+            _logger = logger;
         }
 
         [HttpGet]
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
+            var firstName = await GetProfileFirstNameAsync();
+
             var model = new ChatPageModel
             {
-                UserName = User.Identity?.Name ?? "User",
+                UserName = firstName ?? User.Identity?.Name ?? "User",
+                FirstName = firstName,
                 Sessions = new List<ChatSessionDto>(),
                 CurrentSessionMessages = new List<ChatMessageDto>()
             };
             return View(model);
+        }
+
+        private async Task<string?> GetProfileFirstNameAsync()
+        {
+            try
+            {
+                var profileJson = await _authService.GetUserDetailsAsync();
+                if (string.IsNullOrWhiteSpace(profileJson))
+                    return null;
+
+                using var document = JsonDocument.Parse(profileJson);
+                if (document.RootElement.TryGetProperty("firstName", out var firstNameElement))
+                {
+                    var firstName = firstNameElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(firstName))
+                        return firstName;
+                }
+            }
+            catch
+            {
+                // Fall back to the identity name below.
+            }
+
+            return null;
         }
 
         [HttpGet]
@@ -97,8 +129,11 @@ namespace AIChatbot.web.Controllers
             try
             {
                 var result = await _chat.SendMessageAsync(req);
-                if (result != null)
+                if (result != null) {
+                    _logger.LogInformation("LLM response received: {AssistantReply}", result.AssistantReply ?? "<empty>");
                     return Json(new { success = true, data = result });
+                }
+
 
                 return Json(new { success = false, message = "Oops! The AI service is currently unavailable. Please try again shortly." });
             }
@@ -130,6 +165,10 @@ namespace AIChatbot.web.Controllers
             try
             {
                 var result = await _chat.RetryAsync(req.SessionId, req.MessageId);
+                if (result != null)
+                {
+                    _logger.LogInformation("LLM retry response received: {AssistantReply}", result.AssistantReply ?? "<empty>");
+                }
                 if (result != null)
                     return Json(new { success = true, data = result });
 

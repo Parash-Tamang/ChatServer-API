@@ -98,6 +98,14 @@ namespace AIChatbot.web.Services
                 "api/supersetup/V1/setup-engine/connection/update-kb", payload);
             return response?.IsSuccessStatusCode ?? false;
         }
+
+        public async Task<bool> CreateKnowledgeBaseAsync(Guid connectionId)
+        {
+            var payload = new { connectionId };
+            var response = await _apiClient.PostAsync(
+                "api/supersetup/V1/setup-engine/connection/create-kb", payload);
+            return response?.IsSuccessStatusCode ?? false;
+        }
         // Update ConnectionListResponse
         public class ConnectionListResponse
         {

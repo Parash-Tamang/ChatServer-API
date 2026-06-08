@@ -69,9 +69,12 @@ namespace AIChatbot.web.Services
             return data;
         }
 
-        public async Task<string> GetUserDetailsAsync()
+        public async Task<string?> GetUserDetailsAsync()
         {
             var res = await _api.GetAsync("/api/auth/V1/Security-engine/Get/User-Details");
+            if (res == null)
+                return null;
+
             return await res.Content.ReadAsStringAsync();
         }
 

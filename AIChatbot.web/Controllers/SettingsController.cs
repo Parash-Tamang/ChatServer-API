@@ -1,19 +1,18 @@
 ﻿using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.Settings;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http.Headers;
 
 namespace AIChatbot.web.Controllers
 {
     public class SettingsController : Controller
     {
         private readonly ITokenService _tokenService;
-        private readonly HttpClient _httpClient;
+        private readonly Services.AuthService _authService;
 
-        public SettingsController(ITokenService tokenService, IHttpClientFactory httpClientFactory)
+        public SettingsController(ITokenService tokenService, Services.AuthService authService)
         {
             _tokenService = tokenService;
-            _httpClient = httpClientFactory.CreateClient();
+            _authService = authService;
         }
 
         public IActionResult Index()
@@ -29,18 +28,12 @@ namespace AIChatbot.web.Controllers
             if (string.IsNullOrEmpty(token))
                 return Unauthorized(new { message = "Session expired. Please log in again." });
 
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
+            var profileJson = await _authService.GetUserDetailsAsync();
 
-            var response = await _httpClient.GetAsync(
-                "http://192.168.40.101:5197/api/auth/V1/Security-engine/Get/User-Details");
+            if (string.IsNullOrWhiteSpace(profileJson))
+                return StatusCode(503, new { message = "Failed to fetch profile." });
 
-            if (!response.IsSuccessStatusCode)
-                return StatusCode((int)response.StatusCode, new { message = "Failed to fetch profile." });
-
-            var profile = await response.Content.ReadFromJsonAsync<UserProfileViewModel>();
-
-            return Json(profile);
+            return Content(profileJson, "application/json");
         }
     }
 }

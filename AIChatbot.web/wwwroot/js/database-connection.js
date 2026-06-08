@@ -5,23 +5,115 @@
     function init() {
         bindStaticEvents();
         bindRowEvents();
-        handleAuthToggle('input[name="AuthMode"]', '#sqlCredentials');
-        handleAuthToggle('input[name="editAuthMode"]', '#editSqlCredentials');
     }
 
     // ─── Event Binding ───────────────────────────────────────────────────────
 
     function bindStaticEvents() {
-        $('input[name="AuthMode"]').on('change', function () {
-            handleAuthToggle('input[name="AuthMode"]', '#sqlCredentials');
-        });
-
-        $('input[name="editAuthMode"]').on('change', function () {
-            handleAuthToggle('input[name="editAuthMode"]', '#editSqlCredentials');
-        });
-
-        $('#saveEditBtn').on('click', saveEdit);
+        $('#saveEditBtn').on('click', handleSaveModal);
+        $('#openAddConnectionBtn').on('click', openAddModal);
         $('#saveConnectionBtn').on('click', handleSaveConnection);
+    }
+
+    function openAddModal() {
+        $('#editId').val('');
+        $('#editServer').val('');
+        $('#editDatabase').val('');
+        $('#editUsername').val('');
+        $('#editPassword').val('');
+        $('#editTimeout').val('30');
+        $('#editTrust').prop('checked', true);
+        $('#editModal .modal-title').text('Add New Connection');
+        $('#saveEditBtn').text('Test & Save Connection');
+        const modalEl = document.getElementById('editModal');
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+
+    async function handleSaveModal() {
+        const id = $('#editId').val();
+        if (id && id.trim() !== '') {
+            await saveEdit();
+            return;
+        }
+        await saveAddFromModal();
+    }
+
+    async function saveAddFromModal() {
+        const serverName = $('#editServer').val().trim();
+        const databaseName = $('#editDatabase').val().trim();
+        const username = $('#editUsername').val().trim();
+        const password = $('#editPassword').val().trim();
+        const timeout = parseInt($('#editTimeout').val(), 10);
+
+        if (!serverName) {
+            showToast('Server name is required ❌', 'danger', true);
+            $('#editServer').focus();
+            return;
+        }
+
+        if (!databaseName) {
+            showToast('Database name is required ❌', 'danger', true);
+            $('#editDatabase').focus();
+            return;
+        }
+
+        if (!username) {
+            showToast('Username is required ❌', 'danger', true);
+            $('#editUsername').focus();
+            return;
+        }
+
+        if (!password) {
+            showToast('Password is required ❌', 'danger', true);
+            $('#editPassword').focus();
+            return;
+        }
+
+        if (!Number.isFinite(timeout) || timeout < 0) {
+            showToast('Timeout must be a valid number ❌', 'danger', true);
+            $('#editTimeout').focus();
+            return;
+        }
+
+        const payload = {
+            serverName: serverName,
+            databaseName: databaseName,
+            authMode: 'Sql',
+            username: username,
+            password: password,
+            connectionTimeout: timeout,
+            trustCertificate: $('#editTrust').is(':checked')
+        };
+
+        $('#saveEditBtn').prop('disabled', true).text('Saving...');
+        showToast('Saving connection...', 'info', false);
+
+        try {
+            const res = await fetch('/Admin/SaveConnection', {
+                method: 'POST',
+                headers: jsonHeaders(),
+                body: JSON.stringify(payload)
+            });
+
+            const contentType = res.headers.get('content-type') ?? '';
+
+            if (contentType.includes('text/html')) {
+                const rowHtml = await res.text();
+                $('#connectionsTableBody').prepend(rowHtml);
+                bindRowEvents();
+                bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+                showToast('Connection added successfully ✅', 'success', true);
+            } else {
+                const data = await res.json();
+                showToast(data.message ?? 'Failed to save connection ❌', 'danger', true);
+            }
+        } catch (err) {
+            console.error('SaveConnection (modal) error:', err);
+            showToast('Network error — could not reach server ❌', 'danger', true);
+        } finally {
+            $('#saveEditBtn').prop('disabled', false).text('Save Changes');
+        }
     }
 
     // Separate so it can be re-called after new rows are injected
@@ -33,13 +125,6 @@
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
-
-    function handleAuthToggle(selector, credentialsId) {
-        const selected = document.querySelector(selector + ':checked');
-        const creds = document.querySelector(credentialsId);
-        if (!creds) return;
-        creds.style.display = selected?.value === 'Windows' ? 'none' : 'block';
-    }
 
     function getCsrfToken() {
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
@@ -55,16 +140,49 @@
     // ─── Save New Connection ─────────────────────────────────────────────────
 
     async function handleSaveConnection() {
-        const authMode = $('input[name="AuthMode"]:checked').val();
-        const password = $('#Password').val();
+        const serverName = $('#ServerName').val().trim();
+        const databaseName = $('#DatabaseName').val().trim();
+        const username = $('#Username').val().trim();
+        const password = $('#Password').val().trim();
+        const timeout = parseInt($('#ConnectionTimeout').val(), 10);
+
+        if (!serverName) {
+            showToast('Server name is required ❌', 'danger', true);
+            $('#ServerName').focus();
+            return;
+        }
+
+        if (!databaseName) {
+            showToast('Database name is required ❌', 'danger', true);
+            $('#DatabaseName').focus();
+            return;
+        }
+
+        if (!username) {
+            showToast('Username is required ❌', 'danger', true);
+            $('#Username').focus();
+            return;
+        }
+
+        if (!password) {
+            showToast('Password is required ❌', 'danger', true);
+            $('#Password').focus();
+            return;
+        }
+
+        if (!Number.isFinite(timeout) || timeout < 0) {
+            showToast('Connection timeout must be a valid number ❌', 'danger', true);
+            $('#ConnectionTimeout').focus();
+            return;
+        }
 
         const payload = {
-            serverName: $('#ServerName').val().trim(),
-            databaseName: $('#DatabaseName').val().trim(),
-            authMode: authMode,
-            username: authMode === 'Sql' ? $('#Username').val().trim() : null,
-            password: authMode === 'Sql' && password !== '' ? password : null,
-            connectionTimeout: parseInt($('#ConnectionTimeout').val()) || 30,
+            serverName: serverName,
+            databaseName: databaseName,
+            authMode: 'Sql',
+            username: username,
+            password: password,
+            connectionTimeout: timeout,
             trustCertificate: $('#TrustServerCertificate').is(':checked')
         };
 
@@ -111,8 +229,6 @@
         $('#Password').val('');
         $('#ConnectionTimeout').val('30');
         $('#TrustServerCertificate').prop('checked', false);
-        $('input[name="AuthMode"][value="Sql"]').prop('checked', true);
-        handleAuthToggle('input[name="AuthMode"]', '#sqlCredentials');
     }
 
     // ─── Active Switch ───────────────────────────────────────────────────────
@@ -173,7 +289,8 @@
         showToast(isUpdate ? 'Updating knowledge base...' : 'Creating knowledge base...', 'info', false);
 
         try {
-            const res = await fetch('/Admin/UpdateKB', {
+            const endpoint = isUpdate ? '/Admin/UpdateKB' : '/Admin/CreateKB';
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: jsonHeaders(),
                 body: JSON.stringify(id)
@@ -201,12 +318,9 @@
         $('#editServer').val(this.dataset.server);
         $('#editDatabase').val(this.dataset.database);
         $('#editUsername').val(this.dataset.username);
-        $('#editPassword').val('').attr('placeholder', '•••••••• (leave blank to keep current)');
+        $('#editPassword').val('').attr('placeholder', 'Enter password');
         $('#editTimeout').val(this.dataset.timeout);
         $('#editTrust').prop('checked', this.dataset.trust === 'true');
-
-        $(`input[name="editAuthMode"][value="${this.dataset.authmode}"]`).prop('checked', true);
-        handleAuthToggle('input[name="editAuthMode"]', '#editSqlCredentials');
 
         // FIX: reuse instance — prevents double-mount and aria-hidden bug
         const modalEl = document.getElementById('editModal');
@@ -215,27 +329,54 @@
     }
 
     async function saveEdit() {
-        const newPassword = $('#editPassword').val();
+        const serverName = $('#editServer').val().trim();
+        const databaseName = $('#editDatabase').val().trim();
+        const username = $('#editUsername').val().trim();
+        const password = $('#editPassword').val().trim();
+        const timeout = parseInt($('#editTimeout').val(), 10);
+
+        if (!serverName) {
+            showToast('Server name is required ❌', 'danger', true);
+            $('#editServer').focus();
+            return;
+        }
+
+        if (!databaseName) {
+            showToast('Database name is required ❌', 'danger', true);
+            $('#editDatabase').focus();
+            return;
+        }
+
+        if (!username) {
+            showToast('Username is required ❌', 'danger', true);
+            $('#editUsername').focus();
+            return;
+        }
+
+        if (!password) {
+            showToast('Password is required ❌', 'danger', true);
+            $('#editPassword').focus();
+            return;
+        }
+
+        if (!Number.isFinite(timeout) || timeout < 0) {
+            showToast('Timeout must be a valid number ❌', 'danger', true);
+            $('#editTimeout').focus();
+            return;
+        }
 
         const payload = {
             id: $('#editId').val(),
-            serverName: $('#editServer').val().trim(),
-            databaseName: $('#editDatabase').val().trim(),
-            authMode: $('input[name="editAuthMode"]:checked').val(),
-            username: $('#editUsername').val().trim(),
-            connectionTimeout: parseInt($('#editTimeout').val()) || 30,
+            serverName: serverName,
+            databaseName: databaseName,
+            authMode: 'Sql',
+            username: username,
+            connectionTimeout: timeout,
             trustCertificate: $('#editTrust').is(':checked'),
             isActive: false
         };
 
-        if (newPassword.trim() !== '') {
-            payload.password = newPassword;
-        }
-
-        if (!payload.serverName || !payload.databaseName) {
-            showToast('Server name and database name are required ❌', 'danger', true);
-            return;
-        }
+        payload.password = password;
 
         $('#saveEditBtn').prop('disabled', true).text('Saving...');
         showToast('Updating connection...', 'info', false);

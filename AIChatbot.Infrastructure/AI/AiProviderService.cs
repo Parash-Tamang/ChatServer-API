@@ -250,7 +250,23 @@ public class AiProviderService : IAiProviderService
                     : Array.Empty<object>(),
                 Rows = result.TryGetProperty("rows", out var rows)
                     ? rows.Deserialize<object[]>(_jsonOptions) ?? Array.Empty<object>()
-                    : Array.Empty<object>()
+                    : Array.Empty<object>(),
+                ExcelGenerated = result.TryGetProperty("excel_generated", out var eg) && eg.GetBoolean(),
+                ExcelAvailableNow = result.TryGetProperty("excel_available_now", out var ean)
+                    ? ean.Deserialize<ExcelAvailableNow>(_jsonOptions)
+                    : null,
+                GraphType = result.TryGetProperty("graph_type", out var gt)
+                    ? gt.GetString()
+                    : null,
+                GraphTitle = result.TryGetProperty("graph_title", out var gtitle)
+                    ? gtitle.GetString()
+                    : null,
+                GraphImageUrl = result.TryGetProperty("graph_image_url", out var giu)
+                    ? giu.GetString()
+                    : null,
+                GraphImageBase64 = result.TryGetProperty("graph_image_base64", out var gib)
+                    ? gib.GetString()
+                    : null
             };
         }
         catch (BadHttpRequestException) { throw; }

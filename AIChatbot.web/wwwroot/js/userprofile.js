@@ -4,6 +4,11 @@ function openUserProfileModal() {
     const modalEl = document.getElementById('userProfileModal');
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
+    function setText(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+
     // Reset state
     document.getElementById('profile-loading').classList.remove('d-none');
     document.getElementById('profile-content').classList.add('d-none');
@@ -22,13 +27,14 @@ function openUserProfileModal() {
             const initials = (first.charAt(0) + last.charAt(0)).toUpperCase() || '?';
             const role = data.roles?.length ? data.roles[0] : 'User';
 
-            document.getElementById('profile-initials').textContent = initials;
-            document.getElementById('profile-fullname').textContent = `${first} ${last}`.trim();
-            document.getElementById('profile-role').textContent = role;
-            document.getElementById('profile-firstname').textContent = first || 'N/A';
-            document.getElementById('profile-lastname').textContent = last || 'N/A';
-            document.getElementById('profile-email').textContent = data.email || 'N/A';
-            document.getElementById('profile-phone').textContent = data.phone || 'N/A';
+            setText('profile-initials', initials);
+            setText('profile-fullname', `${first} ${last}`.trim());
+            setText('profile-role', role);
+            setText('profile-firstname', first || 'N/A');
+            setText('profile-lastname', last || 'N/A');
+            setText('profile-email', data.email || 'N/A');
+            setText('profile-phone', data.phone || 'N/A');
+            setText('profile-role-value', role);
 
             document.getElementById('profile-loading').classList.add('d-none');
             document.getElementById('profile-content').classList.remove('d-none');

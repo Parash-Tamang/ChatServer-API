@@ -8,6 +8,11 @@ namespace AIChatbot.web.Models.Chat
     {
         // User info
         public string UserName { get; set; } = "User";
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public List<string> Roles { get; set; } = new();
 
         // All chat sessions for sidebar
         public List<ChatSessionDto> Sessions { get; set; } = new();

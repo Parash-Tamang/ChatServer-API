@@ -190,7 +190,7 @@ body {
     justify-content: center;
     color: #555;
     flex-shrink: 0;
-    position: static; /* important — removes any fixed/absolute */
+    position: static; /* important ï¿½ removes any fixed/absolute */
 }
 
     .sidebar-toggle:hover {
@@ -366,7 +366,7 @@ body {
 }
 
 /* =========================================================
-   MESSAGES — centered container
+   MESSAGES ï¿½ centered container
 ========================================================= */
 
 .messages {
@@ -607,6 +607,60 @@ body {
     font-size: 11px;
     color: #aaa;
     margin-top: 7px;
+}
+
+/* User profile modal: modal-md (approx 500px) with responsive fallback and dark styling */
+#userProfileModal .modal-dialog.profile-modal-dialog {
+    width: 500px;
+    max-width: 90vw;
+    margin: 0 auto;
+}
+
+#userProfileModal .modal-content {
+    background: #1B1611;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #fffdf9;
+    border-radius: 12px;
+}
+
+#userProfileModal .modal-header,
+#userProfileModal .modal-footer {
+    background: transparent;
+    border-color: rgba(255,255,255,0.06);
+    color: #fffdf9;
+}
+
+#userProfileModal .profile-avatar {
+    width: 80px;
+    height: 80px;
+    font-size: 1.6rem;
+    font-weight: 600;
+}
+
+#userProfileModal .profile-fullname {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+#userProfileModal .profile-subtext {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+}
+
+#userProfileModal .modal-body .form-control {
+    height: 44px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.04) !important;
+    color: #fffdf9 !important;
+    border: 1px solid rgba(255,255,255,0.04) !important;
+}
+
+@media (max-width: 900px) {
+    #userProfileModal .modal-dialog.profile-modal-dialog {
+        width: calc(100% - 32px) !important;
+        max-width: none !important;
+        margin: 0 16px !important;
+    }
 }
 
 /* =========================================================

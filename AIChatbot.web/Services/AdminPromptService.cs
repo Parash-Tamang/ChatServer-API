@@ -16,7 +16,7 @@ namespace AIChatbot.web.Services
         {
             _httpClient = httpClientFactory.CreateClient();
             _tokenService = tokenService;
-            _baseUrl = configuration["ApiSettings:BaseUrl"] ?? "http://192.168.40.126:5197";
+            _baseUrl = configuration["ApiSettings:BaseUrl"];
 
 
             if (string.IsNullOrEmpty(_baseUrl))

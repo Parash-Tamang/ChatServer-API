@@ -13,14 +13,14 @@ namespace AIChatbot.web.Services
             _configuration = configuration;
             _tokenService = tokenService;
 
-            // Set base address from configuration. No fallback — require the configuration key.
+            // Set base address from configuration. No fallback ï¿½ require the configuration key.
             var apiBaseUrl = _configuration["ApiSettings:BaseUrl"];
             if (string.IsNullOrWhiteSpace(apiBaseUrl))
             {
                 throw new InvalidOperationException("Configuration key 'ApiSettings:BaseUrl' is missing. Please set ApiSettings:BaseUrl in appsettings.json.");
             }
             _httpClient.BaseAddress = new Uri(apiBaseUrl);
-            _httpClient.Timeout = TimeSpan.FromSeconds(120);
+            _httpClient.Timeout = Timeout.InfiniteTimeSpan;
         }
 
         private void SetAuthorizationHeader()

@@ -12,4 +12,11 @@ public sealed class ChatExecutionResult
     // Return table data from LLM when available
     public object? Columns { get; init; }
     public object? Rows { get; init; }
+
+    public bool ExcelGenerated { get; init; }
+    public ExcelAvailableNow? ExcelAvailableNow { get; init; }
+    public string? GraphType { get; init; }
+    public string? GraphTitle { get; init; }
+    public string? GraphImageUrl { get; init; }
+    public string? GraphImageBase64 { get; init; }
 }

@@ -1,6 +1,7 @@
-﻿<!-- User Profile Modal -->
+﻿@model AIChatbot.web.Models.Chat.ChatPageModel
+<!-- User Profile Modal -->
 <div class="modal fade" id="userProfileModal" tabindex="-1" aria-labelledby="userProfileModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered profile-modal-dialog">
         <div class="modal-content rounded-3 overflow-hidden">
 
             <div class="modal-header bg-light border-bottom">
@@ -29,12 +30,13 @@
                 <!-- Content -->
                 <div id="profile-content" class="d-none">
                     <div class="text-center mb-4">
-                        <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3"
-                             style="width:72px;height:72px;font-size:1.6rem;font-weight:600;">
-                            <span id="profile-initials">--</span>
+                        <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3 profile-avatar">
+                            <span id="profile-initials">@(string.IsNullOrWhiteSpace(Model?.FirstName) && string.IsNullOrWhiteSpace(Model?.LastName) ? "--" : $"{(Model?.FirstName ?? string.Empty).Trim().FirstOrDefault()} {(Model?.LastName ?? string.Empty).Trim().FirstOrDefault()}".Replace(" ", string.Empty).ToUpper())</span>
                         </div>
-                        <h6 class="mb-1 fw-semibold" id="profile-fullname">--</h6>
-                        <span class="badge bg-primary" id="profile-role">--</span>
+                        <h6 class="mb-1 fw-semibold profile-fullname" id="profile-fullname">@(!string.IsNullOrWhiteSpace(Model?.FirstName) || !string.IsNullOrWhiteSpace(Model?.LastName) ? $"{Model?.FirstName} {Model?.LastName}".Trim() : "--")</h6>
+                        <div class="profile-subtext mt-1">
+                            <span class="badge bg-primary" id="profile-role">@(Model?.Roles?.FirstOrDefault() ?? "--")</span>
+                        </div>
                     </div>
 
                     <hr />
@@ -44,25 +46,31 @@
                             <label class="form-label text-muted small">
                                 <i class="bi bi-person me-1"></i>First Name
                             </label>
-                            <div class="form-control bg-light" id="profile-firstname">--</div>
+                            <div class="form-control bg-light" id="profile-firstname">@(Model?.FirstName ?? "--")</div>
                         </div>
                         <div class="col-6">
                             <label class="form-label text-muted small">
                                 <i class="bi bi-person me-1"></i>Last Name
                             </label>
-                            <div class="form-control bg-light" id="profile-lastname">--</div>
+                            <div class="form-control bg-light" id="profile-lastname">@(Model?.LastName ?? "--")</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label text-muted small">
                                 <i class="bi bi-envelope me-1"></i>Email
                             </label>
-                            <div class="form-control bg-light" id="profile-email">--</div>
+                            <div class="form-control bg-light" id="profile-email">@(Model?.Email ?? "--")</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label text-muted small">
                                 <i class="bi bi-telephone me-1"></i>Phone
                             </label>
-                            <div class="form-control bg-light" id="profile-phone">--</div>
+                            <div class="form-control bg-light" id="profile-phone">@(Model?.Phone ?? "--")</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small">
+                                <i class="bi bi-shield-lock me-1"></i>Role
+                            </label>
+                            <div class="form-control bg-light" id="profile-role-value">@(Model?.Roles?.FirstOrDefault() ?? "--")</div>
                         </div>
                     </div>
                 </div>

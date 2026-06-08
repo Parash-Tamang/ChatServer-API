@@ -55,8 +55,22 @@ namespace AIChatbot.web.Controllers
             if (!result.Success)
                 return Json(new { success = false, message = result.Message });
 
+            // Reload the saved connection so the rendered row gets the generated Id.
+            var connections = await _connectionService.GetAllConnectionsAsync();
+            var savedConnection = connections.FirstOrDefault(c =>
+                string.Equals(c.ServerName, model.ServerName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(c.DatabaseName, model.DatabaseName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(c.AuthMode, model.AuthMode, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(c.Username ?? string.Empty, model.Username ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
+                c.ConnectionTimeout == model.ConnectionTimeout &&
+                c.TrustCertificate == model.TrustCertificate);
+
+            if (savedConnection != null)
+                model.Id = savedConnection.Id;
+
             return PartialView("_ConnectionTableRow", model);
         }
+
 
 
         [HttpPost]
@@ -81,6 +95,17 @@ namespace AIChatbot.web.Controllers
                 TempData["Success"] = "Knowledge base updated successfully";
             else
                 TempData["Error"] = "Failed to update knowledge base";
+            return Json(new { success });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateKB([FromBody] Guid connectionId)
+        {
+            var success = await _connectionService.CreateKnowledgeBaseAsync(connectionId);
+            if (success)
+                TempData["Success"] = "Knowledge base created successfully";
+            else
+                TempData["Error"] = "Failed to create knowledge base";
             return Json(new { success });
         }
 

@@ -1,0 +1,135 @@
+@{
+    ViewData["Title"] = "RBAC Permission Set Creator";
+    Layout = "_AdminLayout";
+}
+
+<link rel="stylesheet" href="~/css/rbac-settings.css" asp-append-version="true" />
+
+<div class="rbac-container">
+    <div class="rbac-wrapper">
+        
+        <!-- Header -->
+        <div class="rbac-header">
+            <div>
+                <h1 class="rbac-title">
+                    <i class="bi bi-shield-check"></i>
+                    Permission Set Creator
+                </h1>
+                <p class="rbac-subtitle">Build role-based table permissions and export as a JSON payload.</p>
+            </div>
+            <button id="btn-dark-mode" class="rbac-theme-btn" title="Toggle dark mode">
+                <i class="bi bi-moon"></i>
+            </button>
+        </div>
+
+        <!-- Step 1: Role Name -->
+        <section class="rbac-section">
+            <h2 class="rbac-step-title">
+                <span class="rbac-step-badge">STEP 1</span>
+                Role Name
+            </h2>
+            <input 
+                type="text" 
+                id="input-role-name"
+                placeholder="e.g. customer, admin, vendor"
+                class="rbac-input" 
+                maxlength="100"
+            />
+        </section>
+
+        <!-- Step 2: Select Schema -->
+        <section class="rbac-section">
+            <div class="rbac-step-header">
+                <h2 class="rbac-step-title">
+                    <span class="rbac-step-badge">STEP 2</span>
+                    Select Schema
+                </h2>
+                <div class="rbac-search-wrap">
+                    <i class="bi bi-search"></i>
+                    <input 
+                        type="text" 
+                        id="schema-search"
+                        placeholder="Search schemas..."
+                        class="rbac-search-input"
+                    />
+                </div>
+            </div>
+            <div id="schema-list" class="rbac-schema-list"></div>
+        </section>
+<!-- Step 3: Select Tables -->
+<section class="rbac-section">
+    <div class="rbac-step-header">
+        <h2 class="rbac-step-title">
+            <span class="rbac-step-badge">STEP 3</span>
+            Select Tables
+        </h2>
+        <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
+            <div class="rbac-search-wrap">
+                <i class="bi bi-search"></i>
+                <input 
+                    type="text" 
+                    id="table-search"
+                    placeholder="Search tables..."
+                    class="rbac-search-input"
+                />
+            </div>
+            <span id="table-count-badge" class="rbac-count-badge">0 selected</span>
+        </div>
+    </div>
+    <div id="tables-list" class="rbac-tables-list"></div>
+</section>
+
+        <!-- Step 4: Configure Permissions -->
+        <section class="rbac-section">
+            <div class="rbac-step-header">
+                <h2 class="rbac-step-title">
+                    <span class="rbac-step-badge">STEP 4</span>
+                    Configure Permissions
+                </h2>
+                <button id="btn-save-all" class="rbac-btn-secondary" style="display:none;">
+                    <i class="bi bi-check2"></i> Save All
+                </button>
+            </div>
+            <div id="permissions-list" class="rbac-permissions-list">
+                <div class="rbac-empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>Select tables from Step 3 to configure permissions.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 5: JSON Payload -->
+        <section class="rbac-section">
+            <h2 class="rbac-step-title">
+                <span class="rbac-step-badge">STEP 5</span>
+                JSON Payload
+            </h2>
+            <div class="rbac-payload-wrap">
+                <pre id="payload-output" class="rbac-payload-code">{}</pre>
+                <button id="btn-copy-payload" class="rbac-copy-btn" title="Copy to clipboard">
+                    <i class="bi bi-files"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Footer Actions -->
+        <div class="rbac-footer">
+            <button id="btn-copy" class="rbac-btn-secondary">
+                <i class="bi bi-clipboard"></i> Copy JSON
+            </button>
+            <button id="btn-send" class="rbac-btn-primary">
+                <i class="bi bi-send"></i> Review & Send
+            </button>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/rbac.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            rbac.init();
+        });
+    </script>
+}

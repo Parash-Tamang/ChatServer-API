@@ -126,9 +126,6 @@ async function openSession(sessionId) {
     clearMessages();
     showTypingIndicator();
 
-    
-    }
-
     try {
         const res = await fetch(`/Chat/GetMessages?sessionId=${sessionId}`);
         if (!res.ok) { removeTypingIndicator(); showError('Oops! Could not load this chat.'); return; }
@@ -216,7 +213,18 @@ async function sendMessage() {
         if (result.assistantReply) {
             removeTypingIndicator();
             setSendLoading(false);
-            appendMessage('assistant', result.assistantReply, new Date().toISOString(), result.columns, result.rows);
+            appendMessage(
+                'assistant',
+                result.assistantReply,
+                new Date().toISOString(),
+                result.columns,
+                result.rows,
+                result.excelGenerated,
+                result.excelAvailableNow,
+                result.graphImageBase64,
+                result.graphImageUrl,
+                result.graphTitle
+            );
             scrollToBottom();
         } else {
             startPolling(currentSessionId, sentMessageTime);
@@ -246,7 +254,18 @@ function startPolling(sessionId, afterUtc) {
                 stopPolling();
                 removeTypingIndicator();
                 setSendLoading(false);
-                appendMessage('assistant', json.data.content, json.data.createdAt, json.data.columns, json.data.rows);
+                appendMessage(
+                    'assistant',
+                    json.data.content,
+                    json.data.createdAt,
+                    json.data.columns,
+                    json.data.rows,
+                    json.data.excelGenerated,
+                    json.data.excelAvailableNow,
+                    json.data.graphImageBase64,
+                    json.data.graphImageUrl,
+                    json.data.graphTitle
+                );
                 scrollToBottom();
                 return;
             }
@@ -295,7 +314,7 @@ async function deleteSession(sessionId, event) {
 // ═══════════════════════════════════════════════════════
 //  APPEND MESSAGE — centered layout with avatar
 // ═══════════════════════════════════════════════════════
-function appendMessage(role, content, isoTime, columns, rows) {
+function appendMessage(role, content, isoTime, columns, rows, excelGenerated, excelAvailableNow, graphImageBase64, graphImageUrl, graphTitle) {
     const container = document.getElementById('messagesContainer');
     const isUser = role === 'user';
     const time = isoTime
@@ -306,17 +325,9 @@ function appendMessage(role, content, isoTime, columns, rows) {
     const row = document.createElement('div');
     row.className = 'msg-row ' + (isUser ? 'user' : 'bot');
 
-    if (!isUser) {
-        // Avatar for bot
-        const avatar = document.createElement('div');
-        avatar.className = 'msg-avatar';
-        avatar.textContent = 'AI';
-        row.appendChild(avatar);
-    }
-
-    // Column wrapper (bubble + time + excel btn)
+    // Column wrapper (bubble + time + attachments)
     const col = document.createElement('div');
-    col.style.cssText = `display:flex;flex-direction:column;${isUser ? 'align-items:flex-end;' : 'flex:1;min-width:0;'}`;
+    col.style.cssText = `display:flex;flex-direction:column;${isUser ? 'align-items:flex-end;margin-left:auto;' : 'flex:1;min-width:0;'}`;
 
     // Bubble
     const bubble = document.createElement('div');
@@ -331,13 +342,64 @@ function appendMessage(role, content, isoTime, columns, rows) {
 
     col.appendChild(bubble);
 
-    // Excel download button
+    if (!isUser && (graphImageBase64 || graphImageUrl)) {
+        const graphWrap = document.createElement('div');
+        graphWrap.className = 'assistant-graph';
+
+        const title = document.createElement('div');
+        title.className = 'assistant-graph-title';
+        title.textContent = graphTitle || 'Chart preview';
+        graphWrap.appendChild(title);
+
+        const img = document.createElement('img');
+        img.className = 'graph-image';
+        img.src = graphImageBase64
+            ? `data:image/png;base64,${graphImageBase64}`
+            : graphImageUrl;
+        img.alt = graphTitle || 'Chart image';
+        img.loading = 'lazy';
+        graphWrap.appendChild(img);
+        col.appendChild(graphWrap);
+    }
+
+    // Excel download for generated Excel payloads
+    if (!isUser && excelGenerated) {
+        const btnWrap = document.createElement('div');
+        btnWrap.className = 'download-card';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm btn-outline-success';
+        btn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Download Excel';
+        btn.addEventListener('click', () => {
+            if (excelAvailableNow && excelAvailableNow.columns?.length > 0 && excelAvailableNow.rows?.length > 0) {
+                downloadExcelAvailableNow(excelAvailableNow);
+            } else if (columns?.length > 0 && rows?.length > 0) {
+                downloadExcel(columns, rows);
+            } else {
+                showError('Excel output is not available yet.');
+            }
+        });
+
+        btnWrap.appendChild(btn);
+
+        if (excelAvailableNow?.format) {
+            const hint = document.createElement('div');
+            hint.className = 'download-hint';
+            hint.textContent = `Excel ready (${excelAvailableNow.rowcount ?? excelAvailableNow.rows?.length ?? 0} rows)`;
+            btnWrap.appendChild(hint);
+        }
+
+        col.appendChild(btnWrap);
+    }
+
+    // Table download button for inline columns/rows
     if (!isUser && columns?.length > 0 && rows?.length > 0) {
         const btnWrap = document.createElement('div');
         btnWrap.className = 'mt-1';
         const btn = document.createElement('button');
         btn.className = 'btn btn-sm btn-outline-success';
-        btn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Download Excel';
+        btn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Download Table';
         btn.addEventListener('click', () => downloadExcel(columns, rows));
         btnWrap.appendChild(btn);
         col.appendChild(btnWrap);
@@ -382,6 +444,32 @@ function downloadExcel(columns, rows) {
     }
 }
 
+function downloadExcelAvailableNow(excelAvailableNow) {
+    try {
+        const header = excelAvailableNow.columns || [];
+        const rows = (excelAvailableNow.rows || []).map(row =>
+            header.map(col => {
+                const value = row?.[col];
+                if (value === null || value === undefined) return '';
+                if (typeof value === 'object') {
+                    return JSON.stringify(value);
+                }
+                return value;
+            })
+        );
+
+        const wsData = [header, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Excel');
+        const fileName = `export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        showSuccess('Excel file downloaded.');
+    } catch {
+        showError('Oops! Could not generate the Excel file.');
+    }
+}
+
 // ═══════════════════════════════════════════════════════
 //  DOM HELPERS
 // ═══════════════════════════════════════════════════════
@@ -392,15 +480,10 @@ function showTypingIndicator() {
     row.id = 'typingIndicator';
     row.className = 'msg-row bot';
 
-    const avatar = document.createElement('div');
-    avatar.className = 'msg-avatar';
-    avatar.textContent = 'AI';
-
     const indicator = document.createElement('div');
     indicator.className = 'typing-indicator';
     indicator.innerHTML = '<span></span><span></span><span></span>';
 
-    row.appendChild(avatar);
     row.appendChild(indicator);
     container.appendChild(row);
     scrollToBottom();
