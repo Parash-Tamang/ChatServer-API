@@ -9,5 +9,6 @@ public record RegisterUserCommand(
     string Email,
     string Phone,
     string Password,
-    string Role
+    string Role,
+    string Token
 ) : IRequest<AuthResult>;

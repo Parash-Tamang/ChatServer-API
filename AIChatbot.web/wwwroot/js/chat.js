@@ -4,7 +4,8 @@ let currentSessionId = null;
 let lastUserMessages = {};
 let lastUserMessageId = null;
 let isTyping = false;
-const STORAGE_KEY = "lastChatSession";
+// NOTE: per user request, do NOT persist to localStorage — keep last session in-memory only
+let lastChatSessionId = null;
 
 // ================= HELPERS: CHAT STATE =================
 
@@ -99,8 +100,8 @@ async function loadSessions() {
 
 async function openSession(id) {
     if (!id) return;
-
-    localStorage.setItem(STORAGE_KEY, id);
+    // keep last-opened session in memory only
+    lastChatSessionId = id;
     currentSessionId = id;
 
     document.getElementById("messagesContainer").innerHTML = "";
@@ -160,7 +161,8 @@ async function sendMessage() {
 
     currentSessionId = data.chatSessionId;
     lastUserMessageId = data.messageId;
-    localStorage.setItem(STORAGE_KEY, currentSessionId);
+    // keep last-opened session in memory only
+    lastChatSessionId = currentSessionId;
 
     streamMessage(data.assistantReply || "No response from AIChatbot !! Please Retry");
     loadSessions();
@@ -273,7 +275,8 @@ function scrollBottom() {
 
 function newChat() {
     currentSessionId = null;
-    localStorage.removeItem(STORAGE_KEY);
+    // clear in-memory last session id
+    lastChatSessionId = null;
     setChatEmpty();
 }
 
@@ -312,7 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadUserDetails();
     loadSessions().then(() => {
-        const last = localStorage.getItem(STORAGE_KEY);
-        if (last) openSession(last);
+        // Do not restore from localStorage; preserve in-memory only
+        if (lastChatSessionId) openSession(lastChatSessionId);
     });
 });

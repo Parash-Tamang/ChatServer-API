@@ -35,7 +35,7 @@
             </div>
         </div>
 
-        <div class="rm-action-card" id="card-members" onclick="switchPanel('list')">
+        @* <div class="rm-action-card" id="card-members" onclick="switchPanel('list')">
             <div class="rm-card-icon icon-coral">
                 <i class="bi bi-people"></i>
             </div>
@@ -43,7 +43,7 @@
                 <h4>View Members</h4>
                 <p>Click a role to see its members</p>
             </div>
-        </div>
+        </div> *@
 
         <div class="rm-action-card" id="card-assign-db" onclick="switchPanel('assign-db')">
             <div class="rm-card-icon icon-blue">
@@ -55,14 +55,24 @@
             </div>
         </div>
 
-        <!-- ✅ FIXED: inside rm-action-cards -->
+        @* <!-- ✅ FIXED: inside rm-action-cards -->
         <div class="rm-action-card" id="card-view-access" onclick="switchPanel('view-access')">
             <div class="rm-card-icon icon-green">
                 <i class="bi bi-database-gear"></i>
-            </div>
+            </div>s
             <div class="rm-card-text">
                 <h4>Role DB Access</h4>
                 <p>View &amp; edit assigned databases</p>
+            </div>
+        </div> *@
+
+        <div class="rm-action-card" id="card-user-lookup" onclick="switchPanel('user-lookup')">
+            <div class="rm-card-icon icon-indigo">
+                <i class="bi bi-person-lines-fill"></i>
+            </div>
+            <div class="rm-card-text">
+                <h4>User Lookup</h4>
+                <p>Define tenant user lookup schema</p>
             </div>
         </div>
 
@@ -219,6 +229,73 @@
         <!-- Assignments list -->
         <div id="view-access-list" style="display:none;">
             <div class="rm-access-list" id="view-access-items"></div>
+        </div>
+    </div>
+
+    <div class="rm-panel" id="panel-user-lookup" style="display:none;">
+        <div class="rm-panel-header">
+            <i class="bi bi-person-lines-fill text-indigo"></i>
+            <span>User Lookup Configuration</span>
+        </div>
+
+        <p class="rm-page-sub" style="margin-bottom: 1.5rem;">
+            Create or update the lookup mapping for tenant user details using role + connection.
+        </p>
+
+        <div class="rm-form-group">
+            <label class="rm-label">Role <span class="required">*</span></label>
+            <select id="lookup-role-select" class="rm-input" onchange="onLookupRoleOrConnectionChanged()">
+                <option value="">— loading roles —</option>
+            </select>
+        </div>
+
+        <div class="rm-form-group">
+            <label class="rm-label">Connection <span class="required">*</span></label>
+            <select id="lookup-conn-select" class="rm-input" onchange="onLookupRoleOrConnectionChanged()">
+                <option value="">— loading connections —</option>
+            </select>
+        </div>
+
+        <div id="lookup-alert" class="rm-alert" style="display:none;"></div>
+
+        <div class="rm-form-group">
+            <label class="rm-label">User Table Name <span class="required">*</span></label>
+            <input id="lookup-user-table" class="rm-input" placeholder="e.g. Users" />
+        </div>
+
+        <div class="rm-form-group">
+            <label class="rm-label">User ID Column <span class="required">*</span></label>
+            <input id="lookup-user-id" class="rm-input" placeholder="e.g. user_id" />
+        </div>
+
+        <div class="rm-form-group">
+            <label class="rm-label">Email Column</label>
+            <input id="lookup-email" class="rm-input" placeholder="e.g. email" />
+        </div>
+
+        <div class="rm-form-group">
+            <label class="rm-label">Phone Column</label>
+            <input id="lookup-phone" class="rm-input" placeholder="e.g. phone_number" />
+        </div>
+
+        <!-- Name column inputs removed per request -->
+
+        <div class="rm-form-actions">
+            <button class="rm-btn-primary" id="btn-save-lookup" onclick="saveUserLookupConfiguration()">
+                <i class="bi bi-save"></i> Save Lookup
+            </button>
+            <button class="rm-btn-danger" id="btn-delete-lookup" onclick="deleteUserLookupConfiguration()" style="margin-left: 1rem; display:none;">
+                <i class="bi bi-trash"></i> Delete Lookup
+            </button>
+            <div style="margin-left:1rem; display:inline-block; vertical-align:middle;">
+                <div id="lookup-assign-preview" class="rm-assign-preview" style="display:none; margin-bottom:6px;">
+                    <i class="bi bi-arrow-right-circle-fill"></i>
+                    <span id="lookup-assign-preview-text"></span>
+                </div>
+                <button class="rm-btn-primary" id="btn-lookup-assign" onclick="assignRoleToConnectionFromLookup()" disabled>
+                    <i class="bi bi-database-check"></i> Confirm Assignment
+                </button>
+            </div>
         </div>
     </div>
 

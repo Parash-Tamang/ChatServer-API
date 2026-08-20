@@ -9,13 +9,14 @@ let allUsersCache = [];
 // ─── Panel Switching ───────────────────────────────────────────────────────
 
 // All panel/card IDs in one place — add new ones here only
-const ALL_PANELS = ['create', 'list', 'users', 'assign-db', 'view-access'];
+const ALL_PANELS = ['create', 'list', 'users', 'assign-db', 'view-access', 'user-lookup'];
 const PANEL_CARD_MAP = {
     'create': 'card-create',
     'list': 'card-list',
     'users': 'card-members',
     'assign-db': 'card-assign-db',
     'view-access': 'card-view-access'
+    , 'user-lookup': 'card-user-lookup'
 };
 function switchPanel(name) {
     ALL_PANELS.forEach(p => {
@@ -32,6 +33,7 @@ function switchPanel(name) {
     if (name === 'list') loadRoles();
     if (name === 'assign-db') loadAssignPanel();
     if (name === 'view-access') loadViewAccessPanel();
+    if (name === 'user-lookup') loadUserLookupPanel();
 }
 
 // ─── Load Roles ────────────────────────────────────────────────────────────
@@ -306,52 +308,56 @@ function confirmDeleteUser() {
 
 // ─── Assign DB to Role ─────────────────────────────────────────────────────
 
-function loadAssignPanel() {
-    const roleSelect = document.getElementById('assign-role-select');
-    const connSelect = document.getElementById('assign-conn-select');
-
-    // reset
+function loadRoleConnectionDropdowns(roleSelect, connSelect) {
+    console.log('[loadRoleConnectionDropdowns] Starting', { roleSelect, connSelect });
     roleSelect.innerHTML = '<option value="">— loading roles —</option>';
     connSelect.innerHTML = '<option value="">— loading connections —</option>';
     roleSelect.disabled = true;
     connSelect.disabled = true;
-    document.getElementById('assign-preview').style.display = 'none';
 
-    // fetch roles and connections in parallel
-    Promise.all([
+    return Promise.all([
         fetch('/Admin/GetRoles').then(r => r.json()),
         fetch('/Admin/GetConnections').then(r => r.json())
     ])
         .then(([rolesRes, connsRes]) => {
-            // populate roles
+            console.log('[loadRoleConnectionDropdowns] API responses:', { rolesRes, connsRes });
             if (rolesRes.success && rolesRes.data?.length) {
+                console.log('[loadRoleConnectionDropdowns] Populating roles:', rolesRes.data.length);
                 roleSelect.innerHTML = '<option value="">— select a role —</option>' +
-                    rolesRes.data.map(r =>
-                        `<option value="${escHtml(r.roleId)}">${escHtml(r.roleName)}</option>`
-                    ).join('');
+                    rolesRes.data.map(r => `<option value="${escHtml(r.roleId)}">${escHtml(r.roleName)}</option>`).join('');
             } else {
+                console.warn('[loadRoleConnectionDropdowns] No roles or failed response:', rolesRes);
                 roleSelect.innerHTML = '<option value="">— no roles found —</option>';
             }
 
-            // populate connections
             if (connsRes.success && connsRes.data?.length) {
+                console.log('[loadRoleConnectionDropdowns] Populating connections:', connsRes.data.length);
                 connSelect.innerHTML = '<option value="">— select a connection —</option>' +
-                    connsRes.data.map(c =>
-                        `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`
-                    ).join('');
+                    connsRes.data.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.name)}</option>`).join('');
             } else {
+                console.warn('[loadRoleConnectionDropdowns] No connections or failed response:', connsRes);
                 connSelect.innerHTML = '<option value="">— no connections found —</option>';
             }
         })
-        .catch(() => {
+        .catch((err) => {
+            console.error('[loadRoleConnectionDropdowns] Fetch error:', err);
             roleSelect.innerHTML = '<option value="">— failed to load —</option>';
             connSelect.innerHTML = '<option value="">— failed to load —</option>';
             toastr.error('Could not load data. Please try again.');
         })
         .finally(() => {
+            console.log('[loadRoleConnectionDropdowns] Finally block - enabling selects');
             roleSelect.disabled = false;
             connSelect.disabled = false;
         });
+}
+
+function loadAssignPanel() {
+    const roleSelect = document.getElementById('assign-role-select');
+    const connSelect = document.getElementById('assign-conn-select');
+
+    document.getElementById('assign-preview').style.display = 'none';
+    loadRoleConnectionDropdowns(roleSelect, connSelect);
 }
 
 function updateAssignPreview() {
@@ -475,6 +481,215 @@ function loadViewAccessPanel() {
             toastr.error('Could not load roles. Please try again.');
         })
         .finally(() => { roleSelect.disabled = false; });
+}
+
+function loadUserLookupPanel() {
+    console.log('[loadUserLookupPanel] Called');
+    const roleSelect = document.getElementById('lookup-role-select');
+    const connSelect = document.getElementById('lookup-conn-select');
+    console.log('[loadUserLookupPanel] Elements found:', { roleSelect, connSelect });
+
+    if (!roleSelect || !connSelect) {
+        console.error('[loadUserLookupPanel] ERROR: Elements not found in DOM');
+        toastr.error('Lookup panel elements not found. Please refresh.');
+        return;
+    }
+
+    clearLookupForm();
+    toggleLookupDeleteButton(false);
+
+    console.log('[loadUserLookupPanel] Calling loadRoleConnectionDropdowns');
+    loadRoleConnectionDropdowns(roleSelect, connSelect)
+        .finally(() => {
+            console.log('[loadUserLookupPanel] Promise finally - updating preview');
+            updateLookupAssignPreview();
+        });
+}
+
+function onLookupRoleOrConnectionChanged() {
+    const roleId = document.getElementById('lookup-role-select').value;
+    const connectionId = document.getElementById('lookup-conn-select').value;
+
+    if (!roleId || !connectionId) {
+        clearLookupForm();
+        toggleLookupDeleteButton(false);
+        return;
+    }
+
+    document.getElementById('lookup-alert').style.display = 'none';
+    fetch(`/Admin/GetUserLookupConfiguration?roleId=${encodeURIComponent(roleId)}&connectionId=${encodeURIComponent(connectionId)}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data) {
+                populateLookupForm(res.data);
+                toggleLookupDeleteButton(true);
+            } else {
+                clearLookupForm();
+                toggleLookupDeleteButton(false);
+            }
+        })
+        .catch(() => {
+            clearLookupForm();
+            toggleLookupDeleteButton(false);
+        });
+
+    // also update the inline assign preview for this panel
+    updateLookupAssignPreview();
+}
+
+function updateLookupAssignPreview() {
+    const roleId = document.getElementById('lookup-role-select').value;
+    const connId = document.getElementById('lookup-conn-select').value;
+    const preview = document.getElementById('lookup-assign-preview');
+    const previewTxt = document.getElementById('lookup-assign-preview-text');
+    const btn = document.getElementById('btn-lookup-assign');
+
+    if (roleId && connId) {
+        const roleName = document.getElementById('lookup-role-select').options[document.getElementById('lookup-role-select').selectedIndex].text;
+        const connName = document.getElementById('lookup-conn-select').options[document.getElementById('lookup-conn-select').selectedIndex].text;
+        previewTxt.innerHTML = `<strong>${escHtml(roleName)}</strong> will get access to <strong>${escHtml(connName)}</strong>`;
+        preview.style.display = 'flex';
+        btn.disabled = false;
+    } else {
+        preview.style.display = 'none';
+        btn.disabled = true;
+    }
+}
+
+function assignRoleToConnectionFromLookup() {
+    const roleId = document.getElementById('lookup-role-select').value;
+    const connectionId = document.getElementById('lookup-conn-select').value;
+    if (!roleId || !connectionId) {
+        toastr.warning('Please select both a role and a database connection.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-lookup-assign');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="rm-spinner" style="width:16px;height:16px;border-width:2px;margin:0 4px 0 0;"></span> Assigning...';
+
+    $.ajax({
+        url: '/Admin/AssignRoleToConnection',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ roleId, connectionId }),
+        success: function (res) {
+            if (res.success) {
+                toastr.success(res.message);
+                updateLookupAssignPreview();
+            } else {
+                toastr.error(res.message);
+            }
+        },
+        error: function () {
+            toastr.error('Something went wrong. Please try again.');
+        },
+        complete: function () {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-database-check"></i> Confirm Assignment';
+        }
+    });
+}
+
+function populateLookupForm(data) {
+    document.getElementById('lookup-user-table').value = data.userTableName || '';
+    document.getElementById('lookup-user-id').value = data.userIdColumn || '';
+    document.getElementById('lookup-email').value = data.emailColumn || '';
+    document.getElementById('lookup-phone').value = data.phoneColumn || '';
+    // name columns were removed per request
+}
+
+function clearLookupForm() {
+    document.getElementById('lookup-user-table').value = '';
+    document.getElementById('lookup-user-id').value = '';
+    document.getElementById('lookup-email').value = '';
+    document.getElementById('lookup-phone').value = '';
+    // name columns were removed per request
+}
+
+function toggleLookupDeleteButton(show) {
+    document.getElementById('btn-delete-lookup').style.display = show ? 'inline-flex' : 'none';
+}
+
+function saveUserLookupConfiguration() {
+    const roleId = document.getElementById('lookup-role-select').value;
+    const connectionId = document.getElementById('lookup-conn-select').value;
+    const payload = {
+        roleId,
+        connectionId,
+        userTableName: document.getElementById('lookup-user-table').value.trim(),
+        userIdColumn: document.getElementById('lookup-user-id').value.trim(),
+        emailColumn: document.getElementById('lookup-email').value.trim(),
+        phoneColumn: document.getElementById('lookup-phone').value.trim()
+    };
+
+    if (!roleId || !connectionId || !payload.userTableName || !payload.userIdColumn) {
+        showAlert(document.getElementById('lookup-alert'), 'error', '<i class="bi bi-exclamation-circle"></i> Role, connection, table name, and user ID column are required.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-lookup');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="rm-spinner" style="width:16px;height:16px;border-width:2px;margin:0 4px 0 0;"></span> Saving...';
+    hideAlert(document.getElementById('lookup-alert'));
+
+    fetch('/Admin/SaveUserLookupConfiguration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showAlert(document.getElementById('lookup-alert'), 'success', '<i class="bi bi-check-circle"></i> Lookup configuration saved.');
+                toggleLookupDeleteButton(true);
+                toastr.success(res.message);
+            } else {
+                showAlert(document.getElementById('lookup-alert'), 'error', `<i class="bi bi-exclamation-circle"></i> ${res.message}`);
+            }
+        })
+        .catch(() => {
+            showAlert(document.getElementById('lookup-alert'), 'error', '<i class="bi bi-exclamation-circle"></i> Failed to save lookup.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-save"></i> Save Lookup';
+        });
+}
+
+function deleteUserLookupConfiguration() {
+    const roleId = document.getElementById('lookup-role-select').value;
+    const connectionId = document.getElementById('lookup-conn-select').value;
+    if (!roleId || !connectionId) {
+        toastr.warning('Select a role and connection before deleting.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-delete-lookup');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="rm-spinner" style="width:16px;height:16px;border-width:2px;margin:0 4px 0 0;"></span> Deleting...';
+
+    fetch(`/Admin/DeleteUserLookupConfiguration?roleId=${encodeURIComponent(roleId)}&connectionId=${encodeURIComponent(connectionId)}`, {
+        method: 'DELETE'
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showAlert(document.getElementById('lookup-alert'), 'success', '<i class="bi bi-check-circle"></i> Lookup configuration deleted.');
+                clearLookupForm();
+                toggleLookupDeleteButton(false);
+                toastr.success(res.message);
+            } else {
+                showAlert(document.getElementById('lookup-alert'), 'error', `<i class="bi bi-exclamation-circle"></i> ${res.message}`);
+            }
+        })
+        .catch(() => {
+            showAlert(document.getElementById('lookup-alert'), 'error', '<i class="bi bi-exclamation-circle"></i> Failed to delete lookup.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash"></i> Delete Lookup';
+        });
 }
 
 function loadRoleDbAccess() {

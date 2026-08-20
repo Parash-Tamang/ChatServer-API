@@ -16,5 +16,5 @@ public class ConnectionDto
 
     // expose username/password for listing (careful with production secrets)
 
-    public int PromptingMode { get; set; } // 0 = Global, 1 = Local
+    
 }

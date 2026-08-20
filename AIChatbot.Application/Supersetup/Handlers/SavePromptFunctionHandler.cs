@@ -10,14 +10,17 @@ namespace AIChatbot.Application.Supersetup.Handlers
     public class SavePromptFunctionHandler
         : IRequestHandler<SavePromptFunctionCommand, List<FunctionDto>>
     {
-        private readonly IPromptFunctionRepository _repo;
+        private readonly IPromptFunctionRepository _globalRepo;
+        private readonly ILocalFunctionRepository _localRepo;
         private readonly IConnectionRepository _connectionRepo;
 
         public SavePromptFunctionHandler(
-            IPromptFunctionRepository repo,
+            IPromptFunctionRepository globalRepo,
+            ILocalFunctionRepository localRepo,
             IConnectionRepository connectionRepo)
         {
-            _repo = repo;
+            _globalRepo = globalRepo;
+            _localRepo = localRepo;
             _connectionRepo = connectionRepo;
         }
 
@@ -35,7 +38,18 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 throw new BadHttpRequestException("System prompt cannot be empty.");
 
             // ============================================================
-            // ✅ CASE 4: CREATE GLOBAL FUNCTION (conn = null, func = null)
+            // 🔥 GLOBAL FUNCTIONS
+            // ============================================================
+
+            var globalFunctions = await _globalRepo.GetGlobalFunctionsAsync();
+
+            var allowedNames = globalFunctions
+                .Where(x => !x.IsDeleted)
+                .Select(x => x.FunctionName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // ============================================================
+            // ✅ GLOBAL CREATE
             // ============================================================
             if (!request.ConnectionStringId.HasValue && !request.FunctionId.HasValue)
             {
@@ -48,87 +62,94 @@ namespace AIChatbot.Application.Supersetup.Handlers
                     IsDeleted = false
                 };
 
-                await _repo.AddAsync(newGlobal);
+                await _globalRepo.AddAsync(newGlobal);
 
                 return await GetGlobalFunctions();
             }
 
             // ============================================================
-            // ✅ CASE 1: UPDATE GLOBAL FUNCTION (conn = null, func = id)
+            // ✅ GLOBAL UPDATE
             // ============================================================
             if (!request.ConnectionStringId.HasValue && request.FunctionId.HasValue)
             {
-                var existing = await _repo.GetByIdAsync(request.FunctionId.Value);
-
-                if (existing == null)
-                    throw new KeyNotFoundException("Global function not found.");
+                var existing = await _globalRepo.GetByIdAsync(request.FunctionId.Value)
+                    ?? throw new KeyNotFoundException("Global function not found.");
 
                 if (existing.ConnectionStringId != null)
-                    throw new BadHttpRequestException("This function is not a global function.");
+                    throw new BadHttpRequestException("This is not a global function.");
 
                 existing.FunctionName = request.FunctionName;
                 existing.SystemPrompt = request.SystemPrompt;
 
-                await _repo.UpdateAsync(existing);
+                await _globalRepo.UpdateAsync(existing);
 
                 return await GetGlobalFunctions();
             }
 
             // ============================================================
-            // VALIDATE CONNECTION
+            // 🔒 LOCAL VALIDATION
             // ============================================================
+
             var connectionId = request.ConnectionStringId!.Value;
 
-            var connection = await _connectionRepo.GetByIdAsync(connectionId);
+            var connection = await _connectionRepo.GetByIdAsync(connectionId)
+                ?? throw new KeyNotFoundException("Connection not found.");
 
-            if (connection == null)
-                throw new KeyNotFoundException("Connection not found.");
-
-            // ============================================================
-            // ✅ CASE 2: CREATE CONNECTION FUNCTION (conn = id, func = null)
-            // ============================================================
-            if (!request.FunctionId.HasValue)
+            if (!allowedNames.Contains(request.FunctionName))
             {
-                var newFunction = new PromptFunction
-                {
-                    Id = Guid.NewGuid(),
-                    ConnectionStringId = connectionId,
-                    FunctionName = request.FunctionName,
-                    SystemPrompt = request.SystemPrompt,
-                    IsDeleted = false
-                };
-
-                await _repo.AddAsync(newFunction);
+                throw new BadHttpRequestException(
+                    "Function name must exist in global functions.");
             }
+
             // ============================================================
-            // ✅ CASE 3: UPDATE CONNECTION FUNCTION (conn = id, func = id)
+            // 🔥 LOCAL OVERRIDE LOGIC (NEW SYSTEM)
             // ============================================================
+
+            var existingBlock = await _localRepo.GetAsync(
+                connectionId,
+                request.FunctionName);
+
+            var global = globalFunctions
+                .FirstOrDefault(g => g.FunctionName.Equals(
+                    request.FunctionName,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (existingBlock != null)
+            {
+                // 🔥 UPDATE OVERRIDE
+                existingBlock.IsOverride = true;
+                existingBlock.OverridePrompt = request.SystemPrompt;
+      
+
+                await _localRepo.UpdateAsync(existingBlock);
+            }
             else
             {
-                var existing = await _repo.GetByIdAsync(request.FunctionId.Value);
+                // 🔥 CREATE OVERRIDE
+                var block = new LocalFunctionBlock
+                {
+                    Id = Guid.NewGuid(),
+                    ConnectionId = connectionId,
+                    FunctionName = request.FunctionName,
+                    GlobalFunctionId = global!.Id,
 
-                if (existing == null)
-                    throw new KeyNotFoundException("Function not found.");
+                    IsOverride = true,
+                    OverridePrompt = request.SystemPrompt,
+                  
 
-                if (existing.ConnectionStringId != connectionId)
-                    throw new BadHttpRequestException(
-                        "This function does not belong to the provided connection.");
+                    CreatedAt = DateTime.UtcNow
+                };
 
-                existing.FunctionName = request.FunctionName;
-                existing.SystemPrompt = request.SystemPrompt;
-
-                await _repo.UpdateAsync(existing);
+                await _localRepo.AddRangeAsync(new List<LocalFunctionBlock> { block });
             }
 
             return await GetConnectionFunctions(connectionId);
         }
 
         // =============================
-        // 🔧 HELPER: GLOBAL FUNCTIONS
-        // =============================
         private async Task<List<FunctionDto>> GetGlobalFunctions()
         {
-            var functions = await _repo.GetGlobalFunctionsAsync();
+            var functions = await _globalRepo.GetGlobalFunctionsAsync();
 
             return functions
                 .Where(f => !f.IsDeleted)
@@ -136,27 +157,32 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 {
                     Id = f.Id,
                     FunctionName = f.FunctionName,
-                    SystemPrompt = f.SystemPrompt
+                    SystemPrompt = f.SystemPrompt,
+                    Source = "global"
                 })
                 .ToList();
         }
 
         // =============================
-        // 🔧 HELPER: CONNECTION FUNCTIONS
-        // =============================
         private async Task<List<FunctionDto>> GetConnectionFunctions(Guid connectionId)
         {
-            var functions = await _repo.GetByConnectionIdAsync(connectionId);
+            var blocks = await _localRepo.GetByConnectionAsync(connectionId);
+            var globals = await _globalRepo.GetGlobalFunctionsAsync();
 
-            return functions
-                .Where(f => !f.IsDeleted)
-                .Select(f => new FunctionDto
+            return blocks.Select(block =>
+            {
+                var global = globals.FirstOrDefault(g => g.Id == block.GlobalFunctionId);
+
+                return new FunctionDto
                 {
-                    Id = f.Id,
-                    FunctionName = f.FunctionName,
-                    SystemPrompt = f.SystemPrompt
-                })
-                .ToList();
+                    Id = block.Id,
+                    FunctionName = block.FunctionName,
+                    SystemPrompt = block.IsOverride
+                        ? block.OverridePrompt!
+                        : global?.SystemPrompt!,
+                    Source = block.IsOverride ? "local" : "global"
+                };
+            }).ToList();
         }
     }
 }

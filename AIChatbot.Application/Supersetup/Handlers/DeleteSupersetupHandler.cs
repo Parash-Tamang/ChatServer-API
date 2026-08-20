@@ -1,8 +1,8 @@
 ﻿using AIChatbot.Application.Abstractions;
 using AIChatbot.Application.Supersetup.Commands;
-using AIChatbot.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace AIChatbot.Application.Supersetup.Handlers
 {
@@ -10,88 +10,110 @@ namespace AIChatbot.Application.Supersetup.Handlers
         : IRequestHandler<DeleteSupersetupCommand, bool>
     {
         private readonly IConnectionRepository _connectionRepo;
-        private readonly IPromptFunctionRepository _functionRepo;
+        private readonly IPromptFunctionRepository _globalRepo;
+        private readonly ILocalFunctionRepository _localRepo;
+        private readonly IAiProviderService _ai;
+        private readonly ILogger<DeleteSupersetupHandler> _logger;
 
         public DeleteSupersetupHandler(
             IConnectionRepository connectionRepo,
-            IPromptFunctionRepository functionRepo)
+            IPromptFunctionRepository globalRepo,
+            ILocalFunctionRepository localRepo,
+            IAiProviderService ai,
+            ILogger<DeleteSupersetupHandler> logger)
         {
             _connectionRepo = connectionRepo;
-            _functionRepo = functionRepo;
+            _globalRepo = globalRepo;
+            _localRepo = localRepo;
+            _ai = ai;
+            _logger = logger;
         }
 
         public async Task<bool> Handle(
             DeleteSupersetupCommand request,
             CancellationToken ct)
         {
-            // =============================
-            // ❌ INVALID REQUEST
-            // =============================
             if (!request.ConnectionId.HasValue && !request.FunctionId.HasValue)
                 throw new BadHttpRequestException(
                     "Either ConnectionId or FunctionId must be provided.");
 
             // ============================================================
-            // ✅ CASE 1: DELETE FUNCTION (conn = id, func = id)
+            // ✅ CASE 1: REMOVE LOCAL OVERRIDE
             // ============================================================
             if (request.ConnectionId.HasValue && request.FunctionId.HasValue)
             {
-                var function = await _functionRepo.GetByIdAsync(request.FunctionId.Value);
+                var function = await _globalRepo.GetByIdAsync(request.FunctionId.Value)
+                    ?? throw new KeyNotFoundException("Function not found.");
 
-                if (function == null)
-                    throw new KeyNotFoundException("Function not found.");
+                var block = await _localRepo.GetAsync(
+                    request.ConnectionId.Value,
+                    function.FunctionName);
 
-                if (function.ConnectionStringId != request.ConnectionId.Value)
-                    throw new BadHttpRequestException(
-                        "Function does not belong to the provided connection.");
+                if (block == null)
+                    throw new KeyNotFoundException("Local function not found.");
 
-                function.IsDeleted = true;
-                await _functionRepo.UpdateAsync(function);
+                // 🔥 REMOVE OVERRIDE
+                block.IsOverride = false;
+                block.OverridePrompt = null;
+                block.OverrideVersion = null;
+
+                await _localRepo.UpdateAsync(block);
 
                 return true;
             }
 
             // ============================================================
-            // ✅ CASE 3: DELETE GLOBAL FUNCTION (conn = null, func = id)
+            // ✅ CASE 2: DELETE GLOBAL FUNCTION
             // ============================================================
             if (!request.ConnectionId.HasValue && request.FunctionId.HasValue)
             {
-                var function = await _functionRepo.GetByIdAsync(request.FunctionId.Value);
-
-                if (function == null)
-                    throw new KeyNotFoundException("Global function not found.");
+                var function = await _globalRepo.GetByIdAsync(request.FunctionId.Value)
+                    ?? throw new KeyNotFoundException("Global function not found.");
 
                 if (function.ConnectionStringId != null)
-                    throw new BadHttpRequestException(
-                        "This function is not a global function.");
+                    throw new BadHttpRequestException("Not a global function.");
 
                 function.IsDeleted = true;
-                await _functionRepo.UpdateAsync(function);
+                await _globalRepo.UpdateAsync(function);
+
+                // 🔥 CLEAN LOCAL BLOCKS
+                await _localRepo.RemoveOverridesByFunctionName(function.FunctionName);
 
                 return true;
             }
 
             // ============================================================
-            // ✅ CASE 2: DELETE CONNECTION (conn = id, func = null)
+            // ✅ CASE 3: DELETE CONNECTION
             // ============================================================
             if (request.ConnectionId.HasValue && !request.FunctionId.HasValue)
             {
-                var connection = await _connectionRepo.GetByIdAsync(request.ConnectionId.Value);
+                var connection = await _connectionRepo.GetByIdAsync(request.ConnectionId.Value)
+                    ?? throw new KeyNotFoundException("Connection not found.");
 
-                if (connection == null)
-                    throw new KeyNotFoundException("Connection not found.");
+                bool pythonDeleted = true;
 
-                connection.IsDeleted = true;
-                connection.IsActive = false;
+                if (connection.Verified)
+                {
+                    pythonDeleted = await _ai.NotifyConnectionDeletedAsync(connection.Id);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Skipping Python delete. KB not created for {ConnectionId}",
+                        connection.Id);
+                }
 
-                await _connectionRepo.UpdateAsync(connection);
+                if (!pythonDeleted)
+                    throw new ApplicationException("Delete operation failed.");
+
+                // 🔥 DELETE LOCAL BLOCKS
+                await _localRepo.DeleteByConnectionIdAsync(connection.Id);
+
+                await _connectionRepo.DeleteAsync(connection.Id);
 
                 return true;
             }
 
-            // =============================
-            // ❌ FALLBACK (SHOULD NOT HIT)
-            // =============================
             throw new BadHttpRequestException("Invalid delete request.");
         }
     }

@@ -22,9 +22,9 @@ public class SaveConnectionHandler
         SaveConnectionCommand request,
         CancellationToken ct)
     {
-        // =============================
-        // 🔒 VALIDATION
-        // =============================
+        // =====================================
+        // VALIDATION
+        // =====================================
         if (string.IsNullOrWhiteSpace(request.ServerName))
             throw new BadHttpRequestException("ServerName is required.");
 
@@ -34,16 +34,28 @@ public class SaveConnectionHandler
         if (string.IsNullOrWhiteSpace(request.AuthMode))
             throw new BadHttpRequestException("AuthMode is required.");
 
+        // SQL Auth requires credentials
+        if (!IsWindowsAuth(request))
+        {
+            if (string.IsNullOrWhiteSpace(request.Username))
+                throw new BadHttpRequestException(
+                    "Username is required for SQL Authentication.");
+
+            if (string.IsNullOrWhiteSpace(request.Password))
+                throw new BadHttpRequestException(
+                    "Password is required for SQL Authentication.");
+        }
+
         var connectionString = BuildConnectionString(request);
 
-        // =============================
-        // ✅ TEST CONNECTION
-        // =============================
+        // =====================================
+        // TEST CONNECTION
+        // =====================================
         await TestConnectionAsync(connectionString);
 
-        // =============================
-        // 🔒 DUPLICATE CHECK (FIXED POSITION)
-        // =============================
+        // =====================================
+        // DUPLICATE CHECK
+        // =====================================
         var existing = await _repo.GetByUniqueKeyAsync(
             request.ServerName,
             request.DatabaseName,
@@ -66,26 +78,28 @@ public class SaveConnectionHandler
 
         ConnectionString entity;
 
-        // =============================
-        // ✅ CREATE
-        // =============================
+        // =====================================
+        // CREATE
+        // =====================================
         if (request.Id == null)
         {
             entity = new ConnectionString
             {
                 Id = Guid.NewGuid(),
+
                 ServerName = request.ServerName,
                 DatabaseName = request.DatabaseName,
                 AuthMode = request.AuthMode,
-                
-                Username = IsWindowsAuth(request) ? null : request.Username,
-                PasswordEncrypted = IsWindowsAuth(request) ? null : request.Password,
+
+                // Store for BOTH Windows & SQL Auth
+                Username = request.Username,
+                PasswordEncrypted = request.Password,
+
                 ConnectionTimeout = request.ConnectionTimeout,
-                TrustCertificate = request.TrustCertificate, 
+                TrustCertificate = request.TrustCertificate,
 
                 IsActive = false,
                 Verified = false,
-                PromptingMode = 0,
 
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
@@ -94,27 +108,23 @@ public class SaveConnectionHandler
 
             await _repo.AddAsync(entity);
         }
-        // =============================
-        // ✅ UPDATE
-        // =============================
+        // =====================================
+        // UPDATE
+        // =====================================
         else
         {
             entity = await _repo.GetByIdAsync(request.Id.Value)
-                ?? throw new KeyNotFoundException("Connection not found.");
+                ?? throw new KeyNotFoundException(
+                    "Connection not found.");
 
             entity.ServerName = request.ServerName;
             entity.DatabaseName = request.DatabaseName;
             entity.AuthMode = request.AuthMode;
-            if (IsWindowsAuth(request))
-            {
-                entity.Username = null;
-                entity.PasswordEncrypted = null;
-            }
-            else
-            {
-                entity.Username = request.Username;
-                entity.PasswordEncrypted = request.Password;
-            }
+
+            // Store for BOTH Windows & SQL Auth
+            entity.Username = request.Username;
+            entity.PasswordEncrypted = request.Password;
+
             entity.TrustCertificate = request.TrustCertificate;
             entity.ConnectionTimeout = request.ConnectionTimeout;
 
@@ -123,9 +133,9 @@ public class SaveConnectionHandler
             await _repo.UpdateAsync(entity);
         }
 
-        // =============================
-        // ✅ FINAL RESPONSE
-        // =============================
+        // =====================================
+        // RESPONSE
+        // =====================================
         return new SaveConnectionResult
         {
             Success = true,
@@ -134,7 +144,9 @@ public class SaveConnectionHandler
         };
     }
 
-    // -------------------------------------------------------
+    // =====================================
+    // TEST CONNECTION
+    // =====================================
     private async Task TestConnectionAsync(string connectionString)
     {
         using var conn = new SqlConnection(connectionString);
@@ -150,18 +162,38 @@ public class SaveConnectionHandler
         }
     }
 
-    // -------------------------------------------------------
-    private string BuildConnectionString(SaveConnectionCommand request)
+    // =====================================
+    // BUILD CONNECTION STRING
+    // =====================================
+    private string BuildConnectionString(
+        SaveConnectionCommand request)
     {
-        if (string.Equals(request.AuthMode, "windows", StringComparison.OrdinalIgnoreCase))
+        if (IsWindowsAuth(request))
         {
-            return $"Server={request.ServerName};Database={request.DatabaseName};Trusted_Connection=True;TrustServerCertificate=True;";
+            return
+                $"Server={request.ServerName};" +
+                $"Database={request.DatabaseName};" +
+                $"Trusted_Connection=True;" +
+                $"TrustServerCertificate={(request.TrustCertificate ? "True" : "False")};";
         }
 
-        return $"Server={request.ServerName};Database={request.DatabaseName};User Id={request.Username};Password={request.Password};TrustServerCertificate=True;";
+        return
+            $"Server={request.ServerName};" +
+            $"Database={request.DatabaseName};" +
+            $"User Id={request.Username};" +
+            $"Password={request.Password};" +
+            $"TrustServerCertificate={(request.TrustCertificate ? "True" : "False")};";
     }
-    private bool IsWindowsAuth(SaveConnectionCommand request)
+
+    // =====================================
+    // WINDOWS AUTH CHECK
+    // =====================================
+    private bool IsWindowsAuth(
+        SaveConnectionCommand request)
     {
-        return string.Equals(request.AuthMode, "windows", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(
+            request.AuthMode,
+            "windows",
+            StringComparison.OrdinalIgnoreCase);
     }
 }

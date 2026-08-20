@@ -32,12 +32,14 @@ namespace AIChatbot.Application.Supersetup.Handlers
             if (!conn.Verified)
                 throw new BadHttpRequestException("Connection must be verified before activation.");
 
-            await _repo.SetActiveAsync(conn.Id);
+            var isNowActive = await _repo.SetActiveAsync(conn.Id);
 
             return new GenericResult
             {
                 Success = true,
-                Message = "Knowledgebase activated successfully."
+                Message = isNowActive
+           ? "Knowledgebase activated successfully."
+           : "Knowledgebase deactivated successfully."
             };
 
         }

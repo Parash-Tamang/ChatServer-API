@@ -6,6 +6,6 @@ public class UserProfileResult
     public string LastName { get; set; } = default!;
     public string Email { get; set; } = default!;
     public string Phone { get; set; } = default!;
-    public IList<string>? UserId { get; init; }
+
     public IList<string>? Roles { get; init; }
 }

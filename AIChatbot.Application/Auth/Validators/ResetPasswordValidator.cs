@@ -7,15 +7,13 @@ public class ResetPasswordValidator : AbstractValidator<ResetPasswordCommand>
 {
     public ResetPasswordValidator()
     {
-        RuleFor(x => x.Email)
+        RuleFor(x => x.ResetToken)
             .NotEmpty()
-            .EmailAddress();
-
-        RuleFor(x => x.Token)
-            .NotEmpty();
+            .WithMessage("Reset token is required.");
 
         RuleFor(x => x.NewPassword)
             .NotEmpty()
-            .MinimumLength(8);
+            .MinimumLength(8)
+            .WithMessage("Password must be at least 8 characters.");
     }
 }

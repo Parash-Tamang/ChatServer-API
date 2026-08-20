@@ -43,7 +43,7 @@ public class AuthService : IAuthService
       string email,
       string phone,
       string password,
-      string? role = null)
+      string? role)
     {
         // 🔴 Prevent registering as Admin/SuperAdmin
         if (!string.IsNullOrWhiteSpace(role) &&
@@ -168,6 +168,23 @@ public class AuthService : IAuthService
 
         // Send token via email/SMS externally
     }
+    public async Task<bool> ChangePasswordAsync(
+    string userId,
+    string currentPassword,
+    string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user == null)
+            return false;
+
+        var result = await _userManager.ChangePasswordAsync(
+            user,
+            currentPassword,
+            newPassword);
+
+        return result.Succeeded;
+    }
 
     //-------------------GetUserdetails----------------
     public async Task<UserProfileResult> GetProfileAsync(string userId)
@@ -185,6 +202,15 @@ public class AuthService : IAuthService
             Phone = user.PhoneNumber!,
             Roles = roles
         };
+    }
+    public async Task<string> GeneratePasswordResetTokenAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user == null)
+            return string.Empty; // 🔥 do not reveal user existence
+
+        return await _userManager.GeneratePasswordResetTokenAsync(user);
     }
 
     //-------------------Reset password----------------
@@ -226,7 +252,7 @@ public class AuthService : IAuthService
         return new AuthResult
         {
             Success = true,
-            UserId = user.Id,
+          //  UserId = user.Id,
             AccessToken = accessToken,
             RefreshToken = refreshToken,
             ExpiresIn =

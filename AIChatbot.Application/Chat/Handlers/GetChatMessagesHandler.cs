@@ -2,7 +2,6 @@
 using AIChatbot.Application.Chat.Queries;
 using AIChatbot.Application.Chat.Results;
 using MediatR;
-using System.Text.Json;
 
 namespace AIChatbot.Application.Chat.Handlers;
 
@@ -13,7 +12,9 @@ public class GetChatMessagesHandler
     private readonly IChatSessionRepository _repo;
     private readonly IResponseMetadataRepository _metadataRepo;
 
-    public GetChatMessagesHandler(IChatSessionRepository repo, IResponseMetadataRepository metadataRepo)
+    public GetChatMessagesHandler(
+        IChatSessionRepository repo,
+        IResponseMetadataRepository metadataRepo)
     {
         _repo = repo;
         _metadataRepo = metadataRepo;
@@ -25,77 +26,135 @@ public class GetChatMessagesHandler
     {
         try
         {
-            // Security check
-            var ownsSession = await _repo.ChatSessionBelongsToUser(
-                request.ChatSessionId,
-                request.UserId);
+            // ============================================
+            // SECURITY CHECK
+            // ============================================
+
+            var ownsSession =
+                await _repo.ChatSessionBelongsToUser(
+                    request.ChatSessionId,
+                    request.UserId);
 
             if (!ownsSession)
-                throw new UnauthorizedAccessException();
+            {
+                throw new UnauthorizedAccessException(
+                    "Access denied.");
+            }
 
-            var messages = await _repo.GetMessagesAsync(request.ChatSessionId);
+            // ============================================
+            // LOAD MESSAGES
+            // ============================================
 
-            // AI failed to generate response
+            var messages =
+                await _repo.GetMessagesAsync(
+                    request.ChatSessionId);
+
             if (messages == null || !messages.Any())
-                throw new TimeoutException("The Model was unable to respond to the request");
+            {
+                throw new TimeoutException(
+                    "The Model was unable to respond to the request");
+            }
 
-            var results = new List<ChatMessageResult>();
+            var results =
+                new List<ChatMessageResult>();
 
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            // ============================================
+            // BUILD RESPONSE
+            // ============================================
 
             foreach (var m in messages)
             {
-                var msgResult = new ChatMessageResult
-                {
-                    Id = m.Id,
-                    Role = m.Role,
-                    Content = m.Content,
-                    CreatedAt = m.CreatedAt
-                };
+                ChatMessageResult msgResult;
 
-                // For assistant messages, try to attach saved columns/rows
                 if (m.Role == "assistant")
                 {
-                    var meta = await _metadataRepo.GetByMessageIdAsync(m.Id);
-                    if (meta != null && !string.IsNullOrEmpty(meta.LlmResponseJson))
+                    var meta =
+                        await _metadataRepo.GetByMessageIdAsync(
+                            m.Id);
+
+                    string? graphImageBase64 = null;
+
+                    if (!string.IsNullOrWhiteSpace(
+                            meta?.GraphImagePath))
                     {
-                        try
+                        var physicalPath =
+                            Path.Combine(
+                                Directory.GetCurrentDirectory(),
+                                "wwwroot",
+                                meta.GraphImagePath);
+
+                        if (File.Exists(physicalPath))
                         {
-                            using var doc = JsonDocument.Parse(meta.LlmResponseJson);
-                            var root = doc.RootElement;
+                            var imageBytes =
+                                await File.ReadAllBytesAsync(
+                                    physicalPath,
+                                    cancellationToken);
 
-                            bool TryGetPropertyIgnoreCase(JsonElement el, string name, out JsonElement prop)
-                            {
-                                if (el.TryGetProperty(name, out prop))
-                                    return true;
-
-                                foreach (var p in el.EnumerateObject())
-                                {
-                                    if (string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        prop = p.Value;
-                                        return true;
-                                    }
-                                }
-
-                                prop = default;
-                                return false;
-                            }
-
-                            if (TryGetPropertyIgnoreCase(root, "columns", out var cols))
-                            {
-                                var colsObj = JsonSerializer.Deserialize<object>(cols.GetRawText(), jsonOptions);
-                                msgResult.GetType().GetProperty("Columns")?.SetValue(msgResult, colsObj);
-                            }
-
-                            if (TryGetPropertyIgnoreCase(root, "rows", out var rows))
-                            {
-                                var rowsObj = JsonSerializer.Deserialize<object>(rows.GetRawText(), jsonOptions);
-                                msgResult.GetType().GetProperty("Rows")?.SetValue(msgResult, rowsObj);
-                            }
+                            graphImageBase64 =
+                                Convert.ToBase64String(
+                                    imageBytes);
                         }
-                        catch { /* ignore parse errors */ }
                     }
+
+                    msgResult = new ChatMessageResult
+                    {
+                        Id = m.Id,
+
+                        Role = m.Role,
+
+                        Content = m.Content,
+
+                        CreatedAt = m.CreatedAt,
+
+                        ExcelGenerated =
+                            meta?.ExcelGenerated ?? false,
+
+                        // Excel is regenerated later via API
+                        ExcelAvailableNow = null,
+
+                        GraphType =
+                            meta?.GraphType,
+
+                        GraphTitle =
+                            meta?.GraphTitle,
+
+                        GraphImageUrl =
+                            meta?.GraphImageUrl,
+
+                        GraphImageBase64 =
+                            graphImageBase64,
+
+                        HasGraph =
+                            !string.IsNullOrWhiteSpace(
+                                meta?.GraphImageUrl)
+                    };
+                }
+                else
+                {
+                    msgResult = new ChatMessageResult
+                    {
+                        Id = m.Id,
+
+                        Role = m.Role,
+
+                        Content = m.Content,
+
+                        CreatedAt = m.CreatedAt,
+
+                        ExcelGenerated = false,
+
+                        ExcelAvailableNow = null,
+
+                        GraphType = null,
+
+                        GraphTitle = null,
+
+                        GraphImageUrl = null,
+
+                        GraphImageBase64 = null,
+
+                        HasGraph = false
+                    };
                 }
 
                 results.Add(msgResult);
@@ -105,11 +164,16 @@ public class GetChatMessagesHandler
         }
         catch (TimeoutException)
         {
-            throw; // handled by middleware → 504
+            throw;
         }
-        catch (Exception)
+        catch (UnauthorizedAccessException)
         {
-            throw new ApplicationException("System was unable to respond to the request");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new ApplicationException(
+                $"System was unable to respond to the request. {ex.Message}");
         }
     }
 }

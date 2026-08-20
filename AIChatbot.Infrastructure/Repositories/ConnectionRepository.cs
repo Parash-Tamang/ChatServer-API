@@ -42,27 +42,34 @@ public class ConnectionRepository : IConnectionRepository
         _context.ConnectionStrings.Update(entity);
         await _context.SaveChangesAsync();
     }
+    //delete connection
+    public async Task DeleteAsync(Guid id)
+    {
+        var entity = await _context.ConnectionStrings.FindAsync(id);
+        if (entity != null)
+        {
+            _context.ConnectionStrings.Remove(entity);
+            await _context.SaveChangesAsync();
+        }
+    }
 
     // Set one connection active (others inactive)
-    public async Task SetActiveAsync(Guid id)
+    public async Task<bool> SetActiveAsync(Guid id)
     {
-        var allConnections = await _context.ConnectionStrings
-            .Where(x => !x.IsDeleted)
-            .ToListAsync();
-
-        foreach (var conn in allConnections)
-        {
-            conn.IsActive = false;
-        }
-
-        var target = allConnections.FirstOrDefault(x => x.Id == id);
+        var target = await _context.ConnectionStrings
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
         if (target == null)
             throw new Exception("Connection not found");
 
-        target.IsActive = true;
+        // TOGGLE ACTIVE/INACTIVE
+        target.IsActive = !target.IsActive;
+
+        target.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        return target.IsActive;
     }
     public async Task<ConnectionString?> GetByUniqueKeyAsync(
     string serverName,

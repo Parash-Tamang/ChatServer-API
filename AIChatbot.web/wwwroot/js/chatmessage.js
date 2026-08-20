@@ -27,12 +27,26 @@ function showWarning(msg) { toastr.warning(msg); }
 function showSuccess(msg) { toastr.success(msg); }
 
 // ═══════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════
+const apiBase = '/Chat';
+
+// ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
 let currentSessionId = null;
 let sessions = [];
-let pollTimer = null;
 let sentMessageTime = null;
+let pollTimer = null;
+let imageModal = null;
+let modalImage = null;
+let modalScale = 1;
+let modalBaseScale = 1;
+let modalZoom = 1;
+let modalOriginalSrc = null;
+let modalOriginalWidth = 0;
+let modalOriginalHeight = 0;
+let pointerState = { active: false, points: new Map(), initialDistance: 0, initialZoom: 1 };
 
 // ═══════════════════════════════════════════════════════
 //  BOOT
@@ -40,13 +54,27 @@ let sentMessageTime = null;
 document.addEventListener('DOMContentLoaded', async () => {
     await loadSessions();
     bindEvents();
+    initImageModal();
+
     const ta = document.getElementById('messageInput');
     ta.addEventListener('input', () => autoResizeTextarea(ta));
     autoResizeTextarea(ta);
 
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('sessionId');
-    if (sessionId) await openSession(sessionId);
+    if (sessionId) {
+        // Only auto-open if the session is present in the loaded session list.
+        // This avoids calling GetMessages on reload for an invalid/unauthorized id.
+        if (sessions && sessions.some(s => s.id === sessionId)) {
+            await openSession(sessionId);
+        } else {
+            // Remove stale sessionId from query string to prevent repeated attempts
+            params.delete('sessionId');
+            const url = new URL(window.location);
+            url.search = params.toString();
+            window.history.replaceState({}, '', url);
+        }
+    }
 });
 
 function bindEvents() {
@@ -65,17 +93,16 @@ function bindEvents() {
 // ═══════════════════════════════════════════════════════
 async function loadSessions() {
     try {
-        const res = await fetch('/Chat/GetSessions');
+        const res = await fetch(`${apiBase}/GetSessions`);
         if (!res.ok) { showError('Oops! Could not load your chats. Please refresh.'); return; }
         const json = await res.json();
         if (json.success) {
             sessions = json.data ?? [];
-            renderSessionList();
         } else {
             showError(json.message ?? 'Oops! Could not load your chats.');
-            document.getElementById('sessionList').innerHTML =
-                '<div class="text-muted p-2 text-center small">Could not load chats.</div>';
+            sessions = [];
         }
+        renderSessionList();
     } catch {
         showError('Oops! Could not reach the server.');
         document.getElementById('sessionList').innerHTML =
@@ -115,7 +142,6 @@ function renderSessionList() {
 //  OPEN SESSION
 // ═══════════════════════════════════════════════════════
 async function openSession(sessionId) {
-    stopPolling();
     currentSessionId = sessionId;
 
     const url = new URL(window.location);
@@ -127,18 +153,30 @@ async function openSession(sessionId) {
     showTypingIndicator();
 
     try {
-        const res = await fetch(`/Chat/GetMessages?sessionId=${sessionId}`);
+        const res = await fetch(`${apiBase}/GetMessages?sessionId=${sessionId}`);
         if (!res.ok) { removeTypingIndicator(); showError('Oops! Could not load this chat.'); return; }
         const json = await res.json();
         removeTypingIndicator();
 
-        if (json.success && json.data?.length > 0) {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
             hideEmptyState();
-            json.data.forEach(m => appendMessage(m.role, m.content, m.createdAt, m.columns, m.rows));
-        } else if (!json.success) {
-            showError(json.message ?? 'Oops! Could not load messages.');
-        } else {
+            json.data.forEach(m => appendMessage(
+                m.role,
+                m.content,
+                m.id,
+                m.createdAt,
+                m.columns,
+                m.rows,
+                m.excelGenerated,
+                m.excelAvailableNow,
+                m.graphImageBase64,
+                m.graphImageUrl,
+                m.graphTitle
+            ));
+        } else if (json.success) {
             showEmptyState();
+        } else {
+            showError(json.message ?? 'Oops! Could not load this chat.');
         }
     } catch {
         removeTypingIndicator();
@@ -173,7 +211,7 @@ async function sendMessage() {
 
     sentMessageTime = new Date().toISOString();
     hideEmptyState();
-    appendMessage('user', message, sentMessageTime, null, null);
+    appendMessage('user', message, null, sentMessageTime, null, null);
     input.value = '';
     autoResizeTextarea(input);
     setSendLoading(true);
@@ -181,7 +219,7 @@ async function sendMessage() {
     scrollToBottom();
 
     try {
-        const res = await fetch('/Chat/SendMessageAjax', {
+        const res = await fetch(`${apiBase}/SendMessageAjax`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -194,7 +232,6 @@ async function sendMessage() {
 
         const json = await res.json();
         if (!json.success) { removeTypingIndicator(); setSendLoading(false); showError(json.message ?? 'Oops! Something went wrong.'); return; }
-
         const result = json.data;
 
         if (result.chatSessionId && result.chatSessionId != currentSessionId) {
@@ -203,19 +240,18 @@ async function sendMessage() {
             sessions.unshift({ id: currentSessionId, topicName: topic, createdAt: sentMessageTime });
             renderSessionList();
 
-         
-
             const url = new URL(window.location);
             url.searchParams.set('sessionId', currentSessionId);
             window.history.pushState({}, '', url);
         }
 
-        if (result.assistantReply) {
+        if (result.assistantReply || result.graphImageBase64 || result.graphImageUrl) {
             removeTypingIndicator();
             setSendLoading(false);
             appendMessage(
                 'assistant',
-                result.assistantReply,
+                result.assistantReply || '',
+                result.messageId,
                 new Date().toISOString(),
                 result.columns,
                 result.rows,
@@ -227,7 +263,9 @@ async function sendMessage() {
             );
             scrollToBottom();
         } else {
-            startPolling(currentSessionId, sentMessageTime);
+            removeTypingIndicator();
+            setSendLoading(false);
+            showWarning('Message sent. No assistant response arrived yet. The chat session is still active.');
         }
     } catch {
         removeTypingIndicator();
@@ -242,29 +280,54 @@ async function sendMessage() {
 function startPolling(sessionId, afterUtc) {
     stopPolling();
     let attempts = 0;
-    const MAX = 40;
+    const MAX = 10;
 
     pollTimer = setInterval(async () => {
         attempts++;
         try {
-            const res = await fetch(`/Chat/PollReply?sessionId=${sessionId}&afterUtc=${encodeURIComponent(afterUtc)}`);
+            const res = await fetch(`${apiBase}/PollReply?sessionId=${sessionId}&afterUtc=${encodeURIComponent(afterUtc)}`);
             if (!res.ok) return;
             const json = await res.json();
-            if (json.success && json.found) {
+            if (!json.success || !json.found) return;
+
+            const reply = json.data;
+            if (reply) {
                 stopPolling();
                 removeTypingIndicator();
                 setSendLoading(false);
                 appendMessage(
                     'assistant',
-                    json.data.content,
-                    json.data.createdAt,
-                    json.data.columns,
-                    json.data.rows,
-                    json.data.excelGenerated,
-                    json.data.excelAvailableNow,
-                    json.data.graphImageBase64,
-                    json.data.graphImageUrl,
-                    json.data.graphTitle
+                    reply.content,
+                    reply.id,
+                    reply.createdAt,
+                    reply.columns,
+                    reply.rows,
+                    reply.excelGenerated,
+                    reply.excelAvailableNow,
+                    reply.graphImageBase64,
+                    reply.graphImageUrl,
+                    reply.graphTitle
+                );
+                scrollToBottom();
+                return;
+            }
+
+            if (reply) {
+                stopPolling();
+                removeTypingIndicator();
+                setSendLoading(false);
+                appendMessage(
+                    'assistant',
+                    reply.content,
+                    reply.id,
+                    reply.createdAt,
+                    reply.columns,
+                    reply.rows,
+                    reply.excelGenerated,
+                    reply.excelAvailableNow,
+                    reply.graphImageBase64,
+                    reply.graphImageUrl,
+                    reply.graphTitle
                 );
                 scrollToBottom();
                 return;
@@ -291,21 +354,21 @@ async function deleteSession(sessionId, event) {
     event?.stopPropagation();
     if (!confirm('Delete this chat?')) return;
     try {
-        const res = await fetch('/Chat/DeleteSessionAjax', {
+        const res = await fetch(`${apiBase}/DeleteSessionAjax`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getAntiForgeryToken() },
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getAntiForgeryToken()
+            },
             body: JSON.stringify({ sessionId })
         });
         if (!res.ok) { showError('Oops! Could not delete this chat.'); return; }
         const json = await res.json();
-        if (json.success) {
-            sessions = sessions.filter(s => s.id !== sessionId);
-            renderSessionList();
-            if (currentSessionId === sessionId) startNewChat();
-            showSuccess('Chat deleted.');
-        } else {
-            showError(json.message ?? 'Oops! Could not delete this chat.');
-        }
+        if (!json.success) { showError(json.message ?? 'Oops! Could not delete this chat.'); return; }
+        sessions = sessions.filter(s => s.id !== sessionId);
+        renderSessionList();
+        if (currentSessionId === sessionId) startNewChat();
+        showSuccess('Chat deleted.');
     } catch {
         showError('Oops! Could not reach the server.');
     }
@@ -314,7 +377,7 @@ async function deleteSession(sessionId, event) {
 // ═══════════════════════════════════════════════════════
 //  APPEND MESSAGE — centered layout with avatar
 // ═══════════════════════════════════════════════════════
-function appendMessage(role, content, isoTime, columns, rows, excelGenerated, excelAvailableNow, graphImageBase64, graphImageUrl, graphTitle) {
+function appendMessage(role, content, messageId, isoTime, columns, rows, excelGenerated, excelAvailableNow, graphImageBase64, graphImageUrl, graphTitle) {
     const container = document.getElementById('messagesContainer');
     const isUser = role === 'user';
     const time = isoTime
@@ -343,23 +406,16 @@ function appendMessage(role, content, isoTime, columns, rows, excelGenerated, ex
     col.appendChild(bubble);
 
     if (!isUser && (graphImageBase64 || graphImageUrl)) {
-        const graphWrap = document.createElement('div');
-        graphWrap.className = 'assistant-graph';
-
-        const title = document.createElement('div');
-        title.className = 'assistant-graph-title';
-        title.textContent = graphTitle || 'Chart preview';
-        graphWrap.appendChild(title);
-
-        const img = document.createElement('img');
-        img.className = 'graph-image';
-        img.src = graphImageBase64
+        const imageSrc = graphImageBase64
             ? `data:image/png;base64,${graphImageBase64}`
             : graphImageUrl;
-        img.alt = graphTitle || 'Chart image';
-        img.loading = 'lazy';
-        graphWrap.appendChild(img);
-        col.appendChild(graphWrap);
+        const imageNode = createChatImage(
+            imageSrc,
+            graphTitle || 'Generated image',
+            messageId,
+            graphTitle || 'Generated image'
+        );
+        col.appendChild(imageNode);
     }
 
     // Excel download for generated Excel payloads
@@ -372,7 +428,9 @@ function appendMessage(role, content, isoTime, columns, rows, excelGenerated, ex
         btn.className = 'btn btn-sm btn-outline-success';
         btn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Download Excel';
         btn.addEventListener('click', () => {
-            if (excelAvailableNow && excelAvailableNow.columns?.length > 0 && excelAvailableNow.rows?.length > 0) {
+            if (messageId) {
+                downloadExcelFromServer(messageId);
+            } else if (excelAvailableNow && excelAvailableNow.columns?.length > 0 && excelAvailableNow.rows?.length > 0) {
                 downloadExcelAvailableNow(excelAvailableNow);
             } else if (columns?.length > 0 && rows?.length > 0) {
                 downloadExcel(columns, rows);
@@ -415,9 +473,217 @@ function appendMessage(role, content, isoTime, columns, rows, excelGenerated, ex
     container.appendChild(row);
 }
 
+function createChatImage(src, alt, messageId, title) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'assistant-image-container';
+    wrapper.setAttribute('role', 'button');
+    wrapper.setAttribute('tabindex', '0');
+    wrapper.setAttribute('aria-label', `Open image preview: ${alt}`);
+
+    const image = document.createElement('img');
+    image.className = 'assistant-image';
+    image.src = src;
+    image.alt = alt;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.addEventListener('click', () => openImageModal(src, alt, title));
+    wrapper.appendChild(image);
+
+    const downloadWrap = document.createElement('div');
+    downloadWrap.className = 'assistant-image-download';
+    downloadWrap.addEventListener('click', event => event.stopPropagation());
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.type = 'button';
+    downloadBtn.className = 'image-download-button';
+    downloadBtn.setAttribute('aria-label', 'Download full resolution image');
+    downloadBtn.innerHTML = '<i class="bi bi-download" aria-hidden="true"></i>';
+    downloadBtn.addEventListener('click', async event => {
+        event.stopPropagation();
+        await downloadImage(src, alt, messageId);
+    });
+
+    downloadWrap.appendChild(downloadBtn);
+    wrapper.appendChild(downloadWrap);
+
+    wrapper.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openImageModal(src, alt, title);
+        }
+    });
+
+    return wrapper;
+}
+
+function initImageModal() {
+    imageModal = document.createElement('div');
+    imageModal.className = 'image-modal-backdrop';
+    imageModal.setAttribute('role', 'dialog');
+    imageModal.setAttribute('aria-modal', 'true');
+    imageModal.setAttribute('aria-label', 'Image preview');
+    imageModal.innerHTML = `
+        <div class="image-modal-content">
+            <button class="image-modal-close" type="button" aria-label="Close image preview">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+            <div class="image-modal-inner">
+                <img src="" alt="" />
+            </div>
+            <div class="image-modal-toolbar">
+                <button class="image-modal-zoom-button" type="button" aria-label="Zoom out">-</button>
+                <button class="image-modal-zoom-button" type="button" aria-label="Zoom in">+</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(imageModal);
+    modalImage = imageModal.querySelector('img');
+
+    imageModal.addEventListener('click', event => {
+        if (event.target === imageModal) {
+            closeImageModal();
+        }
+    });
+
+    const closeButton = imageModal.querySelector('.image-modal-close');
+    const zoomButtons = Array.from(imageModal.querySelectorAll('.image-modal-zoom-button'));
+
+    closeButton.addEventListener('click', closeImageModal);
+    zoomButtons[0].addEventListener('click', () => setModalScale(modalZoom - 0.2));
+    zoomButtons[1].addEventListener('click', () => setModalScale(modalZoom + 0.2));
+
+    modalImage.addEventListener('click', event => {
+        event.stopPropagation();
+        if (modalZoom > 1) {
+            setModalScale(1);
+        } else {
+            setModalScale(2);
+        }
+    });
+
+    modalImage.addEventListener('load', () => {
+        adjustModalBaseScale();
+    });
+
+    imageModal.addEventListener('wheel', event => {
+        if (!imageModal.classList.contains('open')) return;
+        event.preventDefault();
+        const delta = event.deltaY < 0 ? 0.16 : -0.16;
+        setModalScale(modalZoom + delta);
+    }, { passive: false });
+
+    document.addEventListener('keydown', event => {
+        if (!imageModal.classList.contains('open')) return;
+        if (event.key === 'Escape') {
+            closeImageModal();
+        }
+    });
+}
+
+function openImageModal(src, alt, title) {
+    if (!imageModal || !modalImage) return;
+    modalOriginalSrc = src;
+    modalZoom = 1;
+    modalBaseScale = 1;
+    modalOriginalWidth = 0;
+    modalOriginalHeight = 0;
+    modalImage.style.width = 'auto';
+    modalImage.style.height = 'auto';
+    modalImage.style.transform = 'scale(1)';
+    modalImage.src = src;
+    modalImage.alt = alt;
+    imageModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImageModal() {
+    if (!imageModal) return;
+    modalZoom = 1;
+    modalBaseScale = 1;
+    modalImage.style.transform = 'scale(1)';
+    imageModal.classList.remove('open');
+    document.body.style.overflow = '';
+    modalImage.src = '';
+}
+
+function adjustModalBaseScale() {
+    if (!modalImage || !modalImage.naturalWidth || !modalImage.naturalHeight) return;
+    modalOriginalWidth = modalImage.naturalWidth;
+    modalOriginalHeight = modalImage.naturalHeight;
+
+    const maxWidth = window.innerWidth * 0.85;
+    const maxHeight = window.innerHeight * 0.85;
+    const widthScale = maxWidth / modalOriginalWidth;
+    const heightScale = maxHeight / modalOriginalHeight;
+    modalBaseScale = Math.min(1, widthScale, heightScale);
+
+    modalImage.style.width = `${Math.round(modalOriginalWidth * modalBaseScale)}px`;
+    modalImage.style.height = `${Math.round(modalOriginalHeight * modalBaseScale)}px`;
+    setModalScale(1);
+}
+
+function applyModalScale() {
+    if (!modalImage) return;
+    modalScale = Math.max(0.5, Math.min(3, modalZoom));
+    modalImage.style.transform = `scale(${modalScale})`;
+    modalImage.style.cursor = modalScale > 1 ? 'zoom-out' : 'zoom-in';
+}
+
+function setModalScale(value) {
+    if (!modalImage) return;
+    modalZoom = Math.max(0.5, Math.min(3, value));
+    applyModalScale();
+}
+
+async function downloadImage(src, alt, messageId) {
+    const filename = normalizeImageName(alt || `image-${messageId || Date.now()}`);
+    try {
+        if (src.startsWith('data:')) {
+            const anchor = document.createElement('a');
+            anchor.href = src;
+            anchor.download = `${filename}.png`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            return;
+        }
+
+        const response = await fetch(src, { mode: 'cors' });
+        if (!response.ok) throw new Error('Image fetch failed');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${filename}${getExtensionFromMime(blob.type)}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+    } catch {
+        showError('Could not download the image.');
+    }
+}
+
+function normalizeImageName(text) {
+    return text
+        .toLowerCase()
+        .replace(/[^a-z0-9\-\_\.]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60) || 'chat-image';
+}
+
+function getExtensionFromMime(mime) {
+    if (mime === 'image/jpeg') return '.jpg';
+    if (mime === 'image/png') return '.png';
+    if (mime === 'image/webp') return '.webp';
+    return '.png';
+}
+
 // ═══════════════════════════════════════════════════════
 //  EXCEL DOWNLOAD
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 function downloadExcel(columns, rows) {
     try {
         const header = columns.map(c => c.name);
@@ -468,6 +734,67 @@ function downloadExcelAvailableNow(excelAvailableNow) {
     } catch {
         showError('Oops! Could not generate the Excel file.');
     }
+}
+
+async function downloadExcelFromServer(messageId) {
+    try {
+        const res = await fetch(`${apiBase}/GenerateExcelAjax`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getAntiForgeryToken()
+            },
+            body: JSON.stringify({ messageId })
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            let messages = 'Could not download Excel file.';
+            try {
+                const json = JSON.parse(errorText);
+                messages = json.message || messages;
+            } catch {
+                messages = errorText || messages;
+            }
+            showError(messages);
+            return;
+        }
+
+        const blob = await res.blob();
+        const disposition = res.headers.get('Content-Disposition');
+        const fileName = getFileNameFromContentDisposition(disposition) || `Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        downloadBlob(blob, fileName);
+        showSuccess('Excel file downloaded.');
+    } catch {
+        showError('Could not reach the server to generate Excel.');
+    }
+}
+
+function getFileNameFromContentDisposition(contentDisposition) {
+    if (!contentDisposition) return null;
+    const parts = contentDisposition.split(';').map(part => part.trim());
+    for (const part of parts) {
+        if (part.startsWith('filename*=')) {
+            const value = part.substring('filename*='.length);
+            const parts2 = value.split("''");
+            return decodeURIComponent(parts2[parts2.length - 1]).replace(/^"|"$/g, '');
+        }
+        if (part.startsWith('filename=')) {
+            return part.substring('filename='.length).replace(/^"|"$/g, '');
+        }
+    }
+    return null;
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════════════════

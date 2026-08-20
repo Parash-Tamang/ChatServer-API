@@ -18,5 +18,6 @@ public interface IConnectionRepository
 
     Task AddAsync(ConnectionString entity);
     Task UpdateAsync(ConnectionString entity);
-    Task SetActiveAsync(Guid id);
+    Task<bool> SetActiveAsync(Guid id);
+    Task DeleteAsync(Guid id);
 }

@@ -3,6 +3,7 @@ using AIChatbot.web.Filters;
 using AIChatbot.web.Interfaces;
 using AIChatbot.web.Models.Admin;
 using AIChatbot.web.Services;
+using System.Text.Json;
  
 using Microsoft.AspNetCore.Mvc;
 
@@ -191,7 +192,7 @@ namespace AIChatbot.web.Controllers
 
         // the role part is below 
         // GET: /Admin/RoleManagement
-        public async Task<IActionResult> RoleManagement()
+        public IActionResult RoleManagement()
         {
             return View();
         }
@@ -202,6 +203,43 @@ namespace AIChatbot.web.Controllers
         {
             var roles = await _roleManagerService.GetAllRolesAsync();
             return Json(new { success = true, data = roles });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUserLookupConfiguration(string roleId, Guid connectionId)
+        {
+            if (string.IsNullOrWhiteSpace(roleId) || connectionId == Guid.Empty)
+                return Json(new { success = false, message = "Role ID and connection ID are required." });
+
+            var lookup = await _roleManagerService.GetUserLookupConfigurationAsync(roleId, connectionId);
+            if (lookup == null)
+                return Json(new { success = false, message = "Lookup configuration not found." });
+
+            return Json(new { success = true, data = lookup });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveUserLookupConfiguration([FromBody] Dto.SaveUserLookupConfigurationDto request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.RoleId) || request.ConnectionId == Guid.Empty || string.IsNullOrWhiteSpace(request.UserTableName) || string.IsNullOrWhiteSpace(request.UserIdColumn))
+                return Json(new { success = false, message = "Role, connection, table name, and user ID column are required." });
+
+            var success = await _roleManagerService.SaveUserLookupConfigurationAsync(request);
+            return Json(success
+                ? new { success = true, message = "Lookup configuration saved successfully." }
+                : new { success = false, message = "Failed to save lookup configuration." });
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> DeleteUserLookupConfiguration(string roleId, Guid connectionId)
+        {
+            if (string.IsNullOrWhiteSpace(roleId) || connectionId == Guid.Empty)
+                return Json(new { success = false, message = "Role ID and connection ID are required." });
+
+            var success = await _roleManagerService.DeleteUserLookupConfigurationAsync(roleId, connectionId);
+            return Json(success
+                ? new { success = true, message = "Lookup configuration deleted successfully." }
+                : new { success = false, message = "Failed to delete lookup configuration." });
         }
 
         // POST: /Admin/CreateRole  (AJAX)
@@ -288,6 +326,58 @@ namespace AIChatbot.web.Controllers
 
             var assignments = await _roleManagerService.GetRoleConnectionsAsync(roleId);
             return Json(new { success = true, data = assignments });
+        }
+
+        // GET: /Admin/GetRolesByConnection?connectionId=xxx  (AJAX)
+        [HttpGet]
+        public async Task<IActionResult> GetRolesByConnection(Guid connectionId)
+        {
+            if (connectionId == Guid.Empty)
+                return Json(new { success = false, message = "Connection ID is required." });
+
+            var roles = await _roleManagerService.GetRolesByConnectionAsync(connectionId);
+            return Json(new { success = true, data = roles });
+        }
+
+        // GET: /Admin/GetSchema?connectionId=xxx  (AJAX)
+        [HttpGet]
+        public async Task<IActionResult> GetSchema(Guid connectionId)
+        {
+            if (connectionId == Guid.Empty)
+                return Json(new { success = false, message = "Connection ID is required." });
+
+            try
+            {
+                var schema = await _roleManagerService.GetSchemaAsync(connectionId);
+                return Json(new { success = true, data = schema });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRuntimePermissions(string roleId, Guid connectionId)
+        {
+            if (string.IsNullOrWhiteSpace(roleId) || connectionId == Guid.Empty)
+                return Json(new { success = false, message = "Role ID and connection ID are required." });
+
+            var runtimePermissions = await _roleManagerService.GetRuntimePermissionsAsync(roleId, connectionId);
+            
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            return Ok(new { success = true, data = runtimePermissions });
+        }
+
+        [HttpPost("/Admin/runtime-access/save")]
+        public async Task<IActionResult> SaveRuntimePermissions([FromBody] Interfaces.RuntimePermissionsPayloadDto payload)
+        {
+           
+            if (payload == null || string.IsNullOrWhiteSpace(payload.SelectedRoleId) || payload.ConnectionId == Guid.Empty)
+                return Json(new { success = false, message = "Role ID and connection ID are required." });
+
+            var success = await _roleManagerService.SaveRuntimePermissionsAsync(payload);
+            return Json(new { success });
         }
 
         // Request models (add these inside the Controllers namespace or a separate file)

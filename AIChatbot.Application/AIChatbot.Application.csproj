@@ -7,15 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="RoleManagement\Results\**" />
     <Compile Remove="RoleManagement\Validators\**" />
-    <EmbeddedResource Remove="RoleManagement\Results\**" />
     <EmbeddedResource Remove="RoleManagement\Validators\**" />
-    <None Remove="RoleManagement\Results\**" />
     <None Remove="RoleManagement\Validators\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="FluentValidation" Version="11.9.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.9.0" />
     <PackageReference Include="MediatR" Version="11.1.0" />
@@ -28,6 +27,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    
   </ItemGroup>
 
 

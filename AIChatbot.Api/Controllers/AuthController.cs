@@ -1,115 +1,365 @@
-﻿using AIChatbot.Api.Models.Auth;
+﻿using System.Security.Claims;
+
+using AIChatbot.Api.Models.Auth;
 using AIChatbot.Application.Auth.Commands;
 using AIChatbot.Application.Auth.Queries;
+
 using MediatR;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AIChatbot.Api.Controllers;
 
 [ApiController]
+
 [Route("api/auth/V1/Security-engine")]
+
+// ============================================================
+// CONTROLLER
+// ============================================================
+
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public AuthController(IMediator mediator)
+    public AuthController(
+        IMediator mediator)
     {
         _mediator = mediator;
     }
 
-    // ---------------- REGISTER ----------------
-    // Creates a new user account
+    // ============================================================
+    // GET ROLES
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("register")]
+
+    [HttpGet("roles")]
+    public async Task<IActionResult>
+        GetRoles(
+            [FromQuery]
+            string token)
+    {
+        var roles =
+            await _mediator.Send(
+                new GetRolesQuery(token));
+
+        return Ok(new
+        {
+            success = true,
+
+            roles
+        });
+    }
+
+    // ============================================================
+    // REGISTER
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("register")]
+
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest r)
+    public async Task<IActionResult>
+        Register(
+            [FromBody]
+            RegisterRequest r)
     {
-        var result = await _mediator.Send(
-            new RegisterUserCommand(
-                r.FirstName,
-                r.LastName,
-                r.Email,
-                r.Phone,
-                r.Password,
-                r.Role));
+        var result =
+            await _mediator.Send(
+                new RegisterUserCommand(
+                    r.FirstName,
 
-        // 201 Created for new resource
-        return Created(string.Empty, result);
+                    r.LastName,
+
+                    r.Email,
+
+                    r.Phone,
+
+                    r.Password,
+
+                    r.Role,
+
+                    r.Token));
+
+        return Created(
+            string.Empty,
+            result);
     }
 
-    // ---------------- LOGIN ----------------
-    // Authenticates user and returns access & refresh tokens
+    // ============================================================
+    // SEND REGISTER OTP
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("register")]
+
+    [HttpPost("send-register-otp")]
+    public async Task<IActionResult>
+        SendRegisterOtp(
+            [FromBody]
+            SendRegisterOtpCommand cmd)
+    {
+        await _mediator.Send(cmd);
+
+        return Ok(new
+        {
+            success = true,
+
+            message =
+                "OTP sent successfully"
+        });
+    }
+
+    // ============================================================
+    // RESEND REGISTER OTP
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("register")]
+
+    [HttpPost("resend-register-otp")]
+    public async Task<IActionResult>
+        ResendOtp(
+            [FromBody]
+            ResendRegisterOtpCommand cmd)
+    {
+        await _mediator.Send(cmd);
+
+        return Ok(new
+        {
+            success = true,
+
+            message =
+                "OTP resent successfully"
+        });
+    }
+
+    // ============================================================
+    // VERIFY REGISTER OTP
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("register")]
+
+    [HttpPost("verify-register-otp")]
+    public async Task<IActionResult>
+        VerifyRegisterOtp(
+            [FromBody]
+            VerifyRegisterOtpCommand cmd)
+    {
+        var token =
+            await _mediator.Send(cmd);
+
+        return Ok(new
+        {
+            success = true,
+
+            registerToken = token
+        });
+    }
+
+    // ============================================================
+    // LOGIN
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("login")]
+
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest r)
+    public async Task<IActionResult>
+        Login(
+            [FromBody]
+            LoginRequest r)
     {
-        var result = await _mediator.Send(
-            new LoginCommand(r.Email, r.Password));
+        var result =
+            await _mediator.Send(
+                new LoginCommand(
+                    r.Email,
+                    r.Password));
 
         return Ok(result);
     }
 
-    // ---------------- REFRESH TOKEN ----------------
-    // Issues a new access token using refresh token
+    // ============================================================
+    // REFRESH TOKEN
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("login")]
+
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest r)
+    public async Task<IActionResult>
+        Refresh(
+            [FromBody]
+            RefreshTokenRequest r)
     {
-        var result = await _mediator.Send(
-            new RefreshTokenCommand(r.RefreshToken));
+        var result =
+            await _mediator.Send(
+                new RefreshTokenCommand(
+                    r.RefreshToken));
 
         return Ok(result);
     }
 
-    // ---------------- LOGOUT ----------------
-    // Revokes all refresh tokens for current user
-    [Authorize]
+    // ============================================================
+    // LOGOUT
+    // ============================================================
+
+    [Authorize(Policy = "AuthenticatedUser")]
+
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult>
+        Logout()
     {
         var userId =
-            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-            User.FindFirstValue("sub") ??
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier)
+            ??
+            User.FindFirstValue("sub")
+            ??
             User.FindFirstValue("userId");
 
         if (string.IsNullOrWhiteSpace(userId))
-            throw new UnauthorizedAccessException("Invalid token");
+        {
+            throw new UnauthorizedAccessException(
+                "Invalid token");
+        }
 
-        await _mediator.Send(new LogoutCommand(userId));
+        await _mediator.Send(
+            new LogoutCommand(userId));
+
         return NoContent();
     }
 
-    // ---------------- USER PROFILE ----------------
-    // Returns logged-in user details
-    [Authorize]
+    // ============================================================
+    // USER PROFILE
+    // ============================================================
+
+    [Authorize(Policy = "AuthenticatedUser")]
+
     [HttpGet("Get/User-Details")]
-    public async Task<IActionResult> Me()
+    public async Task<IActionResult>
+        Me()
     {
         var userId =
-            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-            throw new UnauthorizedAccessException("Invalid token");
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier)
+            ??
+            throw new UnauthorizedAccessException(
+                "Invalid token");
 
-        var profile = await _mediator.Send(
-            new GetUserProfileQuery(userId));
+        var profile =
+            await _mediator.Send(
+                new GetUserProfileQuery(
+                    userId));
 
         return Ok(profile);
     }
 
-    // ---------------- FORGOT PASSWORD ----------------
-    // Sends password reset token
+    // ============================================================
+    // FORGOT PASSWORD
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("login")]
+
     [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest r)
+    public async Task<IActionResult>
+        ForgotPassword(
+            [FromBody]
+            ForgotPasswordCommand command)
     {
-        await _mediator.Send(new ForgotPasswordCommand(r.Email));
-        return NoContent();
+        var result =
+            await _mediator.Send(command);
+
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
-    // ---------------- RESET PASSWORD ----------------
-    // Resets password using reset token
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest r)
-    {
-        await _mediator.Send(
-            new ResetPasswordCommand(r.Email, r.Token, r.NewPassword));
+    // ============================================================
+    // VERIFY RESET OTP
+    // ============================================================
 
-        return NoContent();
+    [AllowAnonymous]
+
+    [EnableRateLimiting("login")]
+
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult>
+        VerifyOtp(
+            [FromBody]
+            VerifyOtpCommand cmd)
+    {
+        await _mediator.Send(cmd);
+
+        return Ok(new
+        {
+            success = true,
+
+            message =
+                "Reset link sent to email"
+        });
+    }
+
+    // ============================================================
+    // RESET PASSWORD
+    // ============================================================
+
+    [AllowAnonymous]
+
+    [EnableRateLimiting("login")]
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult>
+        ResetPassword(
+            [FromBody]
+            ResetPasswordCommand cmd)
+    {
+        await _mediator.Send(cmd);
+
+        return Ok(new
+        {
+            success = true
+        });
+    }
+
+    // ============================================================
+    // CHANGE PASSWORD
+    // ============================================================
+
+    [Authorize(Policy = "AuthenticatedUser")]
+
+    [HttpPost("change-password")]
+    public async Task<IActionResult>
+        ChangePassword(
+            [FromBody]
+            ChangePasswordCommand command)
+    {
+        var result =
+            await _mediator.Send(command);
+
+        return Ok(new
+        {
+            success = true,
+
+            message =
+                "Password changed successfully"
+        });
     }
 }

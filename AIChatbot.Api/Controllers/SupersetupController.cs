@@ -1,120 +1,243 @@
 ﻿using AIChatbot.Application.Supersetup.Commands;
 using AIChatbot.Application.Supersetup.DTOs;
+using AIChatbot.Application.Supersetup.Queries;
+
 using MediatR;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AIChatbot.Api.Controllers;
 
 [ApiController]
+
 [Route("api/supersetup/V1/setup-engine")]
-[Authorize(Roles = "SuperAdmin")]
+
+// ============================================================
+// SUPER ADMIN ONLY
+// ============================================================
+
+[Authorize(Policy = "SuperAdminOnly")]
+
+// ============================================================
+// RATE LIMITING
+// ============================================================
+
+[EnableRateLimiting("RolesPolicy")]
+
 public class SupersetupController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public SupersetupController(IMediator mediator)
+    public SupersetupController(
+        IMediator mediator)
     {
         _mediator = mediator;
     }
 
     // ==========================================================
-    // 1️⃣ TEST + SAVE CONNECTION
+    // TEST + SAVE CONNECTION
     // ==========================================================
+
     [HttpPost("connection/test")]
-    public async Task<IActionResult> TestConnection(
-        [FromBody] SaveConnectionCommand command)
+    public async Task<IActionResult>
+        TestConnection(
+            [FromBody]
+            SaveConnectionCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result =
+            await _mediator.Send(command);
+
         return Ok(result);
     }
 
     // ==========================================================
-    // 2️⃣ CREATE KNOWLEDGEBASE
+    // CREATE KNOWLEDGEBASE
     // ==========================================================
+
     [HttpPost("connection/create-kb")]
-    public async Task<IActionResult> CreateKnowledgebase(
-        [FromBody] CreateKnowledgebaseCommand command)
+    public async Task<IActionResult>
+        CreateKnowledgebase(
+            [FromBody]
+            CreateKnowledgebaseCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result =
+            await _mediator.Send(command);
+
         return Ok(result);
     }
 
     // ==========================================================
-    // 3️⃣ ACTIVATE CONNECTION
+    // ACTIVATE CONNECTION
     // ==========================================================
+
     [HttpPost("connection/activate")]
-    public async Task<IActionResult> ActivateConnection(
-        [FromBody] ActivateConnectionCommand command)
+    public async Task<IActionResult>
+        ActivateConnection(
+            [FromBody]
+            ActivateConnectionCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result =
+            await _mediator.Send(command);
+
         return Ok(result);
     }
 
     // ==========================================================
-    // 4️⃣ UPDATE KNOWLEDGEBASE
+    // UPDATE KNOWLEDGEBASE
     // ==========================================================
+
     [HttpPost("connection/update-kb")]
-    public async Task<IActionResult> UpdateKnowledgebase(
-        [FromBody] UpdateKnowledgebaseCommand command)
+    public async Task<IActionResult>
+        UpdateKnowledgebase(
+            [FromBody]
+            UpdateKnowledgebaseCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result =
+            await _mediator.Send(command);
+
         return Ok(result);
     }
 
     // ==========================================================
-    // 2️⃣ SAVE FUNCTION + SYSTEM PROMPT
+    // SAVE LOCAL FUNCTION + SYSTEM PROMPT
     // ==========================================================
-    [HttpPost("function")]
-    public async Task<IActionResult> SaveFunction(
-        [FromBody] SavePromptFunctionCommand command)
+
+    [HttpPost("function/Local")]
+    public async Task<IActionResult>
+        SaveFunction(
+            [FromBody]
+            SavePromptFunctionCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result =
+            await _mediator.Send(command);
+
         return Ok(result);
     }
 
     // ==========================================================
-    // 3️⃣ DELETE CONNECTION / FUNCTION
+    // DELETE CONNECTION / FUNCTION
     // ==========================================================
+
     [HttpDelete]
-    public async Task<IActionResult> Delete(
-      [FromQuery] Guid? connectionId,
-      [FromQuery] Guid? functionId)
-    {
-        var command = new DeleteSupersetupCommand(connectionId, functionId);
+    public async Task<IActionResult>
+        Delete(
+            [FromQuery]
+            Guid? connectionId,
 
-        var result = await _mediator.Send(command);
+            [FromQuery]
+            Guid? functionId)
+    {
+        var command =
+            new DeleteSupersetupCommand(
+                connectionId,
+                functionId);
+
+        var result =
+            await _mediator.Send(command);
 
         return Ok(result);
     }
+
     // ==========================================================
-    // 4️⃣ SAVE GLOBAL PROMPT
+    // SAVE GLOBAL PROMPT
     // ==========================================================
-    [HttpPost("global")]
-    public async Task<IActionResult> SaveGlobalPrompt(
-      [FromBody] SaveGlobalPromptCommand command)
+
+    [HttpPost("Function/global")]
+    public async Task<IActionResult>
+        SaveGlobalPrompt(
+            [FromBody]
+            SaveGlobalPromptCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result =
+            await _mediator.Send(command);
+
         return Ok(result);
     }
 
     // ==========================================================
-    // 5️⃣ GET ALL SUPERSETUP DATA
+    // SYNC FUNCTION TO GLOBAL
     // ==========================================================
-    [HttpGet("all")]
-    public async Task<IActionResult> GetAll()
+
+    [HttpPost("functions/sync-to-global")]
+    public async Task<IActionResult>
+        SyncToGlobal(
+            [FromBody]
+            SyncToGlobalCommand cmd)
     {
-        var result = await _mediator.Send(new GetSupersetupDataQuery());
+        await _mediator.Send(cmd);
+
+        return Ok(new
+        {
+            success = true,
+
+            message =
+                "Function synced with global"
+        });
+    }
+
+    // ==========================================================
+    // GET ALL CONNECTIONS
+    // ==========================================================
+
+    [HttpGet("connections")]
+    public async Task<IActionResult>
+        GetConnections()
+    {
+        var result =
+            await _mediator.Send(
+                new GetConnectionsQuery());
+
         return Ok(result);
     }
 
-    // prompting mode update // 0 = Global (default)
-    // 1 = Local
-    [HttpPost("connection/prompt-mode")]
-    public async Task<IActionResult> UpdatePromptMode(
-    [FromBody] UpdatePromptModeCommand command)
+    // ==========================================================
+    // GET FUNCTIONS BY CONNECTION
+    // ==========================================================
+
+    [HttpGet("connections/{connectionId}/functions")]
+    public async Task<IActionResult>
+        GetFunctionsByConnection(
+            Guid connectionId)
     {
-        var result = await _mediator.Send(command);
+        var result =
+            await _mediator.Send(
+                new GetFunctionsByConnectionQuery(
+                    connectionId));
+
+        return Ok(result);
+    }
+
+    // ==========================================================
+    // GET FUNCTION BY ID
+    // ==========================================================
+
+    [HttpGet("functions/{functionId}")]
+    public async Task<IActionResult>
+        GetFunctionById(
+            Guid functionId)
+    {
+        var result =
+            await _mediator.Send(
+                new GetFunctionByIdQuery(
+                    functionId));
+
+        return Ok(result);
+    }
+
+    // ==========================================================
+    // GET GLOBAL FUNCTION NAMES
+    // ==========================================================
+
+    [HttpGet("functions/global/Global_function")]
+    public async Task<IActionResult>
+        GetGlobalFunctionNames()
+    {
+        var result =
+            await _mediator.Send(
+                new GetGlobalFunctionNamesQuery());
+
         return Ok(result);
     }
 }

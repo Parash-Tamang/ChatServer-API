@@ -56,18 +56,14 @@
             </div>
             <div id="schema-list" class="rbac-schema-list"></div>
         </section>
-
-        <!-- Step 3: Select Tables -->
-        <section class="rbac-section">
-            <div class="rbac-step-header">
-                <div>
-                    <h2 class="rbac-step-title">
-                        <span class="rbac-step-badge">STEP 3</span>
-                        Select Tables
-                    </h2>
-                </div>
-                <span id="table-count-badge" class="rbac-count-badge">0 selected</span>
-            </div>
+<!-- Step 3: Select Tables -->
+<section class="rbac-section">
+    <div class="rbac-step-header">
+        <h2 class="rbac-step-title">
+            <span class="rbac-step-badge">STEP 3</span>
+            Select Tables
+        </h2>
+        <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
             <div class="rbac-search-wrap">
                 <i class="bi bi-search"></i>
                 <input 
@@ -77,32 +73,11 @@
                     class="rbac-search-input"
                 />
             </div>
-            <div id="tables-list" class="rbac-tables-list"></div>
-        </section>
-
-            <section class="rbac-section">
-            <!-- Step 3: Select Tables -->
-            <section class="rbac-section">
-                <div class="rbac-step-header">
-                    <div>
-                        <h2 class="rbac-step-title">
-                            <span class="rbac-step-badge">STEP 3</span>
-                            Select Tables
-                        </h2>
-                    </div>
-                    <div class="rbac-search-wrap">
-                        <i class="bi bi-search"></i>
-                        <input 
-                            type="text" 
-                            id="table-search"
-                            placeholder="Search tables..."
-                            class="rbac-search-input"
-                        />
-                    </div>
-                    <span id="table-count-badge" class="rbac-count-badge">0 selected</span>
-                </div>
-                <div id="tables-list" class="rbac-tables-list"></div>
-            </section>
+            <span id="table-count-badge" class="rbac-count-badge">0 selected</span>
+        </div>
+    </div>
+    <div id="tables-list" class="rbac-tables-list"></div>
+</section>
 
         <!-- Step 4: Configure Permissions -->
         <section class="rbac-section">

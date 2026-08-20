@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Net.Http.Json;
 using AIChatbot.web.Models.Chat;
@@ -37,10 +38,10 @@ namespace AIChatbot.web.Services
 
             // TEMP DEBUG
             if (res == null)
-                throw new Exception("ApiClient returned null — timeout or connection refused");
+                throw new Exception("ApiClient returned null ï¿½ timeout or connection refused");
 
             if (!res.IsSuccessStatusCode)
-                throw new Exception($"API returned {(int)res.StatusCode} {res.StatusCode} — {await res.Content.ReadAsStringAsync()}");
+                throw new Exception($"API returned {(int)res.StatusCode} {res.StatusCode} ï¿½ {await res.Content.ReadAsStringAsync()}");
 
             return await res.Content.ReadFromJsonAsync<ChatExecutionResult>();
         }
@@ -60,5 +61,42 @@ namespace AIChatbot.web.Services
                 return null;
             return await res.Content.ReadFromJsonAsync<ChatExecutionResult>();
         }
+
+        public async Task<ExcelFileResult?> GenerateExcelAsync(Guid messageId)
+        {
+            var res = await _api.PostAsync(
+                "/api/chat/V1/Conversation-engine/excel/generate",
+                new { messageId });
+
+            if (res == null || !res.IsSuccessStatusCode)
+                return null;
+
+            var bytes = await res.Content.ReadAsByteArrayAsync();
+            var contentType = res.Content.Headers.ContentType?.MediaType ??
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            var fileName = $"Report_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+            if (res.Content.Headers.ContentDisposition != null)
+            {
+                if (!string.IsNullOrWhiteSpace(res.Content.Headers.ContentDisposition.FileNameStar))
+                    fileName = res.Content.Headers.ContentDisposition.FileNameStar.Trim('"');
+                else if (!string.IsNullOrWhiteSpace(res.Content.Headers.ContentDisposition.FileName))
+                    fileName = res.Content.Headers.ContentDisposition.FileName.Trim('"');
+            }
+
+            return new ExcelFileResult
+            {
+                Content = bytes,
+                ContentType = contentType,
+                FileName = fileName
+            };
+        }
+    }
+
+    public class ExcelFileResult
+    {
+        public byte[] Content { get; set; } = Array.Empty<byte>();
+        public string ContentType { get; set; } = "application/octet-stream";
+        public string FileName { get; set; } = "report.xlsx";
     }
 }

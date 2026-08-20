@@ -180,6 +180,28 @@ namespace AIChatbot.web.Controllers
             }
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GenerateExcelAjax([FromBody] GenerateExcelRequest req)
+        {
+            if (req == null || req.MessageId == Guid.Empty)
+                return BadRequest(new { success = false, message = "MessageId is required." });
+
+            try
+            {
+                var result = await _chat.GenerateExcelAsync(req.MessageId);
+                if (result == null)
+                    return StatusCode(502, new { success = false, message = "Unable to generate Excel report." });
+
+                return File(result.Content, result.ContentType, result.FileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate Excel file for message {MessageId}", req.MessageId);
+                return Json(new { success = false, message = "Could not generate the Excel file. Please try again." });
+            }
+        }
+
         //[HttpGet]
         //public IActionResult LoadConnectionModal()
         //{
@@ -244,4 +266,5 @@ namespace AIChatbot.web.Controllers
     
     public class DeleteSessionRequest { public Guid SessionId { get; set; } }
     public class RetryRequest { public Guid SessionId { get; set; } public Guid MessageId { get; set; } }
+    public class GenerateExcelRequest { public Guid MessageId { get; set; } }
 }

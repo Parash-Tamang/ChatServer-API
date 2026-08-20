@@ -2,29 +2,25 @@
 //  RBAC Permission Set Creator
 // ════════════════════════════════════════════════════════
 
-const SCHEMA = [
-    { schemaName: "dbo", tableName: "BuildVersion", columns: ["SystemInformationID", "Database Version", "VersionDate", "ModifiedDate"] },
-    { schemaName: "dbo", tableName: "ErrorLog", columns: ["ErrorLogID", "ErrorTime", "UserName", "ErrorNumber", "ErrorSeverity", "ErrorState", "ErrorProcedure", "ErrorLine", "ErrorMessage"] },
-    { schemaName: "SalesLT", tableName: "Address", columns: ["AddressID", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "Customer", columns: ["CustomerID", "NameStyle", "Title", "FirstName", "MiddleName", "LastName", "Suffix", "CompanyName", "SalesPerson", "EmailAddress", "Phone", "PasswordHash", "PasswordSalt", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "CustomerAddress", columns: ["CustomerID", "AddressID", "AddressType", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "Product", columns: ["ProductID", "Name", "ProductNumber", "Color", "StandardCost", "ListPrice", "Size", "Weight", "ProductCategoryID", "ProductModelID", "SellStartDate", "SellEndDate", "DiscontinuedDate", "ThumbNailPhoto", "ThumbnailPhotoFileName", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "ProductCategory", columns: ["ProductCategoryID", "ParentProductCategoryID", "Name", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "ProductDescription", columns: ["ProductDescriptionID", "Description", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "ProductModel", columns: ["ProductModelID", "Name", "CatalogDescription", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "ProductModelProductDescription", columns: ["ProductModelID", "ProductDescriptionID", "Culture", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "SalesOrderDetail", columns: ["SalesOrderID", "SalesOrderDetailID", "OrderQty", "ProductID", "UnitPrice", "UnitPriceDiscount", "LineTotal", "rowguid", "ModifiedDate"] },
-    { schemaName: "SalesLT", tableName: "SalesOrderHeader", columns: ["SalesOrderID", "RevisionNumber", "OrderDate", "DueDate", "ShipDate", "Status", "OnlineOrderFlag", "SalesOrderNumber", "PurchaseOrderNumber", "AccountNumber", "CustomerID", "ShipToAddressID", "BillToAddressID", "ShipMethod", "CreditCardApprovalCode", "SubTotal", "TaxAmt", "Freight", "TotalDue", "Comment", "rowguid", "ModifiedDate"] }
-];
-
 const rbac = (() => {
     // State
     let state = {
         roleName: '',
         selectedSchema: null,
         permissions: {},
+        savedPermissions: {},
         schemaSearch: '',
         tableSearch: '',
+        connectionSearch: '',
+        selectedConnectionId: null,
+        connections: [],
+        roleSearch: '',
+        selectedRoleId: null,
+        roles: [],
+        roleLoading: false,
+        schemas: [],
+        schemaLoading: true,
+        savedSectionCollapsed: false,
         isDarkMode: false
     };
 
@@ -34,7 +30,7 @@ const rbac = (() => {
     function init() {
         loadDarkMode();
         bindEvents();
-        renderSchemas();
+        loadConnections();
         updatePayload();
     }
 
@@ -42,8 +38,8 @@ const rbac = (() => {
     //  Dark Mode
     // ════════════════════════════════════════════════════════
     function loadDarkMode() {
-        const saved = localStorage.getItem('rbac-dark-mode');
-        state.isDarkMode = saved === 'true';
+        // Do not read from localStorage; default to light mode unless toggled this session
+        state.isDarkMode = false;
         applyTheme();
     }
 
@@ -58,7 +54,6 @@ const rbac = (() => {
 
     function toggleDarkMode() {
         state.isDarkMode = !state.isDarkMode;
-        localStorage.setItem('rbac-dark-mode', state.isDarkMode);
         applyTheme();
     }
 
@@ -67,9 +62,13 @@ const rbac = (() => {
     // ════════════════════════════════════════════════════════
     function bindEvents() {
         document.getElementById('btn-dark-mode').addEventListener('click', toggleDarkMode);
-        document.getElementById('input-role-name').addEventListener('input', (e) => {
-            state.roleName = e.target.value;
-            updatePayload();
+        document.getElementById('connection-search').addEventListener('input', (e) => {
+            state.connectionSearch = e.target.value;
+            renderConnections();
+        });
+        document.getElementById('role-search').addEventListener('input', (e) => {
+            state.roleSearch = e.target.value;
+            renderRoles();
         });
         document.getElementById('schema-search').addEventListener('input', (e) => {
             state.schemaSearch = e.target.value;
@@ -88,8 +87,363 @@ const rbac = (() => {
     // ════════════════════════════════════════════════════════
     //  Schema Rendering
     // ════════════════════════════════════════════════════════
+    function renderConnections() {
+        const filtered = state.connections.filter(c =>
+            c.name.toLowerCase().includes(state.connectionSearch.toLowerCase())
+        );
+
+        const container = document.getElementById('connection-list');
+        container.innerHTML = filtered.map(conn => `
+            <button class="rbac-schema-item ${state.selectedConnectionId === conn.id ? 'active' : ''}"
+                    data-connection-id="${conn.id}"
+                    onclick="rbac.selectConnection('${conn.id}')">
+                ${conn.name}
+            </button>
+        `).join('');
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<span style="font-size: 0.875rem; color: var(--rbac-text-muted);">No databases found</span>';
+        }
+    }
+
+    async function loadConnections() {
+        try {
+            const res = await fetch('/Admin/GetConnections');
+            if (!res.ok) {
+                throw new Error('Failed to load databases');
+            }
+            const json = await res.json();
+            state.connections = Array.isArray(json.data) ? json.data : [];
+            renderConnections();
+            console.log('Connections loaded:', state.connections);
+        } catch {
+            state.connections = [];
+            renderConnections();
+        }
+    }
+
+    async function loadRoles(connectionId) {
+        state.roles = [];
+        state.roleSearch = '';
+        state.selectedRoleId = null;
+        state.roleLoading = true;
+        renderRoles();
+
+        if (!connectionId) {
+            state.roleLoading = false;
+            renderRoles();
+            return;
+        }
+
+        try {
+            const url = `/Admin/GetRolesByConnection?connectionId=${connectionId}`;
+            console.log('Loading roles from:', url);
+            const res = await fetch(url);
+            console.log('Response status:', res.status, res.statusText);
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('API error response:', errorText);
+                throw new Error(`Failed to load roles: ${res.status} ${res.statusText}`);
+            }
+            const json = await res.json();
+            console.log('API response:', json);
+            state.roles = Array.isArray(json.data) ? json.data : [];
+            console.log('Roles loaded:', state.roles);
+        } catch (err) {
+            console.error('Error loading roles:', err);
+            state.roles = [];
+        } finally {
+            state.roleLoading = false;
+        }
+
+        renderRoles();
+    }
+
+   async function loadSchemas(connectionId) {
+    state.schemaLoading = true;
+    renderSchemas(); // ← show "Loading schemas..." immediately
+
+    try {
+        const url = `/Admin/GetSchema?connectionId=${connectionId}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.error('Schema API error:', errorText);
+            throw new Error(`Failed to load schemas: ${res.status} ${res.statusText}`);
+        }
+        const json = await res.json();
+        state.schemas = Array.isArray(json.data) ? json.data : [];
+        console.log('Schemas loaded:', state.schemas.length, 'entries');
+    } catch (err) {
+        console.error('Error loading schemas:', err);
+        state.schemas = [];
+    } finally {
+        state.schemaLoading = false;
+        // Merge saved permissions after schema loads only if savedPermissions already present
+        if (Object.keys(state.savedPermissions || {}).length > 0) {
+            mergePermissions();
+        } else {
+            renderSchemas(); // ← now schemaLoading is false, renders actual data
+        }
+    }
+}
+
+    function loadSchemasForConnection() {
+        if (!state.selectedConnectionId) {
+            alert('Please select a database first (Step 0)');
+            return;
+        }
+        // Require role selection before proceeding to Step 2
+        if (!state.selectedRoleId) {
+            alert('Please select a role first (Step 1)');
+            return;
+        }
+        // Reset from Step 2 before reloading schema
+        resetFromStep2();
+        
+        console.log('Loading schemas for connection:', state.selectedConnectionId);
+        loadSchemas(state.selectedConnectionId);
+    }
+
+    function selectConnection(connectionId) {
+    // clicking active connection deselects it
+    if (state.selectedConnectionId === connectionId) {
+        deselectConnection();
+        return;
+    }
+
+    state.savedPermissions = {};
+    // Reset roles and downstream state before switching databases
+    resetFromStep1();
+    state.selectedConnectionId = connectionId;
+    // Ensure UI reflects cleared state
+    renderConnections();
+    renderRoles();
+    renderSchemas();
+    renderTables();
+    renderPermissions();
+    updatePayload();
+    loadRoles(connectionId);
+}
+
+    // ========= Reset helper cascade =========
+    function resetFromStep4() {
+        state.permissions = {};
+        renderPermissions();
+        updatePayload();
+    }
+
+    function resetFromStep3() {
+        state.tableSearch = '';
+        const t = document.getElementById('table-search');
+        if (t) t.value = '';
+        resetFromStep4();
+        renderTables();
+        updateTableCount();
+    }
+
+    function resetFromStep2() {
+        state.schemas = [];
+        state.selectedSchema = null;
+        state.schemaSearch = '';
+        state.schemaLoading = false;
+        resetFromStep3();
+        renderSchemas();
+        renderTables();
+    }
+
+    function resetFromStep1() {
+        state.roles = [];
+        state.selectedRoleId = null;
+        state.roleSearch = '';
+        state.savedPermissions = {};
+        resetFromStep2();
+        renderRoles();
+    }
+
+function deselectConnection() {
+    state.selectedConnectionId = null;
+    state.savedPermissions = {};
+    // Reset everything starting from step 1
+    resetFromStep1();
+    renderConnections();
+    updatePayload();
+}
+
+    function renderRoles() {
+        const list = document.getElementById('role-list');
+        if (!list) {
+            console.warn('role-list element not found');
+            return;
+        }
+
+        console.log('renderRoles called. selectedConnectionId:', state.selectedConnectionId, 'roleLoading:', state.roleLoading, 'roles count:', state.roles.length);
+
+        if (!state.selectedConnectionId) {
+            list.innerHTML = '<span style="font-size: 0.875rem; color: var(--rbac-text-muted);">Select a database first to view roles.</span>';
+            return;
+        }
+
+        if (state.roleLoading) {
+            list.innerHTML = '<span style="font-size: 0.875rem; color: var(--rbac-text-muted);">Loading roles...</span>';
+            return;
+        }
+
+        const filtered = state.roles.filter(r =>
+            r.roleName.toLowerCase().includes(state.roleSearch.toLowerCase()) ||
+            r.roleId.toLowerCase().includes(state.roleSearch.toLowerCase())
+        );
+
+        console.log('Filtered roles:', filtered);
+
+        list.innerHTML = filtered.map(role => `
+            <button class="rbac-schema-item ${state.selectedRoleId === role.roleId ? 'active' : ''}"
+                    data-role-id="${role.roleId}"
+                    onclick="rbac.selectRole('${role.roleId}')">
+                ${role.roleName}
+            </button>
+        `).join('');
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<span style="font-size: 0.875rem; color: var(--rbac-text-muted);">No roles found for this database.</span>';
+        }
+    }
+
+    function selectRole(roleId) {
+        const role = state.roles.find(r => r.roleId === roleId);
+        if (!role) return;
+
+        state.selectedRoleId = roleId;
+        state.roleName = role.roleName;
+        state.savedPermissions = {};
+        // Reset permissions area when selecting new role
+        resetFromStep4();
+        renderRoles();
+
+        // Load saved permissions for this role/connection combination
+        if (state.selectedConnectionId) {
+            loadSavedPermissions(roleId, state.selectedConnectionId);
+        }
+    }
+
+    async function loadSavedPermissions(roleId, connectionId) {
+        try {
+            const response = await fetch(`/Admin/GetRuntimePermissions?roleId=${encodeURIComponent(roleId)}&connectionId=${encodeURIComponent(connectionId)}`);
+            if (!response.ok) {
+                state.savedPermissions = {};
+                return;
+            }
+
+            const json = await response.json();
+            if (json?.data?.permissions && typeof json.data.permissions === 'object') {
+                state.savedPermissions = mapRuntimePermissionsFromPayload(json.data.permissions);
+            } else {
+                const rows = Array.isArray(json.data) ? json.data : [];
+                state.savedPermissions = mapRuntimePermissions(rows);
+            }
+
+            console.log('Loaded saved permissions:', state.savedPermissions);
+
+            if (state.schemas && state.schemas.length > 0) {
+                mergePermissions();
+            }
+        } catch (err) {
+            console.error('Error loading saved permissions:', err);
+            state.savedPermissions = {};
+        }
+    }
+
+    function mapRuntimePermissionsFromPayload(payloadPermissions) {
+        const result = {};
+
+        Object.entries(payloadPermissions).forEach(([key, permission]) => {
+            if (!permission || typeof permission !== 'object') {
+                return;
+            }
+
+            result[key] = {
+                reason: permission.reason ?? '',
+                access_level: permission.access_level ?? 'unrestricted',
+                required_filters: Array.isArray(permission.required_filters)
+                    ? permission.required_filters.map(filter => ({
+                        column: filter.column ?? '',
+                        filter_type: filter.filter_type ?? 'id',
+                        values: Array.isArray(filter.values)
+                            ? filter.values.join(', ')
+                            : filter.values ?? ''
+                    }))
+                    : [],
+                isSaved: true,
+                hasBeenSaved: true
+            };
+        });
+
+        return result;
+    }
+
+    function mapRuntimePermissions(rows) {
+        const result = {};
+
+        rows.forEach(row => {
+            if (!row || !row.schemaName || !row.tableName) {
+                return;
+            }
+
+            const key = `${row.schemaName}.${row.tableName}`;
+            if (!result[key]) {
+                result[key] = {
+                    reason: '',
+                    access_level: 'unrestricted',
+                    required_filters: [],
+                    isSaved: true,
+                    hasBeenSaved: true
+                };
+            }
+
+            const filterType = row.filterType || '';
+            if (filterType && filterType !== 'unrestricted') {
+                result[key].access_level = 'filtered';
+                result[key].required_filters.push({
+                    column: row.columnName || '',
+                    filter_type: filterType,
+                    values: Array.isArray(row.values) ? row.values : (row.values ? [row.values] : [])
+                });
+            }
+        });
+
+        return result;
+    }
+
+    function mergePermissions() {
+        // Merge saved permissions into current permissions
+        Object.entries(state.savedPermissions).forEach(([key, savedPerm]) => {
+            state.permissions[key] = {
+                ...savedPerm,
+                isSaved: true,
+                hasBeenSaved: true
+            };
+        });
+        console.log('Permissions merged. Current permissions:', state.permissions);
+        renderSchemas();
+        renderTables();
+        renderPermissions();
+        updatePayload();
+    }
     function renderSchemas() {
-        const schemas = Array.from(new Set(SCHEMA.map(t => t.schemaName)));
+        if (state.schemaLoading) {
+            const container = document.getElementById('schema-list');
+            container.innerHTML = '<span style="font-size: 0.875rem; color: var(--rbac-text-muted);">Loading schemas...</span>';
+            return;
+        }
+
+        // Require role selection before showing schemas
+        if (!state.selectedRoleId) {
+            const container = document.getElementById('schema-list');
+            container.innerHTML = '<span style="font-size: 0.875rem; color: var(--rbac-text-muted);">Select a role first (Step 1) to view schemas.</span>';
+            return;
+        }
+
+        const schemas = Array.from(new Set(state.schemas.map(t => t.schemaName)));
         const filtered = schemas.filter(s => s.toLowerCase().includes(state.schemaSearch.toLowerCase()));
 
         const container = document.getElementById('schema-list');
@@ -112,9 +466,16 @@ const rbac = (() => {
     }
 
     function selectSchema(schema) {
+        if (!state.selectedRoleId) {
+            alert('Please select a role first (Step 1)');
+            return;
+        }
+
         state.selectedSchema = schema;
         state.tableSearch = '';
         document.getElementById('table-search').value = '';
+        // Reset UI: step 3 table list only
+        // Keep permissions intact
         renderSchemas();
         renderTables();
     }
@@ -123,7 +484,14 @@ const rbac = (() => {
     //  Table Rendering
     // ════════════════════════════════════════════════════════
     function renderTables() {
-        const filtered = SCHEMA.filter(t => 
+        // Require role selection before showing tables
+        if (!state.selectedRoleId) {
+            const container = document.getElementById('tables-list');
+            container.innerHTML = '<span style="font-size: 0.875rem; color: var(--rbac-text-muted);">Select a role first (Step 1) to view tables.</span>';
+            updateTableCount();
+            return;
+        }
+        const filtered = state.schemas.filter(t => 
             t.schemaName === state.selectedSchema && 
             t.tableName.toLowerCase().includes(state.tableSearch.toLowerCase())
         );
@@ -195,12 +563,105 @@ const rbac = (() => {
     // ════════════════════════════════════════════════════════
     //  Permissions Rendering
     // ════════════════════════════════════════════════════════
+    function renderPermissionCard(key, perm, isSavedCard) {
+        const columns = getColumns(key);
+        return `
+            <div class="rbac-permission-card">
+                <div class="rbac-permission-info">
+                    <div class="rbac-permission-table">${key}</div>
+                    <div class="rbac-permission-controls">
+                        <!-- Reason -->
+                        <div class="rbac-form-group">
+                            <label class="rbac-label">Reason <span class="rbac-required">*</span></label>
+                            <textarea placeholder="Why does this role need access?"
+                                      rows="2"
+                                      data-key="${key}"
+                                      data-field="reason"
+                                      onchange="rbac.updatePermission('${key}', 'reason', this.value)">
+${perm.reason || ''}</textarea>
+                        </div>
+
+                        <!-- Access Level -->
+                        <div class="rbac-form-group">
+                            <label class="rbac-label">Access Level</label>
+                            <div class="rbac-access-radio">
+                                <label>
+                                    <input type="radio" name="access-${key}" value="unrestricted"
+                                           ${perm.access_level === 'unrestricted' ? 'checked' : ''}
+                                           onchange="rbac.updatePermission('${key}', 'access_level', 'unrestricted')">
+                                    Unrestricted
+                                </label>
+                                <label>
+                                    <input type="radio" name="access-${key}" value="filtered"
+                                           ${perm.access_level === 'filtered' ? 'checked' : ''}
+                                           onchange="rbac.updatePermission('${key}', 'access_level', 'filtered')">
+                                    Filtered
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Filters (if needed) -->
+                        ${perm.access_level === 'filtered' ? `
+                            <div class="rbac-filters-section">
+                                <div class="rbac-label" style="margin-bottom: 0.5rem;">Required Filters</div>
+                                ${(perm.required_filters || []).map((f, i) => `
+                                    <div class="rbac-filter-item">
+                                        <select onchange="rbac.updateFilter('${key}', ${i}, 'column', this.value)">
+                                            ${columns.map(c => `<option value="${c}" ${f.column === c ? 'selected' : ''}>${c}</option>`).join('')}
+                                        </select>
+                                        <select onchange="rbac.updateFilter('${key}', ${i}, 'filter_type', this.value)">
+                                            <option value="id" ${f.filter_type === 'id' ? 'selected' : ''}>ID</option>
+                                            <option value="range" ${f.filter_type === 'range' ? 'selected' : ''}>Range</option>
+                                            <option value="like" ${f.filter_type === 'like' ? 'selected' : ''}>Like</option>
+                                        </select>
+                                        <input type="text" placeholder="Values (comma-separated)"
+                                               value="${f.values || ''}"
+                                               onchange="rbac.updateFilter('${key}', ${i}, 'values', this.value)">
+                                        <button class="rbac-remove-filter-btn"
+                                                onclick="rbac.removeFilter('${key}', ${i})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                                <button class="rbac-add-filter-btn"
+                                        onclick="rbac.addFilter('${key}')">
+                                    <i class="bi bi-plus"></i> Add Filter
+                                </button>
+                            </div>
+                        ` : ''}
+
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            ${isSavedCard ? `
+                                <button class="rbac-btn-primary rbac-btn-small"
+                                        onclick="rbac.editTable('${key}')">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                            ` : `
+                                <button class="rbac-btn-primary rbac-btn-small"
+                                        onclick="rbac.saveTable('${key}')">
+                                    <i class="bi bi-check"></i> Save
+                                </button>
+                            `}
+                            <button class="rbac-btn-secondary rbac-btn-small"
+                                    onclick="rbac.removeTable('${key}')">
+                                <i class="bi bi-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     function renderPermissions() {
-        const unsaved = Object.entries(state.permissions).filter(([_, p]) => !p.isSaved);
+        const entries = Object.entries(state.permissions);
+        const saved = entries.filter(([_, p]) => p.isSaved);
+        const unsaved = entries.filter(([_, p]) => !p.isSaved);
         const container = document.getElementById('permissions-list');
         const saveAllBtn = document.getElementById('btn-save-all');
 
-        if (unsaved.length === 0) {
+        if (saved.length === 0 && unsaved.length === 0) {
             container.innerHTML = `
                 <div class="rbac-empty-state">
                     <i class="bi bi-inbox"></i>
@@ -211,91 +672,28 @@ const rbac = (() => {
             return;
         }
 
-        saveAllBtn.style.display = 'inline-flex';
+        saveAllBtn.style.display = unsaved.length > 0 ? 'inline-flex' : 'none';
 
-        container.innerHTML = unsaved.map(([key, perm]) => {
-            const columns = getColumns(key);
-            return `
-                <div class="rbac-permission-card">
-                    <div class="rbac-permission-info">
-                        <div class="rbac-permission-table">${key}</div>
-                        <div class="rbac-permission-controls">
-                            <!-- Reason -->
-                            <div class="rbac-form-group">
-                                <label class="rbac-label">Reason <span class="rbac-required">*</span></label>
-                                <textarea placeholder="Why does this role need access?"
-                                          rows="2"
-                                          data-key="${key}"
-                                          data-field="reason"
-                                          onchange="rbac.updatePermission('${key}', 'reason', this.value)">
-${perm.reason || ''}</textarea>
-                            </div>
-
-                            <!-- Access Level -->
-                            <div class="rbac-form-group">
-                                <label class="rbac-label">Access Level</label>
-                                <div class="rbac-access-radio">
-                                    <label>
-                                        <input type="radio" name="access-${key}" value="unrestricted"
-                                               ${perm.access_level === 'unrestricted' ? 'checked' : ''}
-                                               onchange="rbac.updatePermission('${key}', 'access_level', 'unrestricted')">
-                                        Unrestricted
-                                    </label>
-                                    <label>
-                                        <input type="radio" name="access-${key}" value="filtered"
-                                               ${perm.access_level === 'filtered' ? 'checked' : ''}
-                                               onchange="rbac.updatePermission('${key}', 'access_level', 'filtered')">
-                                        Filtered
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Filters (if needed) -->
-                            ${perm.access_level === 'filtered' ? `
-                                <div class="rbac-filters-section">
-                                    <div class="rbac-label" style="margin-bottom: 0.5rem;">Required Filters</div>
-                                    ${(perm.required_filters || []).map((f, i) => `
-                                        <div class="rbac-filter-item">
-                                            <select onchange="rbac.updateFilter('${key}', ${i}, 'column', this.value)">
-                                                ${columns.map(c => `<option value="${c}" ${f.column === c ? 'selected' : ''}>${c}</option>`).join('')}
-                                            </select>
-                                            <select onchange="rbac.updateFilter('${key}', ${i}, 'filter_type', this.value)">
-                                                <option value="id" ${f.filter_type === 'id' ? 'selected' : ''}>ID</option>
-                                                <option value="range" ${f.filter_type === 'range' ? 'selected' : ''}>Range</option>
-                                                <option value="like" ${f.filter_type === 'like' ? 'selected' : ''}>Like</option>
-                                            </select>
-                                            <input type="text" placeholder="Values (comma-separated)"
-                                                   value="${f.values || ''}"
-                                                   onchange="rbac.updateFilter('${key}', ${i}, 'values', this.value)">
-                                            <button class="rbac-remove-filter-btn"
-                                                    onclick="rbac.removeFilter('${key}', ${i})">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    `).join('')}
-                                    <button class="rbac-add-filter-btn"
-                                            onclick="rbac.addFilter('${key}')">
-                                        <i class="bi bi-plus"></i> Add Filter
-                                    </button>
-                                </div>
-                            ` : ''}
-
-                            <!-- Action Buttons -->
-                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                                <button class="rbac-btn-primary rbac-btn-small"
-                                        onclick="rbac.saveTable('${key}')">
-                                    <i class="bi bi-check"></i> Save
-                                </button>
-                                <button class="rbac-btn-secondary rbac-btn-small"
-                                        onclick="rbac.removeTable('${key}')">
-                                    <i class="bi bi-trash"></i> Remove
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+        const savedSectionHtml = saved.length > 0 ? `
+            <div class="rbac-saved-section">
+                <div class="rbac-saved-header">
+                    <span>Previously Configured (${saved.length})</span>
+                    <button class="rbac-collapse-btn" onclick="rbac.toggleSavedSection()">
+                        ${state.savedSectionCollapsed ? 'Expand' : 'Collapse'}
+                    </button>
                 </div>
-            `;
-        }).join('');
+                ${state.savedSectionCollapsed ? '' : saved.map(([key, perm]) => renderPermissionCard(key, perm, true)).join('')}
+            </div>
+        ` : '';
+
+        const unsavedSectionHtml = unsaved.map(([key, perm]) => renderPermissionCard(key, perm, false)).join('');
+
+        container.innerHTML = savedSectionHtml + unsavedSectionHtml;
+    }
+
+    function toggleSavedSection() {
+        state.savedSectionCollapsed = !state.savedSectionCollapsed;
+        renderPermissions();
     }
 
     function updatePermission(key, field, value) {
@@ -318,6 +716,13 @@ ${perm.reason || ''}</textarea>
         }
     }
 
+    function editTable(key) {
+        if (state.permissions[key]) {
+            state.permissions[key].isSaved = false;
+            renderPermissions();
+        }
+    }
+
     function saveAllTables() {
         Object.keys(state.permissions).forEach(key => {
             if (!state.permissions[key].isSaved) {
@@ -327,6 +732,43 @@ ${perm.reason || ''}</textarea>
         });
         renderPermissions();
         updatePayload();
+    }
+
+    async function postRuntimePermissions() {
+        if (!state.selectedRoleId || !state.selectedConnectionId) {
+            alert('Select a role and connection before saving permissions.');
+            return false;
+        }
+
+        const payload = generatePayload();
+        try {
+            const response = await fetch('/Admin/runtime-access/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('Save runtime permissions failed:', response.status, text);
+                alert('Failed to save runtime permissions.');
+                return false;
+            }
+
+            const json = await response.json();
+            if (!json.success) {
+                console.error('Save runtime permissions error response:', json);
+                alert('Failed to save runtime permissions.');
+                return false;
+            }
+
+            showToast('Permissions saved successfully.');
+            return true;
+        } catch (err) {
+            console.error('Error saving runtime permissions:', err);
+            alert('Failed to save runtime permissions.');
+            return false;
+        }
     }
 
     function removeTable(key) {
@@ -372,6 +814,9 @@ ${perm.reason || ''}</textarea>
     function generatePayload() {
         const payload = {
             role: state.roleName.trim() || 'unnamed_role',
+            selectedRoleId: state.selectedRoleId,
+            database: state.connections.find(c => c.id === state.selectedConnectionId)?.name || null,
+            connectionId: state.selectedConnectionId,
             permissions: {}
         };
 
@@ -416,9 +861,14 @@ ${perm.reason || ''}</textarea>
         });
     }
 
-    function sendPayload() {
+    async function sendPayload() {
         const payload = generatePayload();
-        alert('Payload Review:\n\n' + JSON.stringify(payload, null, 2));
+        const confirmed = confirm('Payload Review:\n\n' + JSON.stringify(payload, null, 2) + '\n\nSend this payload?');
+        if (!confirmed) {
+            return;
+        }
+
+        await postRuntimePermissions();
     }
 
     // ════════════════════════════════════════════════════════
@@ -431,7 +881,7 @@ ${perm.reason || ''}</textarea>
     function getColumns(key) {
         const [s, ...rest] = key.split('.');
         const t = rest.join('.');
-        const row = SCHEMA.find(x => x.schemaName === s && x.tableName === t);
+        const row = state.schemas.find(x => x.schemaName === s && x.tableName === t);
         return row ? row.columns : [];
     }
 
@@ -460,13 +910,18 @@ ${perm.reason || ''}</textarea>
     return {
         init,
         selectSchema,
+        selectConnection,
+        selectRole,
         toggleTable,
         updatePermission,
         saveTable,
+        editTable,
         saveAllTables,
         removeTable,
         addFilter,
         removeFilter,
-        updateFilter
+        updateFilter,
+        toggleSavedSection,
+        loadSchemasForConnection
     };
 })();

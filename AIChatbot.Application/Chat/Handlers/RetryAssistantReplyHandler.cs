@@ -2,76 +2,206 @@
 using AIChatbot.Application.Chat.Commands;
 using AIChatbot.Application.Chat.Results;
 using AIChatbot.Application.Common;
-using AIChatbot.Application.RoleAccess.Services;
 using AIChatbot.Domain.Entities;
+
 using MediatR;
-using Microsoft.AspNetCore.Identity;
+
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 
 namespace AIChatbot.Application.Chat.Handlers;
 
 public class RetryAssistantReplyHandler
-    : IRequestHandler<RetryAssistantReplyCommand, ChatCommandResult>
+    : IRequestHandler<
+        RetryAssistantReplyCommand,
+        ChatCommandResult>
 {
-    private readonly IChatSessionRepository _repo;
-    private readonly IAiProviderService _ai;
-    private readonly IRoleAccessService _roleAccessService;
-    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly
+        IChatSessionRepository _repo;
+
+    private readonly
+        IAiProviderService _ai;
+
+    private readonly
+        UserManager<ApplicationUser>
+        _userManager;
+
+    private readonly
+        RoleManager<IdentityRole>
+        _roleManager;
+
+    private readonly
+        IRoleConnectionMappingRepository
+        _mappingRepo;
 
     public RetryAssistantReplyHandler(
         IChatSessionRepository repo,
+
         IAiProviderService ai,
-        IRoleAccessService roleAccessService,
-        UserManager<ApplicationUser> userManager)
+
+        UserManager<ApplicationUser> userManager,
+
+        RoleManager<IdentityRole> roleManager,
+
+        IRoleConnectionMappingRepository mappingRepo)
     {
         _repo = repo;
+
         _ai = ai;
-        _roleAccessService = roleAccessService;
+
         _userManager = userManager;
+
+        _roleManager = roleManager;
+
+        _mappingRepo = mappingRepo;
     }
 
-    public async Task<ChatCommandResult> Handle(
-        RetryAssistantReplyCommand request,
-        CancellationToken cancellationToken)
+    public async Task<ChatCommandResult>
+        Handle(
+            RetryAssistantReplyCommand request,
+            CancellationToken cancellationToken)
     {
-        var owns = await _repo.ChatSessionBelongsToUser(
-            request.ChatSessionId,
-            request.UserId);
+        // ====================================================
+        // VALIDATE SESSION OWNER
+        // ====================================================
+
+        var owns =
+            await _repo.ChatSessionBelongsToUser(
+                request.ChatSessionId,
+                request.UserId);
 
         if (!owns)
-            throw new UnauthorizedAccessException("You do not have access to this session.");
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have access to this session.");
+        }
 
-        var msg = await _repo.GetMessageAsync(request.MessageId);
+        // ====================================================
+        // GET MESSAGE
+        // ====================================================
 
-        if (msg == null || msg.Role != "user")
-            throw new InvalidOperationException("Only user messages can be retried.");
+        var msg =
+            await _repo.GetMessageAsync(
+                request.MessageId);
 
-        var user = await _userManager.FindByIdAsync(request.UserId)
-            ?? throw new KeyNotFoundException("User not found.");
+        if (msg == null
+            ||
+            msg.Role != "user")
+        {
+            throw new InvalidOperationException(
+                "Only user messages can be retried.");
+        }
 
-        var roles = await _userManager.GetRolesAsync(user);
-        var primaryRole = roles.FirstOrDefault()
-            ?? throw new BadHttpRequestException("User has no role assigned.");
+        // ====================================================
+        // USER
+        // ====================================================
 
-        var roleAccess = await _roleAccessService.GetAccessAsync(primaryRole);
+        var user =
+            await _userManager
+                .FindByIdAsync(
+                    request.UserId)
+            ??
+            throw new KeyNotFoundException(
+                "User not found.");
 
-        var history = await _repo.GetLatestMessagesAsync(msg.ChatSessionId, 5);
+        // ====================================================
+        // ROLE
+        // ====================================================
 
-        var llm = await _ai.GetReplyAsync(
-            msg.Content,
-            history,
-            roleAccess);
+        var roles =
+            await _userManager
+                .GetRolesAsync(user);
+
+        var roleName =
+            roles.FirstOrDefault()
+            ??
+            "User";
+
+        // ====================================================
+        // GET ROLE ENTITY
+        // ====================================================
+
+        var role =
+            await _roleManager
+                .FindByNameAsync(
+                    roleName);
+
+        // ====================================================
+        // GET CONNECTION
+        // ====================================================
+
+        Guid connectionId =
+            Guid.Empty;
+
+        if (role != null)
+        {
+            var mappings =
+                await _mappingRepo
+                    .GetByRoleIdAsync(
+                        role.Id);
+
+            var mapping =
+                mappings.FirstOrDefault();
+
+            if (mapping != null)
+            {
+                connectionId =
+                    mapping.ConnectionId;
+            }
+        }
+
+        // ====================================================
+        // HISTORY
+        // ====================================================
+
+        var history =
+            await _repo.GetLatestMessagesAsync(
+                msg.ChatSessionId,
+                5);
+
+        // ====================================================
+        // AI CALL
+        // ====================================================
+
+        var llm =
+            await _ai.GetReplyAsync(
+                request.UserId,
+
+                roleName,
+
+                msg.Content,
+
+                connectionId,
+
+                history,
+
+                null);
+
+        // ====================================================
+        // SAVE ASSISTANT MESSAGE
+        // ====================================================
 
         await _repo.SaveMessageAsync(
             msg.ChatSessionId,
+
             "assistant",
+
             llm.Message ?? "");
+
+        // ====================================================
+        // RESPONSE
+        // ====================================================
 
         return new ChatCommandResult
         {
-            Status = ExecutionStatus.Success,
-            ChatSessionId = msg.ChatSessionId,
-            AssistantReply = llm.Message
+            Status =
+                ExecutionStatus.Success,
+
+            ChatSessionId =
+                msg.ChatSessionId,
+
+            AssistantReply =
+                llm.Message
         };
     }
 }

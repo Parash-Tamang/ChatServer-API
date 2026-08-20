@@ -24,20 +24,27 @@ namespace AIChatbot.Application.Supersetup.Handlers
             _repo = repo;
             _ai = ai;
         }
-
         public async Task<GenericResult> Handle(
             CreateKnowledgebaseCommand request,
             CancellationToken ct)
         {
-            var conn = await _repo.GetByIdAsync(request.ConnectionId)
-                ?? throw new KeyNotFoundException("Connection not found.");
+            var conn =
+                await _repo.GetByIdAsync(request.ConnectionId)
+                ?? throw new KeyNotFoundException(
+                    "Connection not found.");
 
-            var result = await _ai.PrepareDatabaseAsync(conn);
+            var result =
+                await _ai.PrepareDatabaseAsync(conn);
 
             if (!result.DbStatus)
-                throw new ApplicationException("Knowledgebase creation failed.");
+            {
+                throw new ApplicationException(
+                    "Knowledgebase creation failed.");
+            }
 
             conn.Verified = true;
+            conn.UpdatedAt = DateTime.UtcNow;
+
             await _repo.UpdateAsync(conn);
 
             return new GenericResult

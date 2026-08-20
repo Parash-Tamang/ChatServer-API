@@ -22,19 +22,42 @@
             </button>
         </div>
 
-        <!-- Step 1: Role Name -->
+        <!-- Step 0: Select Database -->
         <section class="rbac-section">
             <h2 class="rbac-step-title">
-                <span class="rbac-step-badge">STEP 1</span>
-                Role Name
+                <span class="rbac-step-badge">STEP 0</span>
+                Select Database
             </h2>
-            <input 
-                type="text" 
-                id="input-role-name"
-                placeholder="e.g. customer, admin, vendor"
-                class="rbac-input" 
-                maxlength="100"
-            />
+            <div class="rbac-search-wrap" style="margin-bottom: 1rem;">
+                <i class="bi bi-search"></i>
+                <input 
+                    type="text" 
+                    id="connection-search"
+                    placeholder="Search databases..."
+                    class="rbac-search-input" 
+                />
+            </div>
+            <div id="connection-list" class="rbac-connection-list"></div>
+        </section>
+
+        <!-- Step 1: Select Role -->
+        <section class="rbac-section">
+            <div class="rbac-step-header">
+                <h2 class="rbac-step-title">
+                    <span class="rbac-step-badge">STEP 1</span>
+                    Select Role
+                </h2>
+                <div class="rbac-search-wrap">
+                    <i class="bi bi-search"></i>
+                    <input 
+                        type="text" 
+                        id="role-search"
+                        placeholder="Search roles..."
+                        class="rbac-search-input"
+                    />
+                </div>
+            </div>
+            <div id="role-list" class="rbac-connection-list"></div>
         </section>
 
         <!-- Step 2: Select Schema -->
@@ -44,19 +67,28 @@
                     <span class="rbac-step-badge">STEP 2</span>
                     Select Schema
                 </h2>
-                <div class="rbac-search-wrap">
-                    <i class="bi bi-search"></i>
-                    <input 
-                        type="text" 
-                        id="schema-search"
-                        placeholder="Search schemas..."
-                        class="rbac-search-input"
-                    />
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="rbac-search-wrap">
+                        <i class="bi bi-search"></i>
+                        <input 
+                            type="text" 
+                            id="schema-search"
+                            placeholder="Search schemas..."
+                            class="rbac-search-input"
+                        />
+                    </div>
+                    <button 
+                        id="btn-load-schema"
+                        class="rbac-action-btn"
+                        onclick="rbac.loadSchemasForConnection()"
+                        title="Load schema from database">
+                        <i class="bi bi-download"></i>
+                        Load Schema
+                    </button>
                 </div>
             </div>
             <div id="schema-list" class="rbac-schema-list"></div>
         </section>
-<!-- Step 3: Select Tables -->
 <section class="rbac-section">
     <div class="rbac-step-header">
         <h2 class="rbac-step-title">
@@ -86,9 +118,14 @@
                     <span class="rbac-step-badge">STEP 4</span>
                     Configure Permissions
                 </h2>
-                <button id="btn-save-all" class="rbac-btn-secondary" style="display:none;">
-                    <i class="bi bi-check2"></i> Save All
-                </button>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <button id="btn-toggle-saved" class="rbac-btn-secondary rbac-toggle-btn rbac-btn-small" title="Collapse saved permissions">
+                        <i class="bi bi-chevron-up"></i>
+                    </button>
+                    <button id="btn-save-all" class="rbac-btn-secondary" style="display:none;">
+                        <i class="bi bi-check2"></i> Save All
+                    </button>
+                </div>
             </div>
             <div id="permissions-list" class="rbac-permissions-list">
                 <div class="rbac-empty-state">

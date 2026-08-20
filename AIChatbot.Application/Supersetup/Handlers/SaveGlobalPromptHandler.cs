@@ -3,6 +3,7 @@ using AIChatbot.Application.Supersetup.Commands;
 using AIChatbot.Application.Supersetup.DTOs;
 using AIChatbot.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 namespace AIChatbot.Application.Supersetup.Handlers
 {
@@ -20,19 +21,52 @@ namespace AIChatbot.Application.Supersetup.Handlers
             SaveGlobalPromptCommand request,
             CancellationToken ct)
         {
+            // =========================================
+            // 🔒 VALIDATION
+            // =========================================
+
+            if (string.IsNullOrWhiteSpace(request.FunctionName))
+                throw new BadHttpRequestException(
+                    "Function name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(request.SystemPrompt))
+                throw new BadHttpRequestException(
+                    "System prompt cannot be empty.");
+
+            // =========================================
+            // 🔥 DUPLICATE FUNCTION NAME CHECK
+            // =========================================
+
+            var existingName = await _repo.GetByNameAsync(request.FunctionName);
+
+            if (existingName != null &&
+                existingName.Id != request.FunctionId)
+            {
+                throw new BadHttpRequestException(
+                    "Function name already exists.");
+            }
+
             PromptFunction entity;
 
-            // =========================
-            // ✏️ UPDATE EXISTING PROMPT
-            // =========================
+            // =========================================
+            // ✏️ UPDATE EXISTING GLOBAL PROMPT
+            // =========================================
+
             if (request.FunctionId != null)
             {
                 entity = await _repo.GetByIdAsync(request.FunctionId.Value);
 
                 if (entity == null)
                 {
-                    // ✅ Proper exception
-                    throw new KeyNotFoundException("Global prompt not found.");
+                    throw new KeyNotFoundException(
+                        "Global prompt not found.");
+                }
+
+                // 🔒 Ensure global only
+                if (entity.ConnectionStringId != null)
+                {
+                    throw new BadHttpRequestException(
+                        "This is not a global function.");
                 }
 
                 entity.FunctionName = request.FunctionName;
@@ -41,31 +75,38 @@ namespace AIChatbot.Application.Supersetup.Handlers
                 await _repo.UpdateAsync(entity);
             }
 
-            // =========================
-            // ➕ CREATE NEW PROMPT
-            // =========================
+            // =========================================
+            // ➕ CREATE NEW GLOBAL PROMPT
+            // =========================================
+
             else
             {
                 entity = new PromptFunction
                 {
                     Id = Guid.NewGuid(),
-                    ConnectionStringId = null, // Global prompt
+
+                    // 🔥 GLOBAL ONLY
+                    ConnectionStringId = null,
+
                     FunctionName = request.FunctionName,
                     SystemPrompt = request.SystemPrompt,
+
                     IsDeleted = false
                 };
 
                 await _repo.AddAsync(entity);
             }
 
-            // =========================
-            // ✅ RETURN RESPONSE
-            // =========================
+            // =========================================
+            // ✅ RESPONSE
+            // =========================================
+
             return new FunctionDto
             {
                 Id = entity.Id,
                 FunctionName = entity.FunctionName,
-                SystemPrompt = entity.SystemPrompt
+                SystemPrompt = entity.SystemPrompt,
+                Source = "global"
             };
         }
     }

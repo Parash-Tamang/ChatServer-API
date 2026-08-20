@@ -13,7 +13,7 @@ public interface IAuthService
     Task<AuthResult> LoginAsync(string email, string password);
 
     /// Registers a new user and issues tokens
-   
+    Task<bool> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
     Task<AuthResult> RegisterAsync(
         string firstName,
         string lastName,
@@ -41,14 +41,16 @@ public interface IAuthService
 
     Task ForgotPasswordAsync(string email);
 
-   
+
     /// Resets user password using reset token
-   
+
     Task ResetPasswordAsync(string email, string token, string newPassword);
 
-   
+    Task<string> GeneratePasswordResetTokenAsync(string email);
+
+
     /// Revokes all tokens/sessions for the given user
-  
+
     Task RevokeAllAsync(string userId);
     
 

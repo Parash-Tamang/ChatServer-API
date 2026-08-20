@@ -86,16 +86,6 @@ namespace AIChatbot.web.Services
 
             var data = await res.Content.ReadFromJsonAsync<AuthResponseDto>();
 
-            // Transport error
-            if (!res.IsSuccessStatusCode)
-            {
-                return new AuthResponseDto
-                {
-                    Success = false,
-                    Error = data?.Error ?? "Registration failed"
-                };
-            }
-            
             // Invalid API response
             if (data == null)
             {
@@ -103,6 +93,16 @@ namespace AIChatbot.web.Services
                 {
                     Success = false,
                     Error = "Invalid server response"
+                };
+            }
+
+            // Transport error
+            if (!res.IsSuccessStatusCode)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Error = data.Error ?? "Registration failed"
                 };
             }
 

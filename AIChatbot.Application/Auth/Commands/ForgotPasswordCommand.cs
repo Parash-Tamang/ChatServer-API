@@ -2,4 +2,7 @@
 
 namespace AIChatbot.Application.Auth.Commands;
 
-public record ForgotPasswordCommand(string Email) : IRequest<Unit>;
+using AIChatbot.Application.Auth.Results;
+
+public record ForgotPasswordCommand(string Email)
+    : IRequest<ForgotPasswordResult>;

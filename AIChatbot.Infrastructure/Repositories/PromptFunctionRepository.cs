@@ -45,6 +45,13 @@ namespace AIChatbot.Infrastructure.Repositories
             _context.PromptFunctions.Add(entity);
             await _context.SaveChangesAsync();
         }
+        public async Task<PromptFunction?> GetByNameAsync(string functionName)
+        {
+            return await _context.PromptFunctions
+                .FirstOrDefaultAsync(x =>
+                    x.FunctionName == functionName &&
+                    !x.IsDeleted);
+        }
 
         // =============================
         // ✅ UPDATE

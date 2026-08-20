@@ -1,18 +1,12 @@
 ﻿using AIChatbot.Application.Abstractions;
+using AIChatbot.Application.Common;
 using AIChatbot.Application.Supersetup.Commands;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AIChatbot.Application.Common;
-using AIChatbot.Domain.Entities;
 
 namespace AIChatbot.Application.Supersetup.Handlers
 {
     public class UpdateKnowledgebaseHandler
-     : IRequestHandler<UpdateKnowledgebaseCommand, GenericResult>
+        : IRequestHandler<UpdateKnowledgebaseCommand, GenericResult>
     {
         private readonly IConnectionRepository _repo;
         private readonly IAiProviderService _ai;
@@ -32,14 +26,15 @@ namespace AIChatbot.Application.Supersetup.Handlers
             var conn = await _repo.GetByIdAsync(request.ConnectionId)
                 ?? throw new KeyNotFoundException("Connection not found.");
 
-            var result = await _ai.PrepareDatabaseAsync(conn);
+            var result = await _ai.UpdateDatabaseAsync(conn); // ✅ FIXED
+
+            if (!result.DbStatus)
+                throw new ApplicationException("Knowledgebase update failed.");
 
             return new GenericResult
             {
-                Success = result.DbStatus,
-                Message = result.DbStatus
-                    ? "Knowledgebase updated successfully."
-                    : "Knowledgebase update failed."
+                Success = true,
+                Message = "Knowledgebase updated successfully."
             };
         }
     }

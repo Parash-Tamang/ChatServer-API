@@ -10,5 +10,6 @@ namespace AIChatbot.Application.Abstractions
 
         Task<List<PromptFunction>> GetByConnectionIdAsync(Guid connectionId);
         Task<List<PromptFunction>> GetGlobalFunctionsAsync();
+        Task<PromptFunction?> GetByNameAsync(string functionName);
     }
 }

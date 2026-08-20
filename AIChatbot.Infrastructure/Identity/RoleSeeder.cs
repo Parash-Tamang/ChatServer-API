@@ -6,7 +6,7 @@ public static class RoleSeeder
 {
     public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
     {
-        string[] roles = { "SuperAdmin", "Admin", "User" };
+        string[] roles = { "SuperAdmin" };
 
         foreach (var role in roles)
         {
