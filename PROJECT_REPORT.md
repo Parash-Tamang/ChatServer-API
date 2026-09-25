@@ -2,9 +2,6 @@
 
 ## 1. Cover Page
 - **Project Name:** AIChatbot
-- **Version:** Not identified from the available source code.
-- **Date:** 2026-06-29
-- **Prepared By:** BLACKBOXAI
 
 ## 2. Executive Summary
 The repository implements an enterprise AI-assisted chat and data-access platform that combines:
